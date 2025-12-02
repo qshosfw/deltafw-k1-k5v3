@@ -185,6 +185,7 @@ enable_feature(ENABLE_EXTRA_UART_CMD)
 enable_feature(ENABLE_FEAT_F4HWN)
 enable_feature(ENABLE_FEAT_F4HWN_GAME 
     app/breakout.c
+    app/motorcycle.c
 )
 enable_feature(ENABLE_FEAT_F4HWN_SCREENSHOT 
     screenshot.c
