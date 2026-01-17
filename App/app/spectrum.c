@@ -105,6 +105,8 @@ RegisterSpec registerSpecs[] = {
     {"LNA", BK4819_REG_13, 5, 0b111, 1},
     {"VGA", BK4819_REG_13, 0, 0b111, 1},
     {"BPF", BK4819_REG_3D, 0, 0xFFFF, 0x2aaa},
+    {"AF0", 0x54, 0, 0xFFFF, 1},
+    {"AF1", 0x55, 0, 0xFFFF, 1},
     // {"MIX", 0x13, 3, 0b11, 1}, // TODO: hidden
 };
 
@@ -196,18 +198,37 @@ static void SetRegMenuValue(uint8_t st, bool add)
         LockAGC();
 
     uint16_t reg = BK4819_ReadRegister(s.num);
-    if (add && v <= s.mask - s.inc)
+    
+    if (st == 5 || st == 6)  // AF0 and AF1 registers
     {
-        v += s.inc;
+        if (add && v < 0xFFFF)
+        {
+            v += 95;
+            if (v > 0xFFFF) v = 0xFFFF;
+        }
+        else if (!add && v > 0)
+        {
+            v -= 95;
+        }
+        BK4819_WriteRegister(s.num, v);
     }
-    else if (!add && v >= 0 + s.inc)
+    else
     {
-        v -= s.inc;
+        // Original logic for other registers
+        if (add && v <= s.mask - s.inc)
+        {
+            v += s.inc;
+        }
+        else if (!add && v >= 0 + s.inc)
+        {
+            v -= s.inc;
+        }
+        // TODO: use max value for bits count in max value, or reset by additional
+        // mask in spec
+        reg &= ~(s.mask << s.offset);
+        BK4819_WriteRegister(s.num, reg | (v << s.offset));
     }
-    // TODO: use max value for bits count in max value, or reset by additional
-    // mask in spec
-    reg &= ~(s.mask << s.offset);
-    BK4819_WriteRegister(s.num, reg | (v << s.offset));
+    
     redrawScreen = true;
 }
 
@@ -1479,14 +1500,14 @@ static void RenderStill()
         gFrameBuffer[2][METER_PAD_LEFT + x] = 0b11111111;
     }
 
-    const uint8_t PAD_LEFT = 4;
-    const uint8_t CELL_WIDTH = 30;
+    const uint8_t PAD_LEFT = 2;
+    const uint8_t CELL_WIDTH = 41;
     uint8_t offset = PAD_LEFT;
     uint8_t row = 4;
 
-    for (int i = 0, idx = 1; idx <= 4; ++i, ++idx)
+    for (int i = 0, idx = 1; idx <= 6; ++i, ++idx)
     {
-        if (idx == 5)
+        if (idx == 4)
         {
             row += 2;
             i = 0;
@@ -1520,6 +1541,10 @@ static void RenderStill()
         else if(idx == 4)
         {
             sprintf(String, "%skHz", BPFOptions[(GetRegMenuValue(idx) / 0x2aaa)]);
+        }
+        else if(idx == 5 || idx == 6)
+        {
+            sprintf(String, "%04X", GetRegMenuValue(idx));
         }
 #else
         sprintf(String, "%u", GetRegMenuValue(idx));
