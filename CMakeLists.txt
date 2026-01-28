@@ -20,34 +20,17 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 enable_language(C ASM)
 
 if(ENABLE_FEAT_F4HWN)
-    if(NOT AUTHOR_STRING_1)
-        set(AUTHOR_STRING_1 "EGZUMER")
-    endif()
-    if(NOT AUTHOR_STRING_2)
-        set(AUTHOR_STRING_2 "F4HWN")
-    endif()
-    if(NOT VERSION_STRING_1)
-        set(VERSION_STRING_1 "v0.22")
-    endif()
-    if(NOT VERSION_STRING_2)
-        set(VERSION_STRING_2 "v4.2")
-    endif()
-    if(NOT EDITION_STRING)
-        set(EDITION_STRING "Custom")
-    endif()
-    if(NOT AUTHOR_STRING)
-        set(AUTHOR_STRING "${AUTHOR_STRING_1}+${AUTHOR_STRING_2}")
-    endif()
-    if(NOT VERSION_STRING)
-        set(VERSION_STRING ${VERSION_STRING_2})
-    endif()
+    set(AUTHOR_STRING_1 "EGZUMER" CACHE STRING "Author 1")
+    set(AUTHOR_STRING_2 "F4HWN" CACHE STRING "Author 2")
+    set(VERSION_STRING_1 "v0.22" CACHE STRING "Version 1")
+    set(VERSION_STRING_2 "v4.2" CACHE STRING "Version 2")
+    set(EDITION_STRING "Custom" CACHE STRING "Edition")
+    
+    set(AUTHOR_STRING "${AUTHOR_STRING_1}+${AUTHOR_STRING_2}")
+    set(VERSION_STRING ${VERSION_STRING_2})
 else()
-    if(NOT AUTHOR_STRING)
-        set(AUTHOR_STRING "EGZUMER")
-    endif()
-    if(NOT VERSION_STRING)
-        set(VERSION_STRING "NOGIT")
-    endif()
+    set(AUTHOR_STRING "EGZUMER" CACHE STRING "Author")
+    set(VERSION_STRING "NOGIT" CACHE STRING "Version")
 endif()
 
 if(TARGET)
@@ -65,10 +48,10 @@ add_subdirectory(Middlewares)
 add_subdirectory(Core)
 add_subdirectory(App)
 
-target_link_libraries(${EXE_NAME} Core App)
+target_link_libraries(${EXE_NAME} PRIVATE Core App)
 
 target_compile_definitions(${EXE_NAME} PRIVATE $<$<CONFIG:Debug>:DEBUG>)
-target_link_libraries(${EXE_NAME} ${TOOLCHAIN_LINK_LIBRARIES})
+target_link_libraries(${EXE_NAME} PRIVATE ${TOOLCHAIN_LINK_LIBRARIES})
 
 # Generate map file
 target_link_options(${EXE_NAME} PRIVATE "-Wl,-Map=${EXE_NAME}.map")
@@ -99,20 +82,4 @@ add_custom_command(
     COMMENT "Generating .hex file"
 )
 
-# Pack
-# TODO: Incorparate venv?
-# if(ENABLE_FEAT_F4HWN)
-#     add_custom_command(
-#         TARGET ${EXE_NAME}
-#         POST_BUILD
-#         COMMAND python ${CMAKE_SOURCE_DIR}/fw-pack.py ${TARGET_ELF} ${AUTHOR_STRING_2} ${VERSION_STRING_2} ${EXE_NAME}.packed.bin
-#         COMMENT "Generating packed binary"
-#     )
-# else()
-#     add_custom_command(
-#         TARGET ${EXE_NAME}
-#         POST_BUILD
-#         COMMAND python ${CMAKE_SOURCE_DIR}/fw-pack.py ${TARGET_ELF} ${AUTHOR_STRING} ${VERSION_STRING} ${EXE_NAME}.packed.bin
-#         COMMENT "Generating packed binary"
-#     )
-# endif()
+

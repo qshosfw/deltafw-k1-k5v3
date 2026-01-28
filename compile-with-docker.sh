@@ -46,7 +46,7 @@ build_preset() {
   echo ""
   echo "=== 🚀 Building preset: ${preset} ==="
   echo "---------------------------------------------"
-  docker run --rm -it -v "$PWD":/src -w /src "$IMAGE" \
+  docker run --rm $([ -t 0 ] && echo "-it" || echo "-i") -v "$PWD":/src -w /src "$IMAGE" \
     bash -c "which arm-none-eabi-gcc && arm-none-eabi-gcc --version && \
              cmake --preset ${preset} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} && \
              cmake --build --preset ${preset} -j"
