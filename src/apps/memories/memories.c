@@ -5,6 +5,7 @@
 #include "ui/ag_menu.h"
 #include "ui/ag_graphics.h"
 #include "ui/textinput.h"
+#include "ui/freqinput.h"
 #include "ui/helper.h"
 #include "ui/ui.h"
 #include "radio.h"
@@ -12,16 +13,128 @@
 #include "drivers/bsp/st7565.h"
 #include "core/misc.h"
 #include "external/printf/printf.h"
+#include "dcs.h"
 
 #ifndef MR_CHANNEL_LAST
 #define MR_CHANNEL_LAST 199
 #endif
 
-// Forward declarations
+// =============================================================================
+// Mode State Machine
+// =============================================================================
+
+typedef enum {
+    MEM_MODE_LIST,       // Main channel list
+    MEM_MODE_DETAIL,     // Channel detail menu
+    MEM_MODE_RENAME,     // Text input for rename
+    MEM_MODE_RX_FREQ,    // Frequency input for RX
+    MEM_MODE_TX_OFFSET   // Frequency input for TX offset
+} MemMode;
+
+static MemMode currentMode = MEM_MODE_LIST;
+static uint16_t detailChannelIndex = 0;
+static char detailTitle[20];
+static char editBuffer[17];
+
+// Working copy of channel data
+static VFO_Info_t editChannel;
+
+// =============================================================================
+// Forward Declarations
+// =============================================================================
+
 static void Memories_RenderItem(uint16_t index, uint8_t visIndex);
 static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bool key_held);
+static void LoadChannelData(uint16_t index);
+static void SaveChannelData(void);
+static void EnterDetailMenu(uint16_t index);
 
+// =============================================================================
+// String Arrays for Settings
+// =============================================================================
+
+static const char *powerNames[] = {"Low", "Mid", "High"};
+static const char *bwNames[] = {"Wide", "Narrow"};
+static const char *modNames[] = {"FM", "AM", "USB"};
+static const char *offsetDirNames[] = {"None", "+", "-"};
+static const char *compNames[] = {"Off", "TX", "RX", "TX+RX"};
+static const char *yesNoNames[] = {"No", "Yes"};
+static const char *stepNames[] = {"2.50", "5.00", "6.25", "10.00", "12.50", "25.00", "8.33"};
+static const char *scrambleNames[] = {"Off", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
+
+// =============================================================================
+// Helper Functions for CTCSS/DCS
+// =============================================================================
+
+static void GetToneText(DCS_CodeType_t type, uint8_t code, char *buf, uint8_t sz) {
+    if (type == CODE_TYPE_OFF) {
+        snprintf(buf, sz, "Off");
+    } else if (type == CODE_TYPE_CONTINUOUS_TONE) {
+        snprintf(buf, sz, "%u.%uHz", CTCSS_Options[code] / 10, CTCSS_Options[code] % 10);
+    } else {
+        snprintf(buf, sz, "D%03o%c", DCS_Options[code], (type == CODE_TYPE_REVERSE_DIGITAL) ? 'I' : 'N');
+    }
+}
+
+static void NextTone(DCS_CodeType_t *type, uint8_t *code, bool up) {
+    if (up) {
+        // Increment
+        if (*type == CODE_TYPE_OFF) {
+            *type = CODE_TYPE_CONTINUOUS_TONE;
+            *code = 0;
+        } else if (*type == CODE_TYPE_CONTINUOUS_TONE) {
+            (*code)++;
+            if (*code >= 50) {
+                *type = CODE_TYPE_DIGITAL;
+                *code = 0;
+            }
+        } else if (*type == CODE_TYPE_DIGITAL) {
+            (*code)++;
+            if (*code >= 104) {
+                *type = CODE_TYPE_REVERSE_DIGITAL;
+                *code = 0;
+            }
+        } else {
+            (*code)++;
+            if (*code >= 104) {
+                *type = CODE_TYPE_OFF;
+                *code = 0;
+            }
+        }
+    } else {
+        // Decrement
+        if (*type == CODE_TYPE_OFF) {
+            *type = CODE_TYPE_REVERSE_DIGITAL;
+            *code = 103;
+        } else if (*type == CODE_TYPE_CONTINUOUS_TONE) {
+            if (*code == 0) {
+                *type = CODE_TYPE_OFF;
+                *code = 0;
+            } else {
+                (*code)--;
+            }
+        } else if (*type == CODE_TYPE_DIGITAL) {
+            if (*code == 0) {
+                *type = CODE_TYPE_CONTINUOUS_TONE;
+                *code = 49;
+            } else {
+                (*code)--;
+            }
+        } else {
+            if (*code == 0) {
+                *type = CODE_TYPE_DIGITAL;
+                *code = 103;
+            } else {
+                (*code)--;
+            }
+        }
+    }
+}
+
+// =============================================================================
 // Main Channel List Menu
+// =============================================================================
+
 static Menu memoriesMenu = {
     .title = "Memories",
     .items = NULL,
@@ -32,85 +145,331 @@ static Menu memoriesMenu = {
     .x = 0, .y = MENU_Y, .width = LCD_WIDTH, .height = LCD_HEIGHT - MENU_Y
 };
 
-// Text Input State
-static char editBuffer[17];
-static uint16_t editIndex = 0xFFFF;
+// =============================================================================
+// Detail Menu Actions - Execute Directly
+// =============================================================================
 
-// Channel Details Menu
-static uint16_t detailChannelIndex = 0;
-static char detailTitle[20];
-
-static void RenameCallback(void) {
-    if (editIndex <= MR_CHANNEL_LAST) {
-        SETTINGS_SaveChannelName((uint8_t)editIndex, editBuffer);
-    }
-    editIndex = 0xFFFF;
-}
-
-static void Detail_Select(void) {
+static void DoSelect(void) {
+    // Switch VFO to this channel
     gEeprom.MrChannel[gEeprom.TX_VFO] = detailChannelIndex;
     gEeprom.ScreenChannel[gEeprom.TX_VFO] = detailChannelIndex;
     gEeprom.FreqChannel[gEeprom.TX_VFO] = detailChannelIndex;
+    
+    // Valid channel check logic from original firmware
+    if (!RADIO_CheckValidChannel(detailChannelIndex, false, 0)) {
+        // Don't select invalid channels, though menu shouldn't let you get here
+        return;
+    }
+    
     RADIO_ConfigureChannel(gEeprom.TX_VFO, VFO_CONFIGURE_RELOAD);
+    
+    // Save settings and exit to main
+    SETTINGS_SaveSettings();
     gRequestDisplayScreen = DISPLAY_MAIN;
+    currentMode = MEM_MODE_LIST; // Reset for next time
 }
 
-static void Detail_Rename(void) {
+static void DoRename(void) {
     SETTINGS_FetchChannelName(editBuffer, detailChannelIndex);
-    editIndex = detailChannelIndex;
-    TextInput_Init(editBuffer, 10, RenameCallback);
+    currentMode = MEM_MODE_RENAME;
+    TextInput_Init(editBuffer, 10, NULL);
 }
 
-static void Detail_Delete(void) {
-    // Clear channel by writing invalid data
+static void DoEditFreq(void) {
+    currentMode = MEM_MODE_RX_FREQ;
+    FreqInput_Init(editChannel.freq_config_RX.Frequency, NULL);
+}
+
+static void DoEditOffset(void) {
+    currentMode = MEM_MODE_TX_OFFSET;
+    FreqInput_Init(editChannel.TX_OFFSET_FREQUENCY, NULL);
+}
+
+static void DoDelete(void) {
+    // Clear channel
     VFO_Info_t empty;
     memset(&empty, 0xFF, sizeof(empty));
     SETTINGS_SaveChannel(detailChannelIndex, 0, &empty, 1);
+    
+    // Check if we deleted the current channel
+    if (gEeprom.MrChannel[gEeprom.TX_VFO] == detailChannelIndex) {
+        // Find next valid channel or go to VFO mode?
+        // For now, let radio logic handle it, probably will show empty/freq mode
+    }
+    
+    currentMode = MEM_MODE_LIST;
     AG_MENU_Back();
 }
 
-static bool DA_Select(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
-    if (key_pressed && !key_held) {
-        Detail_Select();
-    }
-    return true; // Consume both press and release
+// =============================================================================
+// Setting Value Handlers - Change and Save
+// =============================================================================
+
+static void GetPower(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    snprintf(buf, sz, "%s", powerNames[editChannel.OUTPUT_POWER % 3]);
 }
 
-static bool DA_Rename(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
-    if (key_pressed && !key_held) {
-        Detail_Rename();
-    }
-    return true; // Consume both press and release
+static void ChangePower(const MenuItem *item, bool up) {
+    (void)item;
+    editChannel.OUTPUT_POWER = (editChannel.OUTPUT_POWER + (up ? 1 : 2)) % 3;
+    SaveChannelData();
 }
 
-static bool DA_Delete(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
-    if (key_pressed && !key_held) {
-        Detail_Delete();
-    }
-    return true; // Consume both press and release
+static void GetBandwidth(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    snprintf(buf, sz, "%s", bwNames[editChannel.CHANNEL_BANDWIDTH % 2]);
 }
+
+static void ChangeBandwidth(const MenuItem *item, bool up) {
+    (void)item; (void)up;
+    editChannel.CHANNEL_BANDWIDTH = !editChannel.CHANNEL_BANDWIDTH;
+    SaveChannelData();
+}
+
+static void GetModulation(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    if (editChannel.Modulation < MODULATION_UKNOWN) {
+        snprintf(buf, sz, "%s", modNames[editChannel.Modulation]);
+    } else {
+        snprintf(buf, sz, "?");
+    }
+}
+
+static void ChangeModulation(const MenuItem *item, bool up) {
+    (void)item;
+    int mod = editChannel.Modulation;
+    mod = (mod + (up ? 1 : 2)) % 3;
+    editChannel.Modulation = (ModulationMode_t)mod;
+    SaveChannelData();
+}
+
+static void GetOffsetDir(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    snprintf(buf, sz, "%s", offsetDirNames[editChannel.TX_OFFSET_FREQUENCY_DIRECTION % 3]);
+}
+
+static void ChangeOffsetDir(const MenuItem *item, bool up) {
+    (void)item;
+    editChannel.TX_OFFSET_FREQUENCY_DIRECTION = (editChannel.TX_OFFSET_FREQUENCY_DIRECTION + (up ? 1 : 2)) % 3;
+    SaveChannelData();
+}
+
+static void GetOffsetVal(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    uint32_t freq = editChannel.TX_OFFSET_FREQUENCY;
+    snprintf(buf, sz, "%u.%05u", freq/100000, freq%100000);
+}
+
+static void GetRxTone(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    GetToneText(editChannel.freq_config_RX.CodeType, editChannel.freq_config_RX.Code, buf, sz);
+}
+
+static void ChangeRxTone(const MenuItem *item, bool up) {
+    (void)item;
+    NextTone(&editChannel.freq_config_RX.CodeType, &editChannel.freq_config_RX.Code, up);
+    SaveChannelData();
+}
+
+static void GetTxTone(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    GetToneText(editChannel.freq_config_TX.CodeType, editChannel.freq_config_TX.Code, buf, sz);
+}
+
+static void ChangeTxTone(const MenuItem *item, bool up) {
+    (void)item;
+    NextTone(&editChannel.freq_config_TX.CodeType, &editChannel.freq_config_TX.Code, up);
+    SaveChannelData();
+}
+
+static void GetScramble(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    uint8_t sc = editChannel.SCRAMBLING_TYPE;
+    if (sc > 10) sc = 0;
+    snprintf(buf, sz, "%s", scrambleNames[sc]);
+}
+
+static void ChangeScramble(const MenuItem *item, bool up) {
+    (void)item;
+    if (up) {
+        if (editChannel.SCRAMBLING_TYPE < 10) editChannel.SCRAMBLING_TYPE++;
+        else editChannel.SCRAMBLING_TYPE = 0;
+    } else {
+        if (editChannel.SCRAMBLING_TYPE > 0) editChannel.SCRAMBLING_TYPE--;
+        else editChannel.SCRAMBLING_TYPE = 10;
+    }
+    SaveChannelData();
+}
+
+static void GetStep(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    snprintf(buf, sz, "%s", stepNames[editChannel.STEP_SETTING % 7]);
+}
+
+static void ChangeStep(const MenuItem *item, bool up) {
+    (void)item;
+    if (up) editChannel.STEP_SETTING = (editChannel.STEP_SETTING + 1) % 7;
+    else editChannel.STEP_SETTING = (editChannel.STEP_SETTING + 6) % 7;
+    SaveChannelData();
+}
+
+static void GetCompander(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    snprintf(buf, sz, "%s", compNames[editChannel.Compander % 4]);
+}
+
+static void ChangeCompander(const MenuItem *item, bool up) {
+    (void)item;
+    editChannel.Compander = (editChannel.Compander + (up ? 1 : 3)) % 4;
+    SaveChannelData();
+}
+
+static void GetBusyLock(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    snprintf(buf, sz, "%s", yesNoNames[editChannel.BUSY_CHANNEL_LOCK ? 1 : 0]);
+}
+
+static void ChangeBusyLock(const MenuItem *item, bool up) {
+    (void)item; (void)up;
+    editChannel.BUSY_CHANNEL_LOCK = !editChannel.BUSY_CHANNEL_LOCK;
+    SaveChannelData();
+}
+
+static void GetScanlist1(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    snprintf(buf, sz, "%s", yesNoNames[editChannel.SCANLIST1_PARTICIPATION ? 1 : 0]);
+}
+
+static void ChangeScanlist1(const MenuItem *item, bool up) {
+    (void)item; (void)up;
+    editChannel.SCANLIST1_PARTICIPATION = !editChannel.SCANLIST1_PARTICIPATION;
+    SaveChannelData();
+}
+
+static void GetScanlist2(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    snprintf(buf, sz, "%s", yesNoNames[editChannel.SCANLIST2_PARTICIPATION ? 1 : 0]);
+}
+
+static void ChangeScanlist2(const MenuItem *item, bool up) {
+    (void)item; (void)up;
+    editChannel.SCANLIST2_PARTICIPATION = !editChannel.SCANLIST2_PARTICIPATION;
+    SaveChannelData();
+}
+
+// =============================================================================
+// Detail Menu Actions - Listen to KEY_MENU on press
+// =============================================================================
+
+static bool ActionSelect(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    (void)item; (void)key_held;
+    if (key == KEY_MENU && key_pressed) {
+        DoSelect();
+        return true;
+    }
+    return false;
+}
+
+static bool ActionRename(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    (void)item; (void)key_held;
+    if (key == KEY_MENU && key_pressed) {
+        DoRename();
+        return true;
+    }
+    return false;
+}
+
+static bool ActionFreq(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    (void)item; (void)key_held;
+    if (key == KEY_MENU && key_pressed) {
+        DoEditFreq();
+        return true;
+    }
+    return false;
+}
+
+static bool ActionOffsetVal(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    (void)item; (void)key_held;
+    if (key == KEY_MENU && key_pressed) {
+        DoEditOffset();
+        return true;
+    }
+    return false;
+}
+
+static bool ActionDelete(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    (void)item; (void)key_held;
+    if (key == KEY_MENU && key_pressed) {
+        DoDelete();
+        return true;
+    }
+    return false;
+}
+
+// =============================================================================
+// Settings List
+// =============================================================================
 
 static const MenuItem channelDetailItems[] = {
-    {"Select", 0, NULL, NULL, NULL, DA_Select},
-    {"Rename", 0, NULL, NULL, NULL, DA_Rename},
-    {"Delete", 0, NULL, NULL, NULL, DA_Delete},
+    {"Select",       0, NULL,          NULL,            NULL, ActionSelect},
+    {"Rename",       0, NULL,          NULL,            NULL, ActionRename},
+    {"Frequency",    0, NULL,          NULL,            NULL, ActionFreq},
+    {"RX Tone",      0, GetRxTone,     ChangeRxTone,    NULL, NULL},
+    {"TX Tone",      0, GetTxTone,     ChangeTxTone,    NULL, NULL},
+    {"Power",        0, GetPower,      ChangePower,     NULL, NULL},
+    {"Bandwidth",    0, GetBandwidth,  ChangeBandwidth, NULL, NULL},
+    {"Modulation",   0, GetModulation, ChangeModulation,NULL, NULL},
+    {"Offset Dir",   0, GetOffsetDir,  ChangeOffsetDir, NULL, NULL},
+    {"Offset Freq",  0, GetOffsetVal,  NULL,            NULL, ActionOffsetVal},
+    {"Step",         0, GetStep,       ChangeStep,      NULL, NULL},
+    {"Scrambler",    0, GetScramble,   ChangeScramble,  NULL, NULL},
+    {"Compander",    0, GetCompander,  ChangeCompander, NULL, NULL},
+    {"Busy Lock",    0, GetBusyLock,   ChangeBusyLock,  NULL, NULL},
+    {"Scanlist 1",   0, GetScanlist1,  ChangeScanlist1, NULL, NULL},
+    {"Scanlist 2",   0, GetScanlist2,  ChangeScanlist2, NULL, NULL},
+    {"Delete",       0, NULL,          NULL,            NULL, ActionDelete},
 };
 
 static Menu channelDetailMenu = {
-    .title = NULL, // Set dynamically
+    .title = NULL,
     .items = channelDetailItems,
     .num_items = sizeof(channelDetailItems) / sizeof(channelDetailItems[0]),
     .itemHeight = MENU_ITEM_H,
     .x = 0, .y = MENU_Y, .width = LCD_WIDTH, .height = LCD_HEIGHT - MENU_Y
 };
 
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+static void LoadChannelData(uint16_t index) {
+    // Save current RX VFO config to restore later
+    uint8_t saveScan = gRxVfo->SCANLIST1_PARTICIPATION;
+    uint32_t saveFreq = gRxVfo->freq_config_RX.Frequency;
+    
+    // Load target channel into global RX VFO temporarily to parse settings
+    uint8_t savedChannel = gRxVfo->CHANNEL_SAVE;
+    gRxVfo->CHANNEL_SAVE = index;
+    RADIO_ConfigureChannel(gEeprom.RX_VFO, VFO_CONFIGURE_RELOAD);
+    
+    // Copy to our edit buffer
+    memcpy(&editChannel, gRxVfo, sizeof(VFO_Info_t));
+    
+    // Restore original VFO
+    gRxVfo->CHANNEL_SAVE = savedChannel;
+    RADIO_ConfigureChannel(gEeprom.RX_VFO, VFO_CONFIGURE_RELOAD);
+}
+
+static void SaveChannelData(void) {
+    SETTINGS_SaveChannel(detailChannelIndex, 0, &editChannel, 1);
+}
+
 static void EnterDetailMenu(uint16_t index) {
     detailChannelIndex = index;
+    LoadChannelData(index);
     
-    // Build dynamic title with channel name or number
+    // Set title
     char name[17];
     SETTINGS_FetchChannelName(name, index);
     if (strlen(name) > 0) {
@@ -119,19 +478,15 @@ static void EnterDetailMenu(uint16_t index) {
         snprintf(detailTitle, sizeof(detailTitle), "CH-%03u", index + 1);
     }
     channelDetailMenu.title = detailTitle;
-    
     channelDetailMenu.i = 0;
+    
+    currentMode = MEM_MODE_DETAIL;
     AG_MENU_EnterMenu(&channelDetailMenu);
 }
 
-void MEMORIES_Init(void) {
-    memoriesMenu.i = 0;
-    AG_MENU_Init(&memoriesMenu);
-}
-
-void MEMORIES_Deinit(void) {
-    AG_MENU_Deinit();
-}
+// =============================================================================
+// Main Render Item
+// =============================================================================
 
 static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
     const uint8_t y = MENU_Y + visIndex * MENU_ITEM_H;
@@ -181,56 +536,145 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
             break;
     }
 
-    // Main label: Medium font (like Launcher/Settings)
     AG_PrintMedium(3, baseline_y, "%s", mainLabel);
     
-    // Right label: Small font
     if (strlen(rightLabel) > 0) {
         AG_PrintSmallEx(LCD_WIDTH - 5, baseline_y, POS_R, C_FILL, "%s", rightLabel);
     }
 }
 
+// =============================================================================
+// Main List Action Handler
+// =============================================================================
 
 static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bool key_held) {
+    (void)key_held;
+    
+    if (!key_pressed) return false;
+    
     if (key == KEY_EXIT) {
-        if (key_pressed && !key_held) {
-            AG_MENU_Back();
-        }
-        return true; // Consume both press and release
+        AG_MENU_Back();
+        return true;
     }
 
     if (key == KEY_MENU) {
-        if (key_pressed && !key_held) {
-            if (RADIO_CheckValidChannel(index, false, 0)) {
-                EnterDetailMenu(index);
-            }
+        if (RADIO_CheckValidChannel(index, false, 0)) {
+            EnterDetailMenu(index);
         }
-        return true; // Consume both press and release
+        return true;
     }
 
     return false;
 }
 
-void MEMORIES_Render(void) {
-    if (TextInput_IsActive()) {
-        TextInput_Render();
+// =============================================================================
+// Public Functions
+// =============================================================================
+
+void MEMORIES_Init(void) {
+    currentMode = MEM_MODE_LIST;
+    
+    // Set cursor to current VFO channel if valid
+    uint16_t currentChan = gEeprom.MrChannel[gEeprom.TX_VFO];
+    if (currentChan <= MR_CHANNEL_LAST) {
+        memoriesMenu.i = currentChan;
     } else {
-        AG_MENU_Render();
+        memoriesMenu.i = 0;
+    }
+    
+    AG_MENU_Init(&memoriesMenu);
+}
+
+void MEMORIES_Deinit(void) {
+    AG_MENU_Deinit();
+}
+
+void MEMORIES_Render(void) {
+    switch (currentMode) {
+        case MEM_MODE_RENAME:
+            TextInput_Render();
+            break;
+        case MEM_MODE_RX_FREQ:
+        case MEM_MODE_TX_OFFSET:
+            FreqInput_Render();
+            break;
+        default:
+            AG_MENU_Render();
+            break;
     }
     ST7565_BlitFullScreen();
 }
 
 void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
-    if (TextInput_IsActive()) {
-        TextInput_HandleInput(Key, bKeyPressed, bKeyHeld);
-        gUpdateDisplay = true;
-        return;
+    gUpdateDisplay = true;
+    
+    switch (currentMode) {
+        case MEM_MODE_RENAME:
+            if (Key == KEY_MENU && bKeyPressed && !bKeyHeld) {
+                // Save rename
+                SETTINGS_SaveChannelName((uint8_t)detailChannelIndex, editBuffer);
+                currentMode = MEM_MODE_DETAIL;
+            } else if (Key == KEY_EXIT && bKeyPressed && !bKeyHeld) {
+                // Cancel rename
+                currentMode = MEM_MODE_DETAIL;
+            } else {
+                TextInput_HandleInput(Key, bKeyPressed, bKeyHeld);
+            }
+            return;
+            
+        case MEM_MODE_RX_FREQ:
+            if (Key == KEY_MENU && bKeyPressed && !bKeyHeld) {
+                // Save RX frequency
+                uint32_t f = FreqInput_GetFrequency();
+                editChannel.freq_config_RX.Frequency = f;
+                // If simple config, set TX too
+                if (editChannel.TX_OFFSET_FREQUENCY_DIRECTION == 0) {
+                    editChannel.freq_config_TX.Frequency = f;
+                }
+                SaveChannelData();
+                FreqInput_Cancel();
+                currentMode = MEM_MODE_DETAIL;
+            } else if (Key == KEY_EXIT && bKeyPressed && !bKeyHeld) {
+                FreqInput_Cancel();
+                currentMode = MEM_MODE_DETAIL;
+            } else {
+                FreqInput_HandleInput(Key, bKeyPressed, bKeyHeld);
+            }
+            return;
+            
+        case MEM_MODE_TX_OFFSET:
+            if (Key == KEY_MENU && bKeyPressed && !bKeyHeld) {
+                // Save TX Offset
+                editChannel.TX_OFFSET_FREQUENCY = FreqInput_GetFrequency();
+                SaveChannelData();
+                FreqInput_Cancel();
+                currentMode = MEM_MODE_DETAIL;
+            } else if (Key == KEY_EXIT && bKeyPressed && !bKeyHeld) {
+                FreqInput_Cancel();
+                currentMode = MEM_MODE_DETAIL;
+            } else {
+                FreqInput_HandleInput(Key, bKeyPressed, bKeyHeld);
+            }
+            return;
+            
+        case MEM_MODE_DETAIL:
+            if (Key == KEY_EXIT && bKeyPressed && !bKeyHeld) {
+                currentMode = MEM_MODE_LIST;
+                AG_MENU_Back();
+                return;
+            }
+            // Fall through to menu handler
+            break;
+            
+        case MEM_MODE_LIST:
+        default:
+            break;
     }
-
-    if (AG_MENU_HandleInput(Key, bKeyPressed, bKeyHeld)) {
-        gUpdateDisplay = true;
-    }
-
+    
+    // Handle menu navigation
+    AG_MENU_HandleInput(Key, bKeyPressed, bKeyHeld);
+    
+    // Check if we exited the menu system
     if (!AG_MENU_IsActive()) {
         gRequestDisplayScreen = DISPLAY_MAIN;
     }

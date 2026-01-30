@@ -82,6 +82,7 @@ target_sources(App INTERFACE
     ui/ag_graphics.c
     ui/ag_menu.c
     ui/textinput.c
+    ui/freqinput.c
     apps/boot/welcome.c
 
     # Third Party
