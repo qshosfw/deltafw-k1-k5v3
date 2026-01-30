@@ -79,7 +79,7 @@
 #include "ui/ui.h"
 
 #ifdef ENABLE_SERIAL_SCREENCAST
-    #include "screenshot.h"
+    #include "screencast.h"
 #endif
 
 static bool flagSaveVfo;

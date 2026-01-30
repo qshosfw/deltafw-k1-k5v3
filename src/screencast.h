@@ -14,8 +14,8 @@
  *     limitations under the License.
  */
 
-#ifndef SCREENSHOT_H
-#define SCREENSHOT_H
+#ifndef SCREENCAST_H
+#define SCREENCAST_H
 
 void getScreenShot(bool force);
 

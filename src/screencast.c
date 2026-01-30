@@ -16,7 +16,7 @@
 
 #include "debugging.h"
 #include "drivers/bsp/st7565.h"
-#include "screenshot.h"
+#include "screencast.h"
 #include "core/misc.h"
 
 #if defined(ENABLE_USB)
@@ -43,11 +43,18 @@ void getScreenShot(bool force)
 
     bool isConnected = false;
 
+#if defined(ENABLE_USB)
+    if (VCP_ScreenshotPing())
+        gUSB_ScreenshotEnabled = !gUSB_ScreenshotEnabled;
+
     if (UART_IsCableConnected()) {
         isConnected = true;
     }
-#if defined(ENABLE_USB)
-    else if (VCP_IsConnected()) {
+    else if (VCP_IsConnected() && gUSB_ScreenshotEnabled) {
+        isConnected = true;
+    }
+#else
+    if (UART_IsCableConnected()) {
         isConnected = true;
     }
 #endif
@@ -131,17 +138,17 @@ void getScreenShot(bool force)
 
     UART_Send(header, 5);
 #if defined(ENABLE_USB)
-    if (VCP_IsConnected()) VCP_Send(header, 5);
+    if (VCP_IsConnected() && gUSB_ScreenshotEnabled) VCP_SendAsync(header, 5);
 #endif
 
     UART_Send(deltaFrame, deltaLen);
 #if defined(ENABLE_USB)
-    if (VCP_IsConnected()) VCP_Send(deltaFrame, deltaLen);
+    if (VCP_IsConnected() && gUSB_ScreenshotEnabled) VCP_SendAsync(deltaFrame, deltaLen);
 #endif
 
     uint8_t end = 0x0A;
     UART_Send(&end, 1);
 #if defined(ENABLE_USB)
-    if (VCP_IsConnected()) VCP_Send(&end, 1);
+    if (VCP_IsConnected() && gUSB_ScreenshotEnabled) VCP_SendAsync(&end, 1);
 #endif
 }

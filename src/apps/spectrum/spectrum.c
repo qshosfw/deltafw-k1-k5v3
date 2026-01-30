@@ -28,7 +28,7 @@
 #include "ui/main.h"
 
 #ifdef ENABLE_SERIAL_SCREENCAST
-#include "screenshot.h"
+#include "screencast.h"
 #endif
 
 #ifdef ENABLE_SPECTRUM_EXTENSIONS

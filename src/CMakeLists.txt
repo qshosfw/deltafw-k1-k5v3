@@ -219,7 +219,7 @@ enable_feature(ENABLE_EXTRA_UART_CMD)               # @reppad
 # ----------------------------------------------------------------------------
 enable_feature(ENABLE_CUSTOM_FIRMWARE_MODS)
 enable_feature(ENABLE_APP_BREAKOUT_GAME           features/breakout.c)
-enable_feature(ENABLE_SERIAL_SCREENCAST     screenshot.c)
+enable_feature(ENABLE_SERIAL_SCREENCAST     screencast.c)
 
 enable_feature(ENABLE_SPECTRUM_EXTENSIONS)
 enable_feature(ENABLE_RX_TX_TIMER_DISPLAY)

@@ -192,6 +192,7 @@ volatile bool     gTxTimeoutReached;
     #endif
     #ifdef ENABLE_SERIAL_SCREENCAST
          volatile uint8_t  gUART_LockScreenshot = 0; // lock screenshot if Chirp is used
+         bool gUSB_ScreenshotEnabled = false;
     #endif
 #endif
 
@@ -234,7 +235,8 @@ bool              gFlagReconfigureVfos;
 uint8_t           gVfoConfigureMode;
 bool              gFlagResetVfos;
 bool              gRequestSaveVFO;
-uint8_t           gRequestSaveChannel;
+
+uint16_t          gRequestSaveChannel;
 bool              gRequestSaveSettings;
 #ifdef ENABLE_FMRADIO
     bool          gRequestSaveFM;
@@ -262,7 +264,7 @@ bool              g_SquelchLost;
 volatile uint16_t gFlashLightBlinkCounter;
 
 bool              gFlagEndTransmission;
-uint8_t           gNextMrChannel;
+uint16_t          gNextMrChannel;
 ReceptionMode_t   gRxReceptionMode;
 
 bool              gRxVfoIsActive;
@@ -280,7 +282,7 @@ uint8_t           gFSKWriteIndex;
 
 #ifdef ENABLE_NOAA
     bool          gIsNoaaMode;
-    uint8_t       gNoaaChannel;
+    uint16_t      gNoaaChannel;
 #endif
 
 bool              gUpdateDisplay;

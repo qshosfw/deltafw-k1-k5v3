@@ -74,7 +74,7 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
             break;
         }
         case INFO_LICENSE:
-            snprintf(buf, buflen, "GPL v3");
+            snprintf(buf, buflen, "GNU GPL v3");
             break;
         default:
             buf[0] = '\0';

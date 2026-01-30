@@ -188,6 +188,8 @@ void cdc_acm_data_send_with_dtr(const uint8_t *buf, uint32_t size)
 {
     if (dtr_enable && 0 != size)
     {
+        while (ep_tx_busy_flag)
+            ;
         ep_tx_busy_flag = true;
         usbd_ep_start_write(CDC_IN_EP, buf, size);
         while (ep_tx_busy_flag)
@@ -197,8 +199,11 @@ void cdc_acm_data_send_with_dtr(const uint8_t *buf, uint32_t size)
 
 void cdc_acm_data_send_with_dtr_async(const uint8_t *buf, uint32_t size)
 {
-    if (0 != size)
+    if (dtr_enable && 0 != size)
     {
+        while (ep_tx_busy_flag)
+            ;
+        ep_tx_busy_flag = true;
         usbd_ep_start_write(CDC_IN_EP, buf, size);
     }
 }

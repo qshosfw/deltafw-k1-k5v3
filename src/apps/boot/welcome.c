@@ -29,7 +29,7 @@
 #include "ui/bitmaps.h"
 
 #ifdef ENABLE_SERIAL_SCREENCAST
-    #include "screenshot.h"
+    #include "screencast.h"
 #endif
 
 void UI_DisplayReleaseKeys(void)

@@ -17,7 +17,7 @@
 #include "features/breakout.h"
 
 #ifdef ENABLE_SERIAL_SCREENCAST
-#include "screenshot.h"
+#include "screencast.h"
 #endif
 
 static uint32_t randSeed = 1;

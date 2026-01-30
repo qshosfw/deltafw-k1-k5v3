@@ -16,9 +16,7 @@
 #include "dcs.h"
 #include "audio.h"
 
-#ifndef MR_CHANNEL_LAST
-#define MR_CHANNEL_LAST 199
-#endif
+
 
 // =============================================================================
 // Mode State Machine
@@ -37,6 +35,16 @@ static uint16_t detailChannelIndex = 0;
 static char detailTitle[20];
 static char editBuffer[17];
 static bool ignoreNextMenuRelease = true;
+
+// Numeric quick-jump state
+static char searchDigits[4] = {0};  // Up to 3 digits + null
+static uint8_t searchDigitCount = 0;
+static char listTitle[20] = "Memories";
+
+// Filtered channel list for search mode
+static uint16_t filteredChannels[MR_CHANNEL_LAST + 1];
+static uint16_t filteredCount = 0;
+static bool searchActive = false;
 
 // Working copy of channel data
 static VFO_Info_t editChannel;
@@ -138,7 +146,7 @@ static void NextTone(DCS_CodeType_t *type, uint8_t *code, bool up) {
 // =============================================================================
 
 static Menu memoriesMenu = {
-    .title = "Memories",
+    .title = NULL,  // Set dynamically in MEMORIES_Init
     .items = NULL,
     .num_items = MR_CHANNEL_LAST + 1,
     .render_item = Memories_RenderItem,
@@ -355,23 +363,23 @@ static void ChangeBusyLock(const MenuItem *item, bool up) {
 
 static void GetScanlist1(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", yesNoNames[editChannel.SCANLIST1_PARTICIPATION ? 1 : 0]);
+    snprintf(buf, sz, "%s", yesNoNames[(editChannel.SCANLIST_PARTICIPATION >> 0) & 1]);
 }
 
 static void ChangeScanlist1(const MenuItem *item, bool up) {
     (void)item; (void)up;
-    editChannel.SCANLIST1_PARTICIPATION = !editChannel.SCANLIST1_PARTICIPATION;
+    editChannel.SCANLIST_PARTICIPATION ^= (1 << 0);
     SaveChannelData();
 }
 
 static void GetScanlist2(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", yesNoNames[editChannel.SCANLIST2_PARTICIPATION ? 1 : 0]);
+    snprintf(buf, sz, "%s", yesNoNames[(editChannel.SCANLIST_PARTICIPATION >> 1) & 1]);
 }
 
 static void ChangeScanlist2(const MenuItem *item, bool up) {
     (void)item; (void)up;
-    editChannel.SCANLIST2_PARTICIPATION = !editChannel.SCANLIST2_PARTICIPATION;
+    editChannel.SCANLIST_PARTICIPATION ^= (1 << 1);
     SaveChannelData();
 }
 
@@ -462,7 +470,7 @@ static Menu channelDetailMenu = {
 
 static void LoadChannelData(uint16_t index) {
     // Load target channel into global RX VFO temporarily to parse settings
-    uint8_t savedChannel = gRxVfo->CHANNEL_SAVE;
+    uint16_t savedChannel = gRxVfo->CHANNEL_SAVE;
     gRxVfo->CHANNEL_SAVE = index;
     RADIO_ConfigureChannel(gEeprom.RX_VFO, VFO_CONFIGURE_RELOAD);
     
@@ -506,19 +514,22 @@ static void EnterDetailMenu(uint16_t index) {
 // =============================================================================
 
 static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
+    // Translate filtered index to real channel index
+    uint16_t realIndex = searchActive ? filteredChannels[index] : index;
+    
     const uint8_t y = MENU_Y + visIndex * MENU_ITEM_H;
     const uint8_t baseline_y = y + MENU_ITEM_H - 2;
 
-    bool valid = RADIO_CheckValidChannel(index, false, 0);
+    bool valid = RADIO_CheckValidChannel(realIndex, false, 0);
 
     if (!valid) {
-        AG_PrintSmall(3, baseline_y, "%03u -", index + 1);
+        AG_PrintSmall(3, baseline_y, "%03u -", realIndex + 1);
         return;
     }
 
     char name[17];
-    SETTINGS_FetchChannelName(name, index);
-    uint32_t freq = SETTINGS_FetchChannelFrequency(index);
+    SETTINGS_FetchChannelName(name, realIndex);
+    uint32_t freq = SETTINGS_FetchChannelFrequency(realIndex);
 
     char mainLabel[24];
     char rightLabel[16];
@@ -527,15 +538,15 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
         case MDF_NAME:
         case MDF_NAME_FREQ:
             if (strlen(name) > 0) {
-                snprintf(mainLabel, sizeof(mainLabel), "%03u %s", index + 1, name);
+                snprintf(mainLabel, sizeof(mainLabel), "%03u %s", realIndex + 1, name);
                 snprintf(rightLabel, sizeof(rightLabel), "%u.%05u", freq/100000, freq%100000);
             } else {
-                snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", index + 1, freq/100000, freq%100000);
+                snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", realIndex + 1, freq/100000, freq%100000);
                 rightLabel[0] = '\0';
             }
             break;
         case MDF_FREQUENCY:
-            snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", index + 1, freq/100000, freq%100000);
+            snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", realIndex + 1, freq/100000, freq%100000);
             if (strlen(name) > 0) {
                 snprintf(rightLabel, sizeof(rightLabel), "%s", name);
             } else {
@@ -545,9 +556,9 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
         case MDF_CHANNEL:
         default:
             if (strlen(name) > 0) {
-                snprintf(mainLabel, sizeof(mainLabel), "%03u %s", index + 1, name);
+                snprintf(mainLabel, sizeof(mainLabel), "%03u %s", realIndex + 1, name);
             } else {
-                snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", index + 1, freq/100000, freq%100000);
+                snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", realIndex + 1, freq/100000, freq%100000);
             }
             rightLabel[0] = '\0';
             break;
@@ -565,6 +576,8 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
 // =============================================================================
 
 static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bool key_held) {
+    // Translate filtered index to real channel index
+    uint16_t realIndex = searchActive ? filteredChannels[index] : index;
     (void)key_held;
     
     // Handle EXIT on press only
@@ -575,8 +588,8 @@ static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bo
 
     if (key == KEY_MENU) {
         if (key_held) {
-            if (RADIO_CheckValidChannel(index, false, 0)) {
-                EnterDetailMenu(index);
+            if (RADIO_CheckValidChannel(realIndex, false, 0)) {
+                EnterDetailMenu(realIndex);
                 AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
             }
             return true;
@@ -594,8 +607,8 @@ static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bo
             // The subsequent Release event would undergo ProcessKeys -> switch(currentMode) -> MEM_MODE_DETAIL case.
             // It would NOT reach here.
             
-            if (RADIO_CheckValidChannel(index, false, 0)) {
-                detailChannelIndex = index;
+            if (RADIO_CheckValidChannel(realIndex, false, 0)) {
+                detailChannelIndex = realIndex;
                 DoSelect();
                 AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
             }
@@ -608,11 +621,105 @@ static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bo
 }
 
 // =============================================================================
+// Search Title Helper
+// =============================================================================
+
+// Check if channel number (1-indexed) matches search pattern
+// Leading zeros act as wildcards (e.g., "05" matches 005, 015, 025, 105, 205, etc.)
+static bool ChannelMatchesSearch(uint16_t channelNum1Indexed) {
+    if (searchDigitCount == 0) return true;
+    
+    // Convert channel to string (1-indexed, 3 digits)
+    char chanStr[4];
+    snprintf(chanStr, sizeof(chanStr), "%03u", channelNum1Indexed);
+    
+    // Count leading zeros in search pattern
+    uint8_t leadingZeros = 0;
+    for (uint8_t i = 0; i < searchDigitCount; i++) {
+        if (searchDigits[i] == '0') leadingZeros++;
+        else break;
+    }
+    
+    // Match from the end (rightmost digits must match)
+    // With leading zeros as wildcards, we match the non-zero suffix
+    uint8_t significantDigits = searchDigitCount - leadingZeros;
+    if (significantDigits == 0) {
+        // All zeros - match channels ending in zeros
+        // "0" matches X0, "00" matches X00
+        uint8_t chanLen = 3;
+        for (uint8_t i = 0; i < searchDigitCount; i++) {
+            if (chanStr[chanLen - 1 - i] != '0') return false;
+        }
+        return true;
+    }
+    
+    // Match the rightmost 'searchDigitCount' digits
+    uint8_t chanLen = 3;
+    for (int8_t i = searchDigitCount - 1; i >= 0; i--) {
+        int8_t chanIdx = chanLen - (searchDigitCount - i);
+        if (chanIdx < 0) return false;
+        // Skip leading zero positions
+        if (i < leadingZeros) continue;
+        if (chanStr[chanIdx] != searchDigits[i]) return false;
+    }
+    return true;
+}
+
+static void RebuildFilteredList(void) {
+    filteredCount = 0;
+    for (uint16_t ch = 0; ch <= MR_CHANNEL_LAST; ch++) {
+        if (ChannelMatchesSearch(ch + 1)) {  // 1-indexed for display
+            filteredChannels[filteredCount++] = ch;
+        }
+    }
+    searchActive = (searchDigitCount > 0);
+    memoriesMenu.num_items = searchActive ? filteredCount : (MR_CHANNEL_LAST + 1);
+}
+
+static void UpdateSearchTitle(void) {
+    if (searchDigitCount == 0) {
+        snprintf(listTitle, sizeof(listTitle), "Memories");
+    } else {
+        snprintf(listTitle, sizeof(listTitle), "Memories %s?", searchDigits);
+    }
+    memoriesMenu.title = listTitle;
+}
+
+static void ClearSearch(void) {
+    searchDigits[0] = '\0';
+    searchDigitCount = 0;
+    searchActive = false;
+    memoriesMenu.num_items = MR_CHANNEL_LAST + 1;
+    UpdateSearchTitle();
+}
+
+static void AddSearchDigit(uint8_t digit) {
+    if (searchDigitCount >= 3) {
+        // Shift left and add new digit
+        searchDigits[0] = searchDigits[1];
+        searchDigits[1] = searchDigits[2];
+        searchDigits[2] = '0' + digit;
+        searchDigits[3] = '\0';
+    } else {
+        searchDigits[searchDigitCount++] = '0' + digit;
+        searchDigits[searchDigitCount] = '\0';
+    }
+    UpdateSearchTitle();
+    RebuildFilteredList();
+    
+    // Reset cursor to first matching channel
+    memoriesMenu.i = 0;
+}
+
+// =============================================================================
 // Public Functions
 // =============================================================================
 
 void MEMORIES_Init(void) {
     currentMode = MEM_MODE_LIST;
+    
+    // Clear search state
+    ClearSearch();
     
     // Set cursor to current VFO channel if valid
     uint16_t currentChan = gEeprom.MrChannel[gEeprom.TX_VFO];
@@ -654,7 +761,7 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
         case MEM_MODE_RENAME:
             if (Key == KEY_MENU && bKeyPressed && !bKeyHeld) {
                 // Save rename
-                SETTINGS_SaveChannelName((uint8_t)detailChannelIndex, editBuffer);
+                SETTINGS_SaveChannelName(detailChannelIndex, editBuffer);
                 currentMode = MEM_MODE_DETAIL;
             } else if (Key == KEY_EXIT && bKeyPressed && !bKeyHeld) {
                 // Cancel rename
@@ -709,12 +816,32 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
             break;
             
         case MEM_MODE_LIST:
+            // Handle digit keys for quick jump (0-9)
+            if (Key >= KEY_0 && Key <= KEY_9 && bKeyPressed && !bKeyHeld) {
+                uint8_t digit = (Key == KEY_0) ? 0 : (Key - KEY_1 + 1);
+                AddSearchDigit(digit);
+                AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+                return;
+            }
+            
+            // EXIT: clear search first, then exit
+            if (Key == KEY_EXIT && bKeyPressed && !bKeyHeld) {
+                if (searchDigitCount > 0) {
+                    ClearSearch();
+                    AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL);
+                    return;
+                }
+                // Otherwise, normal exit handled by AG_MENU
+            }
+            
             // Standard Navigation
             if (Key == KEY_UP || Key == KEY_DOWN) {
+                // Clear search when navigating
+                if (searchDigitCount > 0) {
+                    ClearSearch();
+                }
                 // Key repeat handling provided by APP infrastructure
                 AG_MENU_HandleInput(Key, bKeyPressed, bKeyHeld);
-                // Beep on hold?
-                // if (bKeyHeld) AUDIO_PlayBeep(BEEP_400HZ_30MS);
                 return;
             }
             break;

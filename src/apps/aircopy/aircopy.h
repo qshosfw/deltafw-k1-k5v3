@@ -1,46 +1,54 @@
-/* Copyright 2023 Dual Tachyon
- * https://github.com/DualTachyon
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- *     Unless required by applicable law or agreed to in writing, software
- *     distributed under the License is distributed on an "AS IS" BASIS,
- *     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *     See the License for the specific language governing permissions and
- *     limitations under the License.
- */
+#ifndef APPS_AIRCOPY_AIRCOPY_H
+#define APPS_AIRCOPY_AIRCOPY_H
 
-#ifndef APP_AIRCOPY_H
-#define APP_AIRCOPY_H
+#include <stdbool.h>
+#include <stdint.h>
 
-#ifdef ENABLE_AIRCOPY
+#define AIRCOPY_RETRY_COUNT     50
+#define AIRCOPY_PACKET_SIZE     64
+#define AIRCOPY_PACKET_HEADER_SIZE 2 // CMD + OFFSET
 
-#include "drivers/bsp/keyboard.h"
-
-enum AIRCOPY_State_t
-{
-    AIRCOPY_READY = 0,
-    AIRCOPY_TRANSFER,
-    AIRCOPY_COMPLETE
+enum {
+    AIRCOPY_CMD_START = 1,
+    AIRCOPY_CMD_DATA,
+    AIRCOPY_CMD_COMPLETE,
 };
 
-typedef enum AIRCOPY_State_t AIRCOPY_State_t;
+typedef enum {
+    AIRCOPY_STATE_NONE,
+    AIRCOPY_STATE_INIT,
+    AIRCOPY_STATE_RX,
+    AIRCOPY_STATE_TX,
+    AIRCOPY_STATE_COMPLETE,
+} AIRCOPY_State_t;
 
-extern AIRCOPY_State_t gAircopyState;
+typedef enum {
+    AIRCOPY_WRITE_STRUCT,
+    AIRCOPY_WRITE_BYTES
+} AIRCOPY_WriteMode_t;
+
+typedef struct {
+    uint16_t start_offset;
+    uint16_t end_offset;      // Exclusive
+    AIRCOPY_WriteMode_t write_mode;
+    uint8_t packet_size; // unused?
+} AIRCOPY_Segment_t;
+
+#define MAX_AIRCOPY_SEGMENTS 10
+
+typedef struct {
+    AIRCOPY_Segment_t segments[MAX_AIRCOPY_SEGMENTS];
+    uint8_t num_segments;
+    uint16_t total_blocks;
+} AIRCOPY_TransferMap_t;
+
+
+extern AIRCOPY_State_t gAirCopyState;
 extern uint16_t        gAirCopyBlockNumber;
 extern uint16_t        gErrorsDuringAirCopy;
-extern uint8_t         gAirCopyIsSendMode;
+extern uint8_t         gFSK_Buffer[AIRCOPY_PACKET_SIZE];
 
-extern uint16_t        g_FSK_Buffer[36];
-
-bool AIRCOPY_SendMessage(void);
-void AIRCOPY_StorePacket(void);
-void AIRCOPY_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld);
-
-#endif
+void AIRCOPY_Process(void);
+const AIRCOPY_TransferMap_t *AIRCOPY_GetCurrentMap(void);
 
 #endif

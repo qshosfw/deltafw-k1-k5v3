@@ -43,3 +43,24 @@ extern volatile uint8_t dtr_enable;
 bool VCP_IsConnected(void) {
     return (bool)dtr_enable;
 }
+bool VCP_ScreenshotPing(void)
+{
+    static uint32_t read_ptr = 0;
+
+    uint32_t write_ptr = VCP_RxBufPointer;
+
+    while (read_ptr != write_ptr)
+    {
+        uint8_t b = VCP_RxBuf[read_ptr];
+
+        read_ptr++;
+        if (read_ptr >= VCP_RX_BUF_SIZE)
+            read_ptr = 0;
+
+        if (b == 0x55)
+        {
+            return true;
+        }
+    }
+    return false;
+}
