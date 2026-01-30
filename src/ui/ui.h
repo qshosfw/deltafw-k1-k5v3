@@ -39,6 +39,7 @@ enum GUI_DisplayType_t
 #endif
 
     DISPLAY_LAUNCHER,
+    DISPLAY_MEMORIES,
 
     DISPLAY_N_ELEM,
     DISPLAY_INVALID = 0xFFu

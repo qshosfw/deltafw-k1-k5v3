@@ -27,6 +27,13 @@
 
 #include "../ui/ag_menu.h"
 
+static bool LA_Memories(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    if (key != KEY_MENU) return false;
+    MEMORIES_Init();
+    gRequestDisplayScreen = DISPLAY_MEMORIES;
+    return true;
+}
+
 // Actions Wrappers
 static bool LA_Settings(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     if (key != KEY_MENU) return false;
@@ -92,6 +99,7 @@ static bool LA_Info(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool
 
 // Menu Items
 static const MenuItem launcherItems[] = {
+    {"Memories", 0, NULL, NULL, NULL, LA_Memories},
     {"Settings", 0, NULL, NULL, NULL, LA_Settings},
     {"Edit Scanlist", 0, NULL, NULL, NULL, LA_EditScanlist},
     {"Spectrum", 0, NULL, NULL, NULL, LA_Spectrum},

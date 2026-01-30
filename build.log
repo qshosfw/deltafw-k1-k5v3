@@ -1,0 +1,205 @@
+./compile-with-docker.sh Custom
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.58kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for mcr.microsoft.com/devcontainers/python:3.10-bookworm
+#2 DONE 0.3s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/4] FROM mcr.microsoft.com/devcontainers/python:3.10-bookworm@sha256:3c38cc0f0638bdd781ce06adcdcc97bdd8524c237a16a02915e609a69bbd12a0
+#4 DONE 0.0s
+
+#5 [2/4] RUN apt-get update && apt-get install -y --no-install-recommends     build-essential cmake ninja-build python3 curl xz-utils ca-certificates  && rm -rf /var/lib/apt/lists/*
+#5 CACHED
+
+#6 [3/4] RUN set -e;     BASE_ARCH="amd64";     if [ -z "$BASE_ARCH" ]; then BASE_ARCH="$(uname -m)"; fi;     case "$BASE_ARCH" in       amd64|x86_64)  HOSTARCH="x86_64" ;;       arm64|aarch64) HOSTARCH="aarch64" ;;       *)             HOSTARCH="x86_64" ;;     esac;     TARBALL="arm-gnu-toolchain-13.3.rel1-${HOSTARCH}-arm-none-eabi.tar.xz";     URL="https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu/13.3.rel1/binrel/${TARBALL}";     echo "Downloading ${URL}";     curl -fL -O "${URL}";     tar -xf "${TARBALL}";     rm "${TARBALL}";     DIR="$(ls -d arm-gnu-toolchain-13.3.rel1-*-arm-none-eabi)";     mv "${DIR}" /opt/toolchain
+#6 CACHED
+
+#7 [4/4] WORKDIR /src
+#7 CACHED
+
+#8 exporting to image
+#8 exporting layers done
+#8 writing image sha256:bdea8258824249c5e3bf5de5481616ba9acbf9d61535e9222d70adc255a8ca00 done
+#8 naming to docker.io/library/uvk1-uvk5v3 done
+#8 DONE 0.0s
+
+=== 🚀 Building preset: Custom ===
+---------------------------------------------
+/opt/toolchain/bin/arm-none-eabi-gcc
+arm-none-eabi-gcc (Arm GNU Toolchain 13.3.Rel1 (Build arm-13.24)) 13.3.1 20240614
+Copyright (C) 2023 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Preset CMake variables:
+
+  CMAKE_BUILD_TYPE="Release"
+  CMAKE_TOOLCHAIN_FILE:FILEPATH="/src/cmake/gcc-arm-none-eabi.cmake"
+  EDITION_STRING="Custom"
+  ENABLE_AGC_SHOW_DATA:BOOL="FALSE"
+  ENABLE_AIRCOPY:BOOL="FALSE"
+  ENABLE_ALARM:BOOL="FALSE"
+  ENABLE_AM_FIX:BOOL="FALSE"
+  ENABLE_AM_FIX_SHOW_DATA:BOOL="FALSE"
+  ENABLE_APP_BREAKOUT_GAME:BOOL="FALSE"
+  ENABLE_AUDIO_BAR:BOOL="TRUE"
+  ENABLE_BIG_FREQ:BOOL="TRUE"
+  ENABLE_BLMIN_TMP_OFF:BOOL="FALSE"
+  ENABLE_BOOT_BEEPS:BOOL="FALSE"
+  ENABLE_BOOT_RESUME_STATE:BOOL="TRUE"
+  ENABLE_BYP_RAW_DEMODULATORS:BOOL="FALSE"
+  ENABLE_COPY_CHAN_TO_VFO:BOOL="TRUE"
+  ENABLE_CTCSS_TAIL_PHASE_SHIFT:BOOL="FALSE"
+  ENABLE_CUSTOM_FIRMWARE_MODS:BOOL="TRUE"
+  ENABLE_CUSTOM_MENU_LAYOUT:BOOL="TRUE"
+  ENABLE_DEEP_SLEEP_MODE:BOOL="TRUE"
+  ENABLE_DTMF_CALLING:BOOL="FALSE"
+  ENABLE_EXTRA_UART_CMD:BOOL="FALSE"
+  ENABLE_FASTER_CHANNEL_SCAN:BOOL="TRUE"
+  ENABLE_FIRMWARE_DEBUG_LOGGING:BOOL="FALSE"
+  ENABLE_FLASHLIGHT:BOOL="TRUE"
+  ENABLE_FMRADIO:BOOL="FALSE"
+  ENABLE_FREQUENCY_LOCK_REGION_CA:BOOL="TRUE"
+  ENABLE_F_CAL_MENU:BOOL="FALSE"
+  ENABLE_GMRS_FRS_MURS_BANDS:BOOL="FALSE"
+  ENABLE_INVERTED_LCD_MODE:BOOL="TRUE"
+  ENABLE_KEEP_MEM_NAME:BOOL="TRUE"
+  ENABLE_LCD_CONTRAST_OPTION:BOOL="TRUE"
+  ENABLE_NARROWER_BW_FILTER:BOOL="TRUE"
+  ENABLE_NAVIG_LEFT_RIGHT:BOOL="TRUE"
+  ENABLE_NOAA:BOOL="FALSE"
+  ENABLE_NO_CODE_SCAN_TIMEOUT:BOOL="TRUE"
+  ENABLE_PMR446_FREQUENCY_BAND:BOOL="FALSE"
+  ENABLE_PWRON_PASSWORD:BOOL="FALSE"
+  ENABLE_REDUCE_LOW_MID_TX_POWER:BOOL="FALSE"
+  ENABLE_REGA:BOOL="FALSE"
+  ENABLE_RESCUE_OPERATIONS:BOOL="FALSE"
+  ENABLE_RESET_CHANNEL_FUNCTION:BOOL="FALSE"
+  ENABLE_REVERSE_BAT_SYMBOL:BOOL="FALSE"
+  ENABLE_RSSI_BAR:BOOL="TRUE"
+  ENABLE_RX_TX_TIMER_DISPLAY:BOOL="TRUE"
+  ENABLE_SCAN_RANGES:BOOL="TRUE"
+  ENABLE_SERIAL_SCREENCAST:BOOL="FALSE"
+  ENABLE_SHOW_CHARGE_LEVEL:BOOL="FALSE"
+  ENABLE_SMALL_BOLD:BOOL="TRUE"
+  ENABLE_SPECTRUM:BOOL="FALSE"
+  ENABLE_SPECTRUM_EXTENSIONS:BOOL="TRUE"
+  ENABLE_SQUELCH_MORE_SENSITIVE:BOOL="TRUE"
+  ENABLE_SWD:BOOL="FALSE"
+  ENABLE_SYSTEM_INFO_MENU:BOOL="FALSE"
+  ENABLE_TX1750:BOOL="TRUE"
+  ENABLE_TX_WHEN_AM:BOOL="FALSE"
+  ENABLE_UART:BOOL="TRUE"
+  ENABLE_UART_RW_BK_REGS:BOOL="FALSE"
+  ENABLE_USB:BOOL="TRUE"
+  ENABLE_USBC_CHARGING_INDICATOR:BOOL="FALSE"
+  ENABLE_VOICE:BOOL="FALSE"
+  ENABLE_VOX:BOOL="TRUE"
+  ENABLE_WIDE_RX:BOOL="TRUE"
+  TARGET="f4hwn.custom"
+  VERSION_STRING_1="v0.22"
+  VERSION_STRING_2="v4.3.2"
+
+-- The C compiler identification is GNU 13.3.1
+-- The CXX compiler identification is GNU 13.3.1
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /opt/toolchain/bin/arm-none-eabi-gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /opt/toolchain/bin/arm-none-eabi-g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+Build type: Release
+-- The ASM compiler identification is GNU
+-- Found assembler: /opt/toolchain/bin/arm-none-eabi-gcc
+EXE_NAME = f4hwn.custom
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /src/build/Custom
+[1/81] Building ASM object CMakeFiles/f4hwn.custom.dir/src/core/startup_py32f071xx.s.obj
+[2/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_pwr.c.obj
+[3/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_gpio.c.obj
+[4/81] Building C object CMakeFiles/f4hwn.custom.dir/src/core/Src/system_py32f071.c.obj
+[5/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_comp.c.obj
+[6/81] Building C object CMakeFiles/f4hwn.custom.dir/src/core/Src/main.c.obj
+[7/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_crc.c.obj
+[8/81] Building C object CMakeFiles/f4hwn.custom.dir/src/core/Src/py32f071_it.c.obj
+[9/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_exti.c.obj
+[10/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_utils.c.obj
+[11/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_dma.c.obj
+[12/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_lptim.c.obj
+[13/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_dac.c.obj
+[14/81] Building C object CMakeFiles/f4hwn.custom.dir/src/core/version.c.obj
+[15/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_adc.c.obj
+[16/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_i2c.c.obj
+[17/81] Building C object CMakeFiles/f4hwn.custom.dir/src/core/init.c.obj
+[18/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_usart.c.obj
+[19/81] Building C object CMakeFiles/f4hwn.custom.dir/src/core/scheduler.c.obj
+[20/81] Building C object CMakeFiles/f4hwn.custom.dir/src/core/misc.c.obj
+[21/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_rtc.c.obj
+[22/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_rcc.c.obj
+[23/81] Building C object CMakeFiles/f4hwn.custom.dir/src/audio.c.obj
+[24/81] Building C object CMakeFiles/f4hwn.custom.dir/src/ui/font.c.obj
+[25/81] Building C object CMakeFiles/f4hwn.custom.dir/src/ui/bitmaps.c.obj
+[26/81] Building C object CMakeFiles/f4hwn.custom.dir/src/core/main.c.obj
+[27/81] Building C object CMakeFiles/f4hwn.custom.dir/src/frequencies.c.obj
+[28/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_tim.c.obj
+[29/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/hal/Src/py32f071_ll_spi.c.obj
+[30/81] Building C object CMakeFiles/f4hwn.custom.dir/src/dcs.c.obj
+[31/81] Building C object CMakeFiles/f4hwn.custom.dir/src/board.c.obj
+[32/81] Building C object CMakeFiles/f4hwn.custom.dir/src/functions.c.obj
+[33/81] Building C object CMakeFiles/f4hwn.custom.dir/src/features/action.c.obj
+[34/81] Building C object CMakeFiles/f4hwn.custom.dir/src/features/common.c.obj
+[35/81] Building C object CMakeFiles/f4hwn.custom.dir/src/features/generic.c.obj
+[36/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/scanner/chFrScanner.c.obj
+[37/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/settings_new.c.obj
+/src/src/apps/settings_new.c:27:20: warning: 'GetStr' defined but not used [-Wunused-function]
+   27 | static const char* GetStr(const char* const opts[], uint8_t val, uint8_t max) {
+      |                    ^~~~~~
+[38/81] Building C object CMakeFiles/f4hwn.custom.dir/src/features/dtmf.c.obj
+[39/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/gpio.c.obj
+[40/81] Building C object CMakeFiles/f4hwn.custom.dir/src/radio.c.obj
+[41/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/keyboard.c.obj
+[42/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/i2c.c.obj
+[43/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/system.c.obj
+[44/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/scanner/scanner.c.obj
+[45/81] Building C object CMakeFiles/f4hwn.custom.dir/src/features/main_screen.c.obj
+[46/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/systick.c.obj
+[47/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/memories/memories.c.obj
+FAILED: CMakeFiles/f4hwn.custom.dir/src/apps/memories/memories.c.obj 
+/opt/toolchain/bin/arm-none-eabi-gcc -DALERT_TOT=10 -DAUTHOR_STRING=\"EGZUMER\" -DAUTHOR_STRING_1=\"\" -DAUTHOR_STRING_2=\"\" -DEDITION_STRING=\"Custom\" -DENABLE_AUDIO_BAR -DENABLE_BIG_FREQ -DENABLE_BOOT_RESUME_STATE -DENABLE_COPY_CHAN_TO_VFO -DENABLE_CUSTOM_FIRMWARE_MODS -DENABLE_CUSTOM_MENU_LAYOUT -DENABLE_DEEP_SLEEP_MODE -DENABLE_FASTER_CHANNEL_SCAN -DENABLE_FLASHLIGHT -DENABLE_FREQUENCY_LOCK_REGION_CA -DENABLE_INVERTED_LCD_MODE -DENABLE_KEEP_MEM_NAME -DENABLE_LCD_CONTRAST_OPTION -DENABLE_NARROWER_BW_FILTER -DENABLE_NAVIG_LEFT_RIGHT -DENABLE_NO_CODE_SCAN_TIMEOUT -DENABLE_RSSI_BAR -DENABLE_RX_TX_TIMER_DISPLAY -DENABLE_SCAN_RANGES -DENABLE_SMALL_BOLD -DENABLE_SPECTRUM_EXTENSIONS -DENABLE_SQUELCH_MORE_SENSITIVE -DENABLE_TX1750 -DENABLE_UART -DENABLE_USB -DENABLE_VOX -DENABLE_WIDE_RX -DPRINTF_INCLUDE_CONFIG_H -DPY32F071x8 -DSQL_TONE=550 -DUSE_FULL_LL_DRIVER -DVERSION_STRING=\"NOGIT\" -DVERSION_STRING_1=\"v0.22\" -DVERSION_STRING_2=\"v4.3.2\" -I/src/src/core/Inc -I/src/src/drivers/hal/Inc -I/src/src/drivers/cmsis/Include -I/src/src/drivers/cmsis/Device/PY32F071/Include -I/src/src/. -I/src/src/usb -I/src/src/middlewares/CherryUSB/core -I/src/src/middlewares/CherryUSB/port -I/src/src/middlewares/CherryUSB/common -I/src/src/middlewares/CherryUSB/class/cdc -mcpu=cortex-m0plus  -Wall -fdata-sections -ffunction-sections -mcpu=cortex-m0plus  -Wall -fdata-sections -ffunction-sections -Os -g0 -std=gnu11 -MD -MT CMakeFiles/f4hwn.custom.dir/src/apps/memories/memories.c.obj -MF CMakeFiles/f4hwn.custom.dir/src/apps/memories/memories.c.obj.d -o CMakeFiles/f4hwn.custom.dir/src/apps/memories/memories.c.obj -c /src/src/apps/memories/memories.c
+/src/src/apps/memories/memories.c:11:10: fatal error: driver/st7565.h: No such file or directory
+   11 | #include "driver/st7565.h"
+      |          ^~~~~~~~~~~~~~~~~
+compilation terminated.
+[48/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/battery/battery_ui.c.obj
+[49/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/backlight.c.obj
+[50/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/py25q16.c.obj
+[51/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/battery/battery.c.obj
+[52/81] Building C object CMakeFiles/f4hwn.custom.dir/src/ui/inputbox.c.obj
+[53/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/st7565.c.obj
+[54/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/boot/boot.c.obj
+[55/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/settings/settings.c.obj
+[56/81] Building C object CMakeFiles/f4hwn.custom.dir/src/apps/launcher/launcher.c.obj
+/src/src/apps/launcher/launcher.c:85:13: warning: 'LA_AirCopy' defined but not used [-Wunused-function]
+   85 | static bool LA_AirCopy(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+      |             ^~~~~~~~~~
+/src/src/apps/launcher/launcher.c:63:13: warning: 'LA_FM' defined but not used [-Wunused-function]
+   63 | static bool LA_FM(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+      |             ^~~~~
+[57/81] Building C object CMakeFiles/f4hwn.custom.dir/src/ui/helper.c.obj
+[58/81] Building C object CMakeFiles/f4hwn.custom.dir/src/features/menu.c.obj
+[59/81] Building C object CMakeFiles/f4hwn.custom.dir/src/features/app.c.obj
+[60/81] Building C object CMakeFiles/f4hwn.custom.dir/src/drivers/bsp/bk4829.c.obj
+ninja: build stopped: subcommand failed.
+make: *** [Makefile:8: custom] Error 1

@@ -39,6 +39,7 @@
 #include "apps/scanner/scanner_ui.h"
 #include "apps/scanner/scanner_ui.h"
 #include "apps/launcher/launcher.h"
+#include "apps/memories/memories.h"
 #include "ui/ui.h"
 #include "core/misc.h"
 
@@ -67,6 +68,7 @@ void (*UI_DisplayFunctions[])(void) = {
     [DISPLAY_REGA] = &UI_DisplayREGA,
 #endif
     [DISPLAY_LAUNCHER] = &UI_DisplayLauncher,
+    [DISPLAY_MEMORIES] = &MEMORIES_Render,
 };
 
 static_assert(ARRAY_SIZE(UI_DisplayFunctions) == DISPLAY_N_ELEM);

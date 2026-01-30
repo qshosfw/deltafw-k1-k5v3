@@ -140,6 +140,15 @@ void AG_MENU_Render(void) {
   AG_FillRect(ex - 3, y_pos, 3, 3, C_FILL);
 }
 
+void AG_MENU_EnterMenu(Menu *submenu) {
+    if (menu_stack_top < MENU_STACK_DEPTH) {
+        menu_stack[menu_stack_top++] = active_menu;
+        active_menu = submenu;
+        active_menu->i = 0;
+        init();
+    }
+}
+
 static bool handleUpDownNavigation(KEY_Code_t key, bool hasItems) {
   if (key != KEY_UP && key != KEY_DOWN) {
     return false;

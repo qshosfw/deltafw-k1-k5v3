@@ -63,6 +63,7 @@ target_sources(App INTERFACE
     apps/battery/battery.c
     apps/battery/battery_ui.c
     apps/launcher/launcher.c
+    apps/memories/memories.c
 
     # Helpers
     # helper/battery.c MOVED
@@ -79,6 +80,7 @@ target_sources(App INTERFACE
     ui/ui.c
     ui/ag_graphics.c
     ui/ag_menu.c
+    ui/textinput.c
     apps/boot/welcome.c
 
     # Third Party
