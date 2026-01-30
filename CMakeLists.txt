@@ -19,22 +19,20 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 
 enable_language(C ASM)
 
-# Git commit hash and build date
-if(NOT GIT_COMMIT_HASH)
-    execute_process(
-        COMMAND git rev-parse --short HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_COMMIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    if(NOT GIT_COMMIT_HASH)
-        set(GIT_COMMIT_HASH "unknown")
-    endif()
+# Git commit hash (always refresh, never cache)
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if("${GIT_COMMIT_HASH}" STREQUAL "")
+    set(GIT_COMMIT_HASH "unknown")
 endif()
 
 if(NOT BUILD_DATE)
-    string(TIMESTAMP BUILD_DATE "%Y-%m-%d")
+    string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S")
 endif()
 
 message("Git commit: " ${GIT_COMMIT_HASH})

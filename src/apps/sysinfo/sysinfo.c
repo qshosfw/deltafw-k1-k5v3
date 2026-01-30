@@ -18,18 +18,28 @@ static bool SysInfo_Action(uint16_t index, KEY_Code_t key, bool key_pressed, boo
 
 typedef enum {
     INFO_VERSION,
-    INFO_COMMIT,
     INFO_DATE,
+    INFO_COMMIT,
+    INFO_SERIAL,
     INFO_BATTERY,
     INFO_LICENSE,
     INFO_COUNT
 } InfoItem;
 
+// CPU Unique ID at 0x1FFF3000 (256 bytes available, we use first 16)
+static void GetCpuId(uint32_t *dest, int count) {
+    uint32_t *src = (uint32_t *)0x1FFF3000;
+    for (int i = 0; i < count; i++) {
+        dest[i] = src[i];
+    }
+}
+
 static const char* GetInfoLabel(InfoItem item) {
     switch (item) {
         case INFO_VERSION: return "Version";
-        case INFO_COMMIT:  return "Commit";
         case INFO_DATE:    return "Built";
+        case INFO_COMMIT:  return "Commit";
+        case INFO_SERIAL:  return "Serial";
         case INFO_BATTERY: return "Battery";
         case INFO_LICENSE: return "License";
         default:           return "";
@@ -41,12 +51,22 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
         case INFO_VERSION:
             snprintf(buf, buflen, "%s", Version);
             break;
-        case INFO_COMMIT:
-            snprintf(buf, buflen, "%s", GitCommit);
-            break;
         case INFO_DATE:
             snprintf(buf, buflen, "%s", BuildDate);
             break;
+        case INFO_COMMIT:
+            // Display short commit hash (7 chars max)
+            snprintf(buf, buflen, "%.7s", GitCommit);
+            break;
+        case INFO_SERIAL: {
+            uint32_t cpuId[4];
+            GetCpuId(cpuId, 4);
+            // Use all 4 words XORed into 2 for 16-char hex serial
+            snprintf(buf, buflen, "%08lX%08lX", 
+                (unsigned long)(cpuId[0] ^ cpuId[2]), 
+                (unsigned long)(cpuId[1] ^ cpuId[3]));
+            break;
+        }
         case INFO_BATTERY: {
             uint16_t voltage = gBatteryVoltageAverage;
             uint8_t percent = BATTERY_VoltsToPercent(voltage);
