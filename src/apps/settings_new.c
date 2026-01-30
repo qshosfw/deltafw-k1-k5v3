@@ -325,9 +325,11 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
         #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         case MENU_SET_CTR:
              INC_DEC(gSetting_set_ctr, 0, 15, up);
+             ST7565_ContrastAndInv();
              break;
         case MENU_SET_INV:
              gSetting_set_inv = !gSetting_set_inv;
+             ST7565_ContrastAndInv();
              break;
         #endif
 
