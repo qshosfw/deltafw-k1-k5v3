@@ -14,14 +14,14 @@ static uint8_t cursor_pos = 0;  // 0-7 for 8 digits (XXX.XXXXX)
 // Digit positions in the frequency (Hz)
 // Position 0 = 100 MHz, Position 7 = 10 Hz
 static const uint32_t digit_multipliers[] = {
-    100000000,  // 0: 100 MHz
-    10000000,   // 1: 10 MHz
-    1000000,    // 2: 1 MHz
-    100000,     // 3: 100 kHz
-    10000,      // 4: 10 kHz
-    1000,       // 5: 1 kHz
-    100,        // 6: 100 Hz
-    10          // 7: 10 Hz
+    10000000,   // 0: 100 MHz
+    1000000,    // 1: 10 MHz
+    100000,     // 2: 1 MHz
+    10000,      // 3: 100 kHz
+    1000,       // 4: 10 kHz
+    100,        // 5: 1 kHz
+    10,         // 6: 100 Hz
+    1           // 7: 10 Hz
 };
 
 #define NUM_DIGITS 8
@@ -123,51 +123,38 @@ void FreqInput_Render(void) {
     memset(gFrameBuffer, 0, sizeof(gFrameBuffer));
     
     // Title
-    AG_PrintMediumBold(LCD_WIDTH / 2, 12, POS_C, C_FILL, "Frequency");
+    AG_PrintMediumEx(LCD_WIDTH / 2, 16, POS_C, C_FILL, "Frequency");
     
-    // Format: XXX.XXXXX MHz
-    char freq_str[16];
-    uint32_t mhz = frequency / 100000;
-    uint32_t khz_frac = frequency % 100000;
-    
-    snprintf(freq_str, sizeof(freq_str), "%3u.%05u", mhz, khz_frac);
-    
-    // Draw frequency string with cursor highlight
-    const uint8_t start_x = 20;
-    const uint8_t y = 32;
+    // Draw numbers
     const uint8_t digit_w = 10;
-    
-    uint8_t x = start_x;
-    uint8_t str_idx = 0;
-    
+    uint8_t x = (LCD_WIDTH - (NUM_DIGITS * digit_w + 6)) / 2;
+    const uint8_t y = 36;
+
     for (uint8_t i = 0; i < NUM_DIGITS; i++) {
         // Skip the decimal point position
         if (i == 3) {
-            AG_PrintMediumBold(x, y, POS_L, C_FILL, ".");
+            AG_PrintMediumEx(x, y, POS_L, C_FILL, ".");
             x += 6;
         }
         
-        char ch[2] = {freq_str[str_idx], 0};
+        uint8_t val = get_digit(frequency, i);
+        char ch[2] = {(char)('0' + val), 0};
         
         if (i == cursor_pos) {
             // Draw inverted (cursor position)
             AG_FillRect(x - 1, y - 10, digit_w, 12, C_FILL);
-            AG_PrintMediumBold(x, y, POS_L, C_CLEAR, "%s", ch);
+            AG_PrintMediumEx(x, y, POS_L, C_CLEAR, "%s", ch);
         } else {
-            AG_PrintMediumBold(x, y, POS_L, C_FILL, "%s", ch);
+            AG_PrintMediumEx(x, y, POS_L, C_FILL, "%s", ch);
         }
         
         x += digit_w;
-        str_idx++;
-        
-        // Skip the decimal in the string
-        if (str_idx == 3) str_idx++;  // Skip '.'
     }
     
     // MHz label
-    AG_PrintSmall(x + 5, y, "MHz");
+    AG_PrintSmall(x + 2, y, "MHz");
     
     // Instructions
-    AG_PrintSmall(LCD_WIDTH / 2, 50, POS_C, C_FILL, "UP/DN:move  0-9:digit");
-    AG_PrintSmall(LCD_WIDTH / 2, 60, POS_C, C_FILL, "MENU:OK  EXIT:Cancel");
+    AG_PrintSmall(LCD_WIDTH / 2, 54, POS_C, C_FILL, "UP/DN:move  0-9:digit");
+    AG_PrintSmall(LCD_WIDTH / 2, 62, POS_C, C_FILL, "MENU:OK  EXIT:Can");
 }

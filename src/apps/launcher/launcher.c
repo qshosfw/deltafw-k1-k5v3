@@ -12,7 +12,7 @@
 #include "features/app.h"
 #include "audio.h"
 #include "apps/settings/settings.h"
-#include "apps/settings_new.h"
+#include "apps/settings/settings_ui.h"
 #include "apps/aircopy/aircopy.h"
 #include "apps/boot/boot.h"
 
@@ -39,7 +39,7 @@ static bool LA_Memories(const MenuItem *item, KEY_Code_t key, bool key_pressed, 
 // Actions Wrappers
 static bool LA_Settings(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     if (key != KEY_MENU) return false;
-    SETTINGS_NEW_Init();
+    SETTINGS_UI_Init();
     gRequestDisplayScreen = DISPLAY_MENU;
     return true;
 }

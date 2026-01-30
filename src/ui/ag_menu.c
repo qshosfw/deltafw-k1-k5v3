@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "../external/printf/printf.h"
+#include "../audio.h"
 
 #define MENU_STACK_DEPTH 4
 
@@ -149,12 +150,18 @@ void AG_MENU_EnterMenu(Menu *submenu) {
     }
 }
 
-static bool handleUpDownNavigation(KEY_Code_t key, bool hasItems) {
+bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held);
+
+static bool handleUpDownNavigation(KEY_Code_t key, bool hasItems, bool key_held) {
   if (key != KEY_UP && key != KEY_DOWN) {
     return false;
   }
 
   active_menu->i = IncDecU(active_menu->i, 0, active_menu->num_items, key == KEY_DOWN);
+  
+  if (!key_held) {
+    AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+  }
 
   if (!hasItems && active_menu->action) {
     active_menu->action(active_menu->i, key, false, false);
@@ -173,7 +180,7 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
   const bool hasItems = (active_menu->items != NULL);
 
   if (key_pressed || key_held) {
-    if (handleUpDownNavigation(key, hasItems)) {
+    if (handleUpDownNavigation(key, hasItems, key_held)) {
       return true;
     }
   }
@@ -197,12 +204,17 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
           active_menu = item->submenu;
           active_menu->i = 0;
           init();
+          AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
         }
         return true;
       } else if (item->action) {
-         if (item->action(item, key, key_pressed, key_held)) return true;
+         if (item->action(item, key, key_pressed, key_held)) {
+             AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+             return true;
+         }
       } else if (item->change_value) {
           item->change_value(item, true);
+          AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
           return true;
       }
       break;

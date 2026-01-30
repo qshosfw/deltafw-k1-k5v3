@@ -31,7 +31,7 @@ target_sources(App INTERFACE
     frequencies.c
     dcs.c
     apps/settings/settings.c
-    apps/settings_new.c
+    apps/settings/settings_ui.c
     
     functions.c
     ui/bitmaps.c

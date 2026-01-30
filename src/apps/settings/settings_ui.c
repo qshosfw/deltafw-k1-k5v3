@@ -1,16 +1,16 @@
 
-#include "settings_new.h"
-#include "../ui/ag_menu.h"
-#include "../drivers/bsp/st7565.h"
-#include "../external/printf/printf.h"
-#include "../apps/settings/settings.h"
-#include "../ui/menu.h"
-#include "../drivers/bsp/bk4819.h"
-#include "../core/misc.h"
-#include "../frequencies.h"
-#include "../audio.h"
-#include "../dcs.h" // For CTCSS/DCS tables
-#include "../ui/helper.h" // For frequency helpers
+#include "settings_ui.h"
+#include "../../ui/ag_menu.h"
+#include "../../drivers/bsp/st7565.h"
+#include "../../external/printf/printf.h"
+#include "../../apps/settings/settings.h"
+#include "../../ui/menu.h"
+#include "../../drivers/bsp/bk4819.h"
+#include "../../core/misc.h"
+#include "../../frequencies.h"
+#include "../../audio.h"
+#include "../../dcs.h" // For CTCSS/DCS tables
+#include "../../ui/helper.h" // For frequency helpers
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
@@ -626,6 +626,6 @@ static Menu rootMenu = {
     .x = 0, .y = MENU_Y, .width = LCD_WIDTH, .height = LCD_HEIGHT - MENU_Y, .itemHeight = MENU_ITEM_H
 };
 
-void SETTINGS_NEW_Init(void) {
+void SETTINGS_UI_Init(void) {
     AG_MENU_Init(&rootMenu);
 }

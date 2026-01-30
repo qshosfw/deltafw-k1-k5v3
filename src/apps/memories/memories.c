@@ -14,6 +14,7 @@
 #include "core/misc.h"
 #include "external/printf/printf.h"
 #include "dcs.h"
+#include "audio.h"
 
 #ifndef MR_CHANNEL_LAST
 #define MR_CHANNEL_LAST 199
@@ -35,6 +36,7 @@ static MemMode currentMode = MEM_MODE_LIST;
 static uint16_t detailChannelIndex = 0;
 static char detailTitle[20];
 static char editBuffer[17];
+static bool ignoreNextMenuRelease = true;
 
 // Working copy of channel data
 static VFO_Info_t editChannel;
@@ -53,7 +55,7 @@ static void EnterDetailMenu(uint16_t index);
 // String Arrays for Settings
 // =============================================================================
 
-static const char *powerNames[] = {"Low", "Mid", "High"};
+static const char *powerNames[] = {"User", "Low1", "Low2", "Low3", "Low4", "Low5", "Mid", "High"};
 static const char *bwNames[] = {"Wide", "Narrow"};
 static const char *modNames[] = {"FM", "AM", "USB"};
 static const char *offsetDirNames[] = {"None", "+", "-"};
@@ -164,9 +166,14 @@ static void DoSelect(void) {
     RADIO_ConfigureChannel(gEeprom.TX_VFO, VFO_CONFIGURE_RELOAD);
     
     // Save settings and exit to main
+    // Save settings and exit to main
     SETTINGS_SaveSettings();
+    
+    // Explicitly request exit to main app
     gRequestDisplayScreen = DISPLAY_MAIN;
-    currentMode = MEM_MODE_LIST; // Reset for next time
+    
+    // Reset state but DO NOT perform generic back which might confuse the stack
+    currentMode = MEM_MODE_LIST; 
 }
 
 static void DoRename(void) {
@@ -207,12 +214,22 @@ static void DoDelete(void) {
 
 static void GetPower(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", powerNames[editChannel.OUTPUT_POWER % 3]);
+    if (editChannel.OUTPUT_POWER <= 7) {
+        snprintf(buf, sz, "%s", powerNames[editChannel.OUTPUT_POWER]);
+    } else {
+        snprintf(buf, sz, "Unk");
+    }
 }
 
 static void ChangePower(const MenuItem *item, bool up) {
     (void)item;
-    editChannel.OUTPUT_POWER = (editChannel.OUTPUT_POWER + (up ? 1 : 2)) % 3;
+    if (up) {
+        if (editChannel.OUTPUT_POWER < 7) editChannel.OUTPUT_POWER++;
+        else editChannel.OUTPUT_POWER = 0;
+    } else {
+        if (editChannel.OUTPUT_POWER > 0) editChannel.OUTPUT_POWER--;
+        else editChannel.OUTPUT_POWER = 7;
+    }
     SaveChannelData();
 }
 
@@ -444,10 +461,6 @@ static Menu channelDetailMenu = {
 // =============================================================================
 
 static void LoadChannelData(uint16_t index) {
-    // Save current RX VFO config to restore later
-    uint8_t saveScan = gRxVfo->SCANLIST1_PARTICIPATION;
-    uint32_t saveFreq = gRxVfo->freq_config_RX.Frequency;
-    
     // Load target channel into global RX VFO temporarily to parse settings
     uint8_t savedChannel = gRxVfo->CHANNEL_SAVE;
     gRxVfo->CHANNEL_SAVE = index;
@@ -462,7 +475,11 @@ static void LoadChannelData(uint16_t index) {
 }
 
 static void SaveChannelData(void) {
-    SETTINGS_SaveChannel(detailChannelIndex, 0, &editChannel, 1);
+    SETTINGS_SaveChannel(detailChannelIndex, 0, &editChannel, 2);
+    
+    // Update VFOs if they are using this channel
+    if (detailChannelIndex == gEeprom.MrChannel[0]) RADIO_ConfigureChannel(0, VFO_CONFIGURE_RELOAD);
+    if (detailChannelIndex == gEeprom.MrChannel[1]) RADIO_ConfigureChannel(1, VFO_CONFIGURE_RELOAD);
 }
 
 static void EnterDetailMenu(uint16_t index) {
@@ -550,18 +567,41 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
 static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bool key_held) {
     (void)key_held;
     
-    if (!key_pressed) return false;
-    
-    if (key == KEY_EXIT) {
+    // Handle EXIT on press only
+    if (key == KEY_EXIT && key_pressed) {
         AG_MENU_Back();
         return true;
     }
 
     if (key == KEY_MENU) {
-        if (RADIO_CheckValidChannel(index, false, 0)) {
-            EnterDetailMenu(index);
+        if (key_held) {
+            if (RADIO_CheckValidChannel(index, false, 0)) {
+                EnterDetailMenu(index);
+                AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+            }
+            return true;
+        } else if (!key_pressed) { // Released
+            if (ignoreNextMenuRelease) {
+                ignoreNextMenuRelease = false;
+                return true;
+            }
+
+            // If we are still in LIST mode (which we are, otherwise this fn wouldn't be called),
+            // and we received a Release event without a prior active Hold that changed the mode,
+            // then it's a Short Press -> Select.
+            
+            // Note: If EnterDetailMenu was called on Hold, currentMode changed to MEM_MODE_DETAIL.
+            // The subsequent Release event would undergo ProcessKeys -> switch(currentMode) -> MEM_MODE_DETAIL case.
+            // It would NOT reach here.
+            
+            if (RADIO_CheckValidChannel(index, false, 0)) {
+                detailChannelIndex = index;
+                DoSelect();
+                AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+            }
+            return true;
         }
-        return true;
+        return true; 
     }
 
     return false;
@@ -581,6 +621,8 @@ void MEMORIES_Init(void) {
     } else {
         memoriesMenu.i = 0;
     }
+    
+    ignoreNextMenuRelease = true;
     
     AG_MENU_Init(&memoriesMenu);
 }
@@ -667,6 +709,15 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
             break;
             
         case MEM_MODE_LIST:
+            // Standard Navigation
+            if (Key == KEY_UP || Key == KEY_DOWN) {
+                // Key repeat handling provided by APP infrastructure
+                AG_MENU_HandleInput(Key, bKeyPressed, bKeyHeld);
+                // Beep on hold?
+                // if (bKeyHeld) AUDIO_PlayBeep(BEEP_400HZ_30MS);
+                return;
+            }
+            break;
         default:
             break;
     }
@@ -676,6 +727,6 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
     
     // Check if we exited the menu system
     if (!AG_MENU_IsActive()) {
-        gRequestDisplayScreen = DISPLAY_MAIN;
+        gRequestDisplayScreen = DISPLAY_LAUNCHER;
     }
 }
