@@ -19,19 +19,33 @@
 #include "screencast.h"
 #include "core/misc.h"
 
-#if defined(ENABLE_USB)
-#include "drivers/bsp/vcp.h"
 #endif
 
-// RAM optimization: Only keep previousFrame static (1024 bytes)
-// Build currentFrame on-the-fly and send delta blocks immediately
+static void Screenshot_Send(const uint8_t *buf, uint16_t len)
+{
+#if defined(ENABLE_USB)
+    if (gUSB_ScreenshotEnabled) {
+        cdc_acm_data_send_with_dtr(buf, len);
+    } else {
+        UART_Send(buf, len);
+    }
+#else
+    UART_Send(buf, len);
+#endif
+}
+
+// SRAM optimization: minimize static allocations
+// - previousFrame: 1024 bytes (REQUIRED - need to compare for delta)
+// - No currentFrame or deltaFrame static buffers
 static uint8_t previousFrame[1024] = {0};
 static uint8_t forcedBlock = 0;
 static uint8_t keepAlive = 10;
 
 void getScreenShot(bool force)
 {
-    static uint8_t currentFrame[1024];  // Reused static buffer
+    // Build frame in a temporary stack buffer
+    // This is 1024 bytes but it's temporary and gets freed after the function
+    uint8_t frameBuffer[1024];
     uint16_t index = 0;
     uint8_t acc = 0;
     uint8_t bitCount = 0;
@@ -41,27 +55,21 @@ void getScreenShot(bool force)
         return;
     }
 
-    bool isConnected = false;
-
 #if defined(ENABLE_USB)
-    if (VCP_ScreenshotPing())
-        gUSB_ScreenshotEnabled = !gUSB_ScreenshotEnabled;
-
     if (UART_IsCableConnected()) {
-        isConnected = true;
+        keepAlive = 10;
+        gUSB_ScreenshotEnabled = false;
     }
-    else if (VCP_IsConnected() && gUSB_ScreenshotEnabled) {
-        isConnected = true;
+
+    if (VCP_ScreenshotPing()) {
+        keepAlive = 10;
+        gUSB_ScreenshotEnabled = true;
     }
 #else
     if (UART_IsCableConnected()) {
-        isConnected = true;
-    }
-#endif
-
-    if (isConnected) {
         keepAlive = 10;
     }
+#endif
 
     if (keepAlive > 0) {
         if (--keepAlive == 0) return;
@@ -69,14 +77,14 @@ void getScreenShot(bool force)
         return;
     }
 
-    // ==== Build currentFrame (exact same logic as original) ====
+    // ==== BUILD FRAME ONCE ====
     // Status line: 8 bit layers × 128 columns
     for (uint8_t b = 0; b < 8; b++) {
         for (uint8_t i = 0; i < 128; i++) {
             uint8_t bit = (gStatusLine[i] >> b) & 0x01;
             acc |= (bit << bitCount++);
             if (bitCount == 8) {
-                currentFrame[index++] = acc;
+                frameBuffer[index++] = acc;
                 acc = 0;
                 bitCount = 0;
             }
@@ -90,7 +98,7 @@ void getScreenShot(bool force)
                 uint8_t bit = (gFrameBuffer[l][i] >> b) & 0x01;
                 acc |= (bit << bitCount++);
                 if (bitCount == 8) {
-                    currentFrame[index++] = acc;
+                    frameBuffer[index++] = acc;
                     acc = 0;
                     bitCount = 0;
                 }
@@ -99,56 +107,67 @@ void getScreenShot(bool force)
     }
 
     if (bitCount > 0)
-        currentFrame[index++] = acc;
+        frameBuffer[index++] = acc;
 
     if (index != 1024)
-        return; // Frame size mismatch, abort
+        return;
 
-    // ==== Generate delta frame ====
+    // ==== FIRST PASS: Count changed chunks ====
     uint16_t deltaLen = 0;
-    uint8_t deltaFrame[128 * 9];  // Worst case: all 128 blocks changed
+    uint8_t changedChunks[128];  // List of changed chunk indices
+    uint8_t changedCount = 0;
 
-    for (uint8_t block = 0; block < 128; block++) {
-        uint8_t *cur = &currentFrame[block * 8];
-        uint8_t *prev = &previousFrame[block * 8];
+    for (uint8_t chunk = 0; chunk < 128; chunk++) {
+        uint8_t *cur = &frameBuffer[chunk * 8];
+        uint8_t *prev = &previousFrame[chunk * 8];
 
         bool changed = memcmp(cur, prev, 8) != 0;
-        bool isForced = (block == forcedBlock);
+        bool isForced = (chunk == forcedBlock);
         bool fullUpdate = force;
 
         if (changed || isForced || fullUpdate) {
-            deltaFrame[deltaLen++] = block;
-            memcpy(&deltaFrame[deltaLen], cur, 8);
-            deltaLen += 8;
-            memcpy(prev, cur, 8); // Update stored frame
+            changedChunks[changedCount++] = chunk;
+            deltaLen += 9;
         }
     }
 
     forcedBlock = (forcedBlock + 1) % 128;
 
     if (deltaLen == 0)
-        return; // No update needed
+        return;
 
-    // ==== Send frame ====
+    // ==== Send version marker (for backward compatibility detection) ====
+    // New format: sends 0xFF before header
+    // Old format: doesn't exist, so viewers can differentiate
+    uint8_t versionMarker = 0xFF;
+    Screenshot_Send(&versionMarker, 1);
+
+    // ==== Send header ====
     uint8_t header[5] = {
         0xAA, 0x55, 0x02,
         (uint8_t)(deltaLen >> 8),
         (uint8_t)(deltaLen & 0xFF)
     };
 
-    UART_Send(header, 5);
-#if defined(ENABLE_USB)
-    if (VCP_IsConnected() && gUSB_ScreenshotEnabled) VCP_SendAsync(header, 5);
-#endif
+    Screenshot_Send(header, 5);
 
-    UART_Send(deltaFrame, deltaLen);
-#if defined(ENABLE_USB)
-    if (VCP_IsConnected() && gUSB_ScreenshotEnabled) VCP_SendAsync(deltaFrame, deltaLen);
-#endif
+    // ==== SECOND PASS: Send only changed chunks ====
+    uint8_t chunk[9];
+    
+    for (uint8_t i = 0; i < changedCount; i++) {
+        uint8_t chunkIdx = changedChunks[i];
+        uint8_t *cur = &frameBuffer[chunkIdx * 8];
+        uint8_t *prev = &previousFrame[chunkIdx * 8];
+
+        chunk[0] = chunkIdx;
+        memcpy(&chunk[1], cur, 8);
+        
+        Screenshot_Send(chunk, 9);
+        
+        // Update previousFrame for next comparison
+        memcpy(prev, cur, 8);
+    }
 
     uint8_t end = 0x0A;
-    UART_Send(&end, 1);
-#if defined(ENABLE_USB)
-    if (VCP_IsConnected() && gUSB_ScreenshotEnabled) VCP_SendAsync(&end, 1);
-#endif
+    Screenshot_Send(&end, 1);
 }

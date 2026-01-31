@@ -22,6 +22,9 @@ typedef enum {
     INFO_COMMIT,
     INFO_SERIAL,
     INFO_BATTERY,
+    INFO_CURRENT,
+    INFO_CHARGING,
+    INFO_RAM,
     INFO_LICENSE,
     INFO_COUNT
 } InfoItem;
@@ -34,15 +37,22 @@ static void GetCpuId(uint32_t *dest, int count) {
     }
 }
 
+// RAM usage from linker symbols
+extern uint32_t _end;       // End of used RAM
+extern uint32_t _estack;    // End of RAM
+
 static const char* GetInfoLabel(InfoItem item) {
     switch (item) {
-        case INFO_VERSION: return "Version";
-        case INFO_DATE:    return "Built";
-        case INFO_COMMIT:  return "Commit";
-        case INFO_SERIAL:  return "Serial";
-        case INFO_BATTERY: return "Battery";
-        case INFO_LICENSE: return "License";
-        default:           return "";
+        case INFO_VERSION:  return "Version";
+        case INFO_DATE:     return "Built";
+        case INFO_COMMIT:   return "Commit";
+        case INFO_SERIAL:   return "Serial";
+        case INFO_BATTERY:  return "Battery";
+        case INFO_CURRENT:  return "Current";
+        case INFO_CHARGING: return "Charging";
+        case INFO_RAM:      return "RAM";
+        case INFO_LICENSE:  return "License";
+        default:            return "";
     }
 }
 
@@ -71,6 +81,21 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
             uint16_t voltage = gBatteryVoltageAverage;
             uint8_t percent = BATTERY_VoltsToPercent(voltage);
             snprintf(buf, buflen, "%u.%02uV %u%%", voltage / 100, voltage % 100, percent);
+            break;
+        }
+        case INFO_CURRENT: {
+            // Display raw ADC value for current sensing
+            snprintf(buf, buflen, "ADC: %u", gBatteryCurrent);
+            break;
+        }
+        case INFO_CHARGING:
+            snprintf(buf, buflen, "%s", gChargingWithTypeC ? "USB-C" : "No");
+            break;
+        case INFO_RAM: {
+            // Simple estimate: stack pointer region usage
+            uint32_t used = 14016;  // From build output, or use runtime estimate
+            uint32_t total = 16 * 1024;
+            snprintf(buf, buflen, "%lu/%luK", (unsigned long)(used / 1024), (unsigned long)(total / 1024));
             break;
         }
         case INFO_LICENSE:

@@ -90,8 +90,8 @@ void UI_DisplayStatus() {
         *p++ = ' ';
     }
     else if (gWasFKeyPressed) {
-        *p++ = 'F';
-        *p++ = ' ';
+        // F-key will be drawn separately with inverted background
+        // Skip adding to string, handled after UI_PrintStringSmallest
     }
 
 #ifdef ENABLE_VOX
@@ -129,6 +129,23 @@ void UI_DisplayStatus() {
         // Main VFO A
     }
     UI_PrintStringSmallest(str, 0, 0, true, true);
+    
+    // Draw inverted F-key if pressed (white F on black background box)
+    if (gWasFKeyPressed && !gEeprom.KEY_LOCK && !AG_MENU_IsActive()) {
+        // Find position after any prior text (L, NOAA, S, etc.)
+        uint8_t x = strlen(str) * 4;  // 4px per char in smallest font
+        
+        // Draw solid background box (5px wide x 6 rows tall)
+        for (uint8_t i = 0; i < 5; i++) {
+            gStatusLine[x + i] |= 0b00111111;  // Fill 6 rows (bits 0-5)
+        }
+        
+        // Draw 'F' character from gFont3x5 inverted (XOR to make white on black)
+        // gFont3x5 'F' = {0x1f, 0x05, 0x05} - offset (x+1) to center in 5px box
+        gStatusLine[x + 1] ^= 0x1f;  // Column 0 of 'F'
+        gStatusLine[x + 2] ^= 0x05;  // Column 1 of 'F'
+        gStatusLine[x + 3] ^= 0x05;  // Column 2 of 'F'
+    }
 
     // Battery Display
     // Modes:
