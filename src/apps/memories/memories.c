@@ -188,16 +188,22 @@ static void DoRename(void) {
     SETTINGS_FetchChannelName(editBuffer, detailChannelIndex);
     currentMode = MEM_MODE_RENAME;
     TextInput_Init(editBuffer, 10, NULL);
+    TextInput_Render();
+    ST7565_BlitFullScreen();
 }
 
 static void DoEditFreq(void) {
     currentMode = MEM_MODE_RX_FREQ;
     FreqInput_Init(editChannel.freq_config_RX.Frequency, NULL);
+    FreqInput_Render();
+    ST7565_BlitFullScreen();
 }
 
 static void DoEditOffset(void) {
     currentMode = MEM_MODE_TX_OFFSET;
     FreqInput_Init(editChannel.TX_OFFSET_FREQUENCY, NULL);
+    FreqInput_Render();
+    ST7565_BlitFullScreen();
 }
 
 static void DoDelete(void) {
@@ -405,6 +411,23 @@ static bool ActionRename(const MenuItem *item, KEY_Code_t key, bool key_pressed,
     return false;
 }
 
+static void GetName(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    char name[17];
+    SETTINGS_FetchChannelName(name, detailChannelIndex);
+    if (strlen(name) > 0) {
+        snprintf(buf, sz, "%s", name);
+    } else {
+        snprintf(buf, sz, "---");
+    }
+}
+
+static void GetFreq(const MenuItem *item, char *buf, uint8_t sz) {
+    (void)item;
+    uint32_t f = editChannel.freq_config_RX.Frequency;
+    snprintf(buf, sz, "%u.%05u", f/100000, f%100000);
+}
+
 static bool ActionFreq(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     (void)item; (void)key_held;
     if (key == KEY_MENU && key_pressed) {
@@ -437,23 +460,23 @@ static bool ActionDelete(const MenuItem *item, KEY_Code_t key, bool key_pressed,
 // =============================================================================
 
 static const MenuItem channelDetailItems[] = {
-    {"Select",       0, NULL,          NULL,            NULL, ActionSelect},
-    {"Rename",       0, NULL,          NULL,            NULL, ActionRename},
-    {"Frequency",    0, NULL,          NULL,            NULL, ActionFreq},
-    {"RX Tone",      0, GetRxTone,     ChangeRxTone,    NULL, NULL},
-    {"TX Tone",      0, GetTxTone,     ChangeTxTone,    NULL, NULL},
-    {"Power",        0, GetPower,      ChangePower,     NULL, NULL},
-    {"Bandwidth",    0, GetBandwidth,  ChangeBandwidth, NULL, NULL},
-    {"Modulation",   0, GetModulation, ChangeModulation,NULL, NULL},
-    {"Offset Dir",   0, GetOffsetDir,  ChangeOffsetDir, NULL, NULL},
-    {"Offset Freq",  0, GetOffsetVal,  NULL,            NULL, ActionOffsetVal},
-    {"Step",         0, GetStep,       ChangeStep,      NULL, NULL},
-    {"Scrambler",    0, GetScramble,   ChangeScramble,  NULL, NULL},
-    {"Compander",    0, GetCompander,  ChangeCompander, NULL, NULL},
-    {"Busy Lock",    0, GetBusyLock,   ChangeBusyLock,  NULL, NULL},
-    {"Scanlist 1",   0, GetScanlist1,  ChangeScanlist1, NULL, NULL},
-    {"Scanlist 2",   0, GetScanlist2,  ChangeScanlist2, NULL, NULL},
-    {"Delete",       0, NULL,          NULL,            NULL, ActionDelete},
+    {"Select",       0, NULL,          NULL,            NULL, ActionSelect,    M_ITEM_ACTION},
+    {"Name",         0, GetName,       NULL,            NULL, ActionRename,    M_ITEM_ACTION},
+    {"Frequency",    0, GetFreq,       NULL,            NULL, ActionFreq,      M_ITEM_ACTION},
+    {"RX Tone",      0, GetRxTone,     ChangeRxTone,    NULL, NULL,            M_ITEM_SELECT},
+    {"TX Tone",      0, GetTxTone,     ChangeTxTone,    NULL, NULL,            M_ITEM_SELECT},
+    {"Power",        0, GetPower,      ChangePower,     NULL, NULL,            M_ITEM_SELECT},
+    {"Bandwidth",    0, GetBandwidth,  ChangeBandwidth, NULL, NULL,            M_ITEM_SELECT},
+    {"Modulation",   0, GetModulation, ChangeModulation,NULL, NULL,            M_ITEM_SELECT},
+    {"Offset Dir",   0, GetOffsetDir,  ChangeOffsetDir, NULL, NULL,            M_ITEM_SELECT},
+    {"Offset Freq",  0, GetOffsetVal,  NULL,            NULL, ActionOffsetVal, M_ITEM_ACTION},
+    {"Step",         0, GetStep,       ChangeStep,      NULL, NULL,            M_ITEM_SELECT},
+    {"Scrambler",    0, GetScramble,   ChangeScramble,  NULL, NULL,            M_ITEM_SELECT},
+    {"Compander",    0, GetCompander,  ChangeCompander, NULL, NULL,            M_ITEM_SELECT},
+    {"Busy Lock",    0, GetBusyLock,   ChangeBusyLock,  NULL, NULL,            M_ITEM_SELECT},
+    {"Scanlist 1",   0, GetScanlist1,  ChangeScanlist1, NULL, NULL,            M_ITEM_SELECT},
+    {"Scanlist 2",   0, GetScanlist2,  ChangeScanlist2, NULL, NULL,            M_ITEM_SELECT},
+    {"Delete",       0, NULL,          NULL,            NULL, ActionDelete,    M_ITEM_ACTION},
 };
 
 static Menu channelDetailMenu = {
@@ -570,7 +593,7 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
     AG_PrintMedium(18, baseline_y, "%s", mainLabel);
     
     if (strlen(rightLabel) > 0) {
-        AG_PrintSmallEx(LCD_WIDTH - 2, baseline_y, POS_R, C_FILL, "%s", rightLabel);
+        AG_PrintSmallEx(LCD_WIDTH - 6, baseline_y, POS_R, C_FILL, "%s", rightLabel);
     }
 }
 
@@ -762,16 +785,20 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
     
     switch (currentMode) {
         case MEM_MODE_RENAME:
+            if (Key == KEY_EXIT && bKeyHeld && bKeyPressed) {
+                // Long press EXIT = cancel rename
+                TextInput_Deinit();
+                currentMode = MEM_MODE_DETAIL;
+                return;
+            }
             if (Key == KEY_MENU && bKeyPressed && !bKeyHeld) {
                 // Save rename
                 SETTINGS_SaveChannelName(detailChannelIndex, editBuffer);
                 currentMode = MEM_MODE_DETAIL;
-            } else if (Key == KEY_EXIT && bKeyPressed && !bKeyHeld) {
-                // Cancel rename
-                currentMode = MEM_MODE_DETAIL;
-            } else {
-                TextInput_HandleInput(Key, bKeyPressed, bKeyHeld);
+                return;
             }
+            // Let TextInput handle everything else (including EXIT for backspace)
+            TextInput_HandleInput(Key, bKeyPressed, bKeyHeld);
             return;
             
         case MEM_MODE_RX_FREQ:

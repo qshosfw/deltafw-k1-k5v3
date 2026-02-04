@@ -3,6 +3,7 @@
 #include "../drivers/bsp/st7565.h"
 #include "../frequencies.h"
 #include "../external/printf/printf.h"
+#include "../apps/settings/settings.h"
 #include <string.h>
 
 // State
@@ -81,13 +82,13 @@ bool FreqInput_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
             return true;
             
         case KEY_UP:
-            // Move cursor left
-            if (cursor_pos > 0) cursor_pos--;
+            // Move cursor right (Next) - Match TextInput
+            if (cursor_pos < NUM_DIGITS - 1) cursor_pos++;
             return true;
             
         case KEY_DOWN:
-            // Move cursor right
-            if (cursor_pos < NUM_DIGITS - 1) cursor_pos++;
+            // Move cursor left (Prev) - Match TextInput
+            if (cursor_pos > 0) cursor_pos--;
             return true;
             
         case KEY_0:
@@ -154,7 +155,29 @@ void FreqInput_Render(void) {
     // MHz label
     AG_PrintSmall(x + 2, y, "MHz");
     
-    // Instructions
-    AG_PrintSmall(LCD_WIDTH / 2, 54, POS_C, C_FILL, "UP/DN:move  0-9:digit");
-    AG_PrintSmall(LCD_WIDTH / 2, 62, POS_C, C_FILL, "MENU:OK  EXIT:Can");
+    // Use same style as TextInput for key hints
+    const uint8_t HINT_Y = 48;
+    const uint8_t HINT_Y2 = 56;
+    
+    // Navigation keys - respect SET_NAV setting
+    // SET_NAV == 0: UP/DOWN, SET_NAV == 1: LEFT/RIGHT (physically wired to UP/DOWN logic)
+    const char *navLabel = gEeprom.SET_NAV ? "L/R" : "U/D";
+    
+    // Row 1: Navigation and digits
+    AG_FillRect(2, HINT_Y, 14, 7, C_FILL);
+    AG_PrintSmallEx(9, HINT_Y + 5, POS_C, C_INVERT, "%s", navLabel);
+    AG_PrintSmall(18, HINT_Y + 5, "Move");
+    
+    AG_FillRect(54, HINT_Y, 18, 7, C_FILL);
+    AG_PrintSmallEx(63, HINT_Y + 5, POS_C, C_INVERT, "0-9");
+    AG_PrintSmall(74, HINT_Y + 5, "Digit");
+    
+    // Row 2: Menu and Exit
+    AG_FillRect(2, HINT_Y2, 7, 7, C_FILL);
+    AG_PrintSmallEx(5, HINT_Y2 + 5, POS_C, C_INVERT, "M");
+    AG_PrintSmall(11, HINT_Y2 + 5, "OK");
+    
+    AG_FillRect(54, HINT_Y2, 7, 7, C_FILL);
+    AG_PrintSmallEx(57, HINT_Y2 + 5, POS_C, C_INVERT, "E");
+    AG_PrintSmall(63, HINT_Y2 + 5, "Cancel");
 }

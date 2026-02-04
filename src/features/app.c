@@ -82,6 +82,8 @@
     #include "screencast.h"
 #endif
 
+#include "ui/textinput.h"
+
 static bool flagSaveVfo;
 static bool flagSaveSettings;
 static bool flagSaveChannel;
@@ -1397,6 +1399,11 @@ void APP_TimeSlice10ms(void)
         if (gSetting_mic_bar && (gFlashLightBlinkCounter % (150 / 10)) == 0) // once every 150ms
             UI_DisplayAudioBar();
 #endif
+    }
+
+    // TextInput Blink Hook
+    if (TextInput_Tick()) {
+        gUpdateDisplay = true;
     }
 
     bool gUpdateDisplayCurrent = gUpdateDisplay;

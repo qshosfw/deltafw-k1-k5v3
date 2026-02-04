@@ -18,6 +18,11 @@ typedef void (*MenuAction)(void);
 typedef void (*MenuOnEnter)(void);
 typedef void (*MenuRenderItem)(uint16_t index, uint8_t visIndex);
 
+typedef enum {
+  M_ITEM_ACTION,    // Button, toggle, folder
+  M_ITEM_SELECT,    // Multi-choice selection
+} MItemType;
+
 typedef struct MenuItem {
   const char *name;
   uint8_t setting; // ID of the setting to change
@@ -26,6 +31,7 @@ typedef struct MenuItem {
   struct Menu *submenu; // if not NULL, enters this submenu
   
   bool (*action)(const struct MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held);
+  MItemType type;
 } MenuItem;
 
 typedef struct Menu {

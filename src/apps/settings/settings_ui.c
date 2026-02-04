@@ -524,25 +524,25 @@ static void changeVal(const MenuItem *item, bool up) {
 
 // Sound
 static const MenuItem soundItems[] = {
-    {"Squelch", MENU_SQL, getVal, changeVal, NULL, NULL},
-    {"Key Beep", MENU_BEEP, getVal, changeVal, NULL, NULL},
-    {"Roger", MENU_ROGER, getVal, changeVal, NULL, NULL},
-    {"VOX", MENU_VOX, getVal, changeVal, NULL, NULL},
-    {"Mic Sens", MENU_MIC, getVal, changeVal, NULL, NULL},
+    {"Squelch", MENU_SQL, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Key Beep", MENU_BEEP, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Roger", MENU_ROGER, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"VOX", MENU_VOX, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Mic Sens", MENU_MIC, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #ifdef ENABLE_AUDIO_BAR
-    {"Mic Bar", MENU_MIC_BAR, getVal, changeVal, NULL, NULL},
+    {"Mic Bar", MENU_MIC_BAR, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #endif
     #ifdef ENABLE_VOICE
-    {"Voice", MENU_VOICE, getVal, changeVal, NULL, NULL},
+    {"Voice", MENU_VOICE, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #endif
-    {"Tail Tone", MENU_STE, getVal, changeVal, NULL, NULL},
-    {"Repeater Tone", MENU_RP_STE, getVal, changeVal, NULL, NULL},
-    {"1 Call", MENU_1_CALL, getVal, changeVal, NULL, NULL},
+    {"Tail Tone", MENU_STE, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Repeater Tone", MENU_RP_STE, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"1 Call", MENU_1_CALL, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-    {"Rx FM Audio", MENU_SET_AUD, getVal, changeVal, NULL, NULL},
+    {"Rx FM Audio", MENU_SET_AUD, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
 #endif
     #ifdef ENABLE_ALARM
-    {"Alarm", MENU_AL_MOD, getVal, changeVal, NULL, NULL},
+    {"Alarm", MENU_AL_MOD, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #endif
 };
 static Menu soundMenu = {
@@ -552,16 +552,16 @@ static Menu soundMenu = {
 
 // Display
 static const MenuItem displayItems[] = {
-    {"Backlight Time", MENU_ABR, getVal, changeVal, NULL, NULL},
-    {"Backlight Max", MENU_ABR_MAX, getVal, changeVal, NULL, NULL},
-    {"Backlight Min", MENU_ABR_MIN, getVal, changeVal, NULL, NULL},
-    {"Backlight Tx/Rx", MENU_ABR_ON_TX_RX, getVal, changeVal, NULL, NULL},
-    {"Channel Label", MENU_MDF, getVal, changeVal, NULL, NULL},
-    {"Battery Text", MENU_BAT_TXT, getVal, changeVal, NULL, NULL},
-    {"Power On Text", MENU_PONMSG, getVal, changeVal, NULL, NULL},
+    {"Backlight Time", MENU_ABR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Backlight Max", MENU_ABR_MAX, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Backlight Min", MENU_ABR_MIN, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Backlight Tx/Rx", MENU_ABR_ON_TX_RX, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Channel Label", MENU_MDF, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Battery Text", MENU_BAT_TXT, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Power On Text", MENU_PONMSG, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-    {"Contrast", MENU_SET_CTR, getVal, changeVal, NULL, NULL},
-    {"Invert", MENU_SET_INV, getVal, changeVal, NULL, NULL},
+    {"Contrast", MENU_SET_CTR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Invert", MENU_SET_INV, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #endif
 };
 static Menu displayMenu = {
@@ -571,24 +571,23 @@ static Menu displayMenu = {
 
 // Radio
 static const MenuItem radioItems[] = {
-    {"Step", MENU_STEP, getVal, changeVal, NULL, NULL},
-    {"Bandwidth", MENU_W_N, getVal, changeVal, NULL, NULL},
-    {"Power", MENU_TXP, getVal, changeVal, NULL, NULL},
-    {"Rx DCS", MENU_R_DCS, getVal, changeVal, NULL, NULL},
-    {"Rx CTCS", MENU_R_CTCS, getVal, changeVal, NULL, NULL},
-    {"Tx DCS", MENU_T_DCS, getVal, changeVal, NULL, NULL},
-    {"Tx CTCS", MENU_T_CTCS, getVal, changeVal, NULL, NULL},
-    {"Offset Dir", MENU_SFT_D, getVal, changeVal, NULL, NULL},
-    {"Offset Freq", MENU_OFFSET, getVal, changeVal, NULL, NULL},
-    {"Busy Channel Lock", MENU_BCL, getVal, changeVal, NULL, NULL},
-    {"Modulation", MENU_AM, getVal, changeVal, NULL, NULL},
-    {"Scan Resume", MENU_SC_REV, getVal, changeVal, NULL, NULL},
-    {"Compander", MENU_COMPAND, getVal, changeVal, NULL, NULL},
-    {"Scrambler", MENU_SCR, getVal, changeVal, NULL, NULL},
-
+    {"Step", MENU_STEP, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Bandwidth", MENU_W_N, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Power", MENU_TXP, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Rx DCS", MENU_R_DCS, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Rx CTCS", MENU_R_CTCS, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Tx DCS", MENU_T_DCS, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Tx CTCS", MENU_T_CTCS, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Offset Dir", MENU_SFT_D, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Offset Freq", MENU_OFFSET, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Busy Channel Lock", MENU_BCL, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Modulation", MENU_AM, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Scan Resume", MENU_SC_REV, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Compander", MENU_COMPAND, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Scrambler", MENU_SCR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-    {"Tx Lock", MENU_TX_LOCK, getVal, changeVal, NULL, NULL},
-    {"350 En", MENU_350EN, getVal, changeVal, NULL, NULL},
+    {"Tx Lock", MENU_TX_LOCK, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"350 En", MENU_350EN, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #endif
 };
 static Menu radioMenu = {
@@ -598,18 +597,18 @@ static Menu radioMenu = {
 
 // DTMF
 static const MenuItem dtmfItems[] = {
-    {"PTT ID", MENU_PTT_ID, getVal, changeVal, NULL, NULL},
-    {"Side Tone", MENU_D_ST, getVal, changeVal, NULL, NULL},
-    {"Live Dec", MENU_D_LIVE_DEC, getVal, changeVal, NULL, NULL},
+    {"PTT ID", MENU_PTT_ID, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Side Tone", MENU_D_ST, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Live Dec", MENU_D_LIVE_DEC, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #ifdef ENABLE_DTMF_CALLING
-    {"ANI ID", MENU_ANI_ID, getVal, NULL, NULL, NULL},
-    {"Response", MENU_D_RSP, getVal, changeVal, NULL, NULL},
-    {"Reset Time", MENU_D_HOLD, getVal, changeVal, NULL, NULL},
-    {"Preload", MENU_D_PRE, getVal, changeVal, NULL, NULL},
-    {"Decode", MENU_D_DCD, getVal, changeVal, NULL, NULL},
+    {"ANI ID", MENU_ANI_ID, getVal, NULL, NULL, NULL, M_ITEM_ACTION},
+    {"Response", MENU_D_RSP, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Reset Time", MENU_D_HOLD, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Preload", MENU_D_PRE, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Decode", MENU_D_DCD, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #endif
-    {"Up Code", MENU_UPCODE, getVal, NULL, NULL, NULL},
-    {"Dw Code", MENU_DWCODE, getVal, NULL, NULL, NULL},
+    {"Up Code", MENU_UPCODE, getVal, NULL, NULL, NULL, M_ITEM_ACTION},
+    {"Dw Code", MENU_DWCODE, getVal, NULL, NULL, NULL, M_ITEM_ACTION},
 };
 static Menu dtmfMenu = {
     .title = "DTMF", .items = dtmfItems, .num_items = ARRAY_SIZE(dtmfItems),
@@ -618,12 +617,12 @@ static Menu dtmfMenu = {
 
 // System
 static const MenuItem systemItems[] = {
-    {"Tx Timeout", MENU_TOT, getVal, changeVal, NULL, NULL},
-    {"Auto Lock", MENU_AUTOLK, getVal, changeVal, NULL, NULL},
-    {"Dual Watch", MENU_TDR, getVal, changeVal, NULL, NULL},
-    {"Bat Save", MENU_SAVE, getVal, changeVal, NULL, NULL},
-    {"Bat Type", MENU_BATTYP, getVal, changeVal, NULL, NULL},
-    {"Nav Layout", MENU_SET_NAV, getVal, changeVal, NULL, NULL},
+    {"Tx Timeout", MENU_TOT, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Auto Lock", MENU_AUTOLK, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Dual Watch", MENU_TDR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Bat Save", MENU_SAVE, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Bat Type", MENU_BATTYP, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Nav Layout", MENU_SET_NAV, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
 };
 static Menu systemMenu = {
     .title = "System", .items = systemItems, .num_items = ARRAY_SIZE(systemItems),
@@ -632,11 +631,11 @@ static Menu systemMenu = {
 
 // Main
 static const MenuItem rootItems[] = {
-    {"Sound", 0, NULL, NULL, &soundMenu, NULL},
-    {"Display", 0, NULL, NULL, &displayMenu, NULL},
-    {"Radio", 0, NULL, NULL, &radioMenu, NULL},
-    {"DTMF", 0, NULL, NULL, &dtmfMenu, NULL},
-    {"System", 0, NULL, NULL, &systemMenu, NULL},
+    {"Sound", 0, NULL, NULL, &soundMenu, NULL, M_ITEM_ACTION},
+    {"Display", 0, NULL, NULL, &displayMenu, NULL, M_ITEM_ACTION},
+    {"Radio", 0, NULL, NULL, &radioMenu, NULL, M_ITEM_ACTION},
+    {"DTMF", 0, NULL, NULL, &dtmfMenu, NULL, M_ITEM_ACTION},
+    {"System", 0, NULL, NULL, &systemMenu, NULL, M_ITEM_ACTION},
 };
 
 static Menu rootMenu = {

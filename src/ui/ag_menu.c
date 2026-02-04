@@ -12,6 +12,8 @@ static Menu *menu_stack[MENU_STACK_DEPTH];
 static uint8_t menu_stack_top = 0;
 
 static Menu *active_menu = NULL;
+static bool is_editing = false;
+static bool is_pressed = false;
 
 static void (*renderFn)(uint8_t x, uint8_t y, const char *pattern, ...);
 
@@ -67,6 +69,9 @@ static void init() {
   if (active_menu->on_enter)
     active_menu->on_enter();
 
+  is_pressed = false;
+  is_editing = false;
+
   if (!active_menu->render_item) {
     active_menu->render_item = renderItem;
   }
@@ -85,7 +90,10 @@ void AG_MENU_Init(Menu *main_menu) {
   init();
 }
 
-void AG_MENU_Deinit(void) { active_menu = NULL; }
+void AG_MENU_Deinit(void) {
+  active_menu = NULL;
+  is_pressed = false;
+}
 
 // Map domain function helper
 static int32_t ConvertDomain(int32_t aValue, int32_t aMin, int32_t aMax, int32_t bMin, int32_t bMax) {
@@ -127,7 +135,21 @@ void AG_MENU_Render(void) {
     active_menu->render_item(idx, i);
 
     if (isActive) {
-      AG_FillRect(active_menu->x, y, ex - 4, active_menu->itemHeight, C_INVERT);
+      const MenuItem *item = &active_menu->items[idx];
+      if (item->type == M_ITEM_SELECT) {
+          if (is_editing) {
+              AG_FillRect(active_menu->x, y, ex - 4, active_menu->itemHeight, C_INVERT);
+          } else {
+              AG_DrawRect(active_menu->x, y, ex - 4, active_menu->itemHeight, C_FILL);
+          }
+      } else {
+          const uint8_t rw = ex - 4 - active_menu->x;
+          if (is_pressed) {
+              AG_DrawRect(active_menu->x, y, rw, active_menu->itemHeight, C_FILL);
+          } else {
+              AG_FillRect(active_menu->x, y, rw, active_menu->itemHeight, C_INVERT);
+          }
+      }
     }
   }
 
@@ -179,8 +201,44 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
 
   const bool hasItems = (active_menu->items != NULL);
 
+  // Handle key release
+  if (!key_pressed && !key_held) {
+      if (is_pressed) {
+          is_pressed = false;
+          return true;
+      }
+  }
+
+  if (is_pressed && key != KEY_MENU && (key_pressed || key_held)) {
+      is_pressed = false;
+  }
+
+  if (hasItems) {
+      const MenuItem *item = &active_menu->items[active_menu->i];
+      
+      if (is_editing) {
+          if (key_pressed || key_held) {
+              if (key == KEY_UP || key == KEY_DOWN || key == KEY_STAR || key == KEY_F) {
+                  if (item->change_value) {
+                      bool up = (key == KEY_UP || key == KEY_F);
+                      item->change_value(item, up);
+                      if (!key_held) AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+                      return true;
+                  }
+              }
+              if (key == KEY_MENU || key == KEY_EXIT) {
+                  is_editing = false;
+                  AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+                  return true;
+              }
+          }
+          return true; // Consume all input while editing
+      }
+  }
+
   if (key_pressed || key_held) {
     if (handleUpDownNavigation(key, hasItems, key_held)) {
+      is_pressed = false; // navigation resets press state
       return true;
     }
   }
@@ -198,27 +256,32 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
   if (key_pressed) {
     switch (key) {
     case KEY_MENU: // Enter submenu or execute action
-      if (item->submenu) {
-        if (menu_stack_top < MENU_STACK_DEPTH) {
-          menu_stack[menu_stack_top++] = active_menu;
-          active_menu = item->submenu;
-          active_menu->i = 0;
-          init();
+      if (item->type == M_ITEM_SELECT && item->change_value) {
+          is_editing = true;
           AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
-        }
+          return true;
+      }
+      
+      is_pressed = true; // Visual state for buttons/folders
+      
+      if (item->submenu) {
+        AG_MENU_EnterMenu(item->submenu);
+        AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
         return true;
       } else if (item->action) {
          if (item->action(item, key, key_pressed, key_held)) {
              AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
              return true;
          }
-      } else if (item->change_value) {
+      } else if (item->change_value) { // Toggle (M_ITEM_ACTION with change_value)
           item->change_value(item, true);
           AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
           return true;
       }
       break;
     case KEY_EXIT:
+      is_pressed = false;
+      is_editing = false;
       return AG_MENU_Back();
     default:
       break;

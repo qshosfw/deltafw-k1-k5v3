@@ -10,5 +10,6 @@ bool TextInput_IsActive(void);
 void TextInput_Deinit(void);
 bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld);
 void TextInput_Render(void);
+bool TextInput_Tick(void); // Returns true if redraw needed
 
 #endif
