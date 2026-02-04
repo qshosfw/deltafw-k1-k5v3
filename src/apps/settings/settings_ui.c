@@ -167,13 +167,11 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
                  else snprintf(buf, bufLen, "%u.%uHz", CTCSS_Options[code] / 10, CTCSS_Options[code] % 10);
             }
             break;
-        #ifndef ENABLE_CUSTOM_FIRMWARE_MODS
         case MENU_SCR:
              if (gSetting_ScrambleEnable && gTxVfo->SCRAMBLING_TYPE > 0 && gTxVfo->SCRAMBLING_TYPE <= 10) 
-                snprintf(buf, bufLen, "%d", gTxVfo->SCRAMBLING_TYPE);
+                snprintf(buf, bufLen, "%s", gSubMenu_SCRAMBLER[gTxVfo->SCRAMBLING_TYPE]);
              else snprintf(buf, bufLen, "OFF");
              break;
-        #endif
         case MENU_COMPAND:
              snprintf(buf, bufLen, "%s", gSubMenu_RX_TX[gTxVfo->Compander]);
              break;
@@ -376,11 +374,17 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
         case MENU_COMPAND:
              INC_DEC(gTxVfo->Compander, 0, 3, up);
              break;
-        #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-        case MENU_350EN:
-             gSetting_350EN = !gSetting_350EN;
+        case MENU_SCR:
+             INC_DEC(gTxVfo->SCRAMBLING_TYPE, 0, 10, up);
+             gSetting_ScrambleEnable = (gTxVfo->SCRAMBLING_TYPE > 0);
+             if (gTxVfo->Modulation == MODULATION_FM) {
+                 if (gSetting_ScrambleEnable)
+                     BK4819_EnableScramble(gTxVfo->SCRAMBLING_TYPE - 1);
+                 else
+                     BK4819_DisableScramble();
+             }
              break;
-        #endif
+
         case MENU_R_DCS:
         case MENU_T_DCS:
              {
@@ -580,9 +584,8 @@ static const MenuItem radioItems[] = {
     {"Modulation", MENU_AM, getVal, changeVal, NULL, NULL},
     {"Scan Resume", MENU_SC_REV, getVal, changeVal, NULL, NULL},
     {"Compander", MENU_COMPAND, getVal, changeVal, NULL, NULL},
-    #ifndef ENABLE_CUSTOM_FIRMWARE_MODS
     {"Scrambler", MENU_SCR, getVal, changeVal, NULL, NULL},
-    #endif
+
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     {"Tx Lock", MENU_TX_LOCK, getVal, changeVal, NULL, NULL},
     {"350 En", MENU_350EN, getVal, changeVal, NULL, NULL},

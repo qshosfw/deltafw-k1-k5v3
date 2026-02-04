@@ -970,11 +970,7 @@ void SETTINGS_SaveChannel(uint8_t Channel, uint8_t VFO, const VFO_Info_t *pVFO, 
 #endif
         ;
         State -> _8[6] =  pVFO->STEP_SETTING;
-#ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-        State -> _8[7] =  0;
-#else
         State -> _8[7] =  pVFO->SCRAMBLING_TYPE;
-#endif
 
         PY25Q16_WriteBuffer(OffsetVFO, Buf, 0x10, false);
 

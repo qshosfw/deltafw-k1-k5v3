@@ -55,9 +55,7 @@ const t_menu_item MenuList[] =
     {"TxODir",      MENU_SFT_D         }, // was "SFT_D"
     {"TxOffs",      MENU_OFFSET        }, // was "OFFSET"
     {"W/N",         MENU_W_N           },
-#ifndef ENABLE_CUSTOM_FIRMWARE_MODS
     {"Scramb",      MENU_SCR           }, // was "SCR"
-#endif
     {"BusyCL",      MENU_BCL           }, // was "BCL"
     {"Compnd",      MENU_COMPAND       },
     {"Mode",        MENU_AM            }, // was "AM"
@@ -176,9 +174,7 @@ const t_menu_item MenuList[] =
     {"Tx 500",      MENU_500TX         }, // was "500TX"
 #endif
     {"350 En",      MENU_350EN         }, // was "350EN"
-#ifndef ENABLE_CUSTOM_FIRMWARE_MODS
     {"ScraEn",      MENU_SCREN         }, // was "SCREN"
-#endif
 #ifdef ENABLE_F_CAL_MENU
     {"FrCali",      MENU_F_CALI        }, // reference xtal calibration
 #endif
@@ -355,7 +351,6 @@ const char gSubMenu_BATTYP[][12] =
     "2500mAh K1"
 };
 
-#ifndef ENABLE_CUSTOM_FIRMWARE_MODS
 const char gSubMenu_SCRAMBLER[][7] =
 {
     "OFF",
@@ -370,7 +365,6 @@ const char gSubMenu_SCRAMBLER[][7] =
     "3400Hz",
     "3500Hz"
 };
-#endif
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     const char gSubMenu_SET_PWR[][6] =
@@ -722,17 +716,15 @@ void UI_DisplayMenu(void)
             strcpy(String, gSubMenu_W_N[gSubMenuSelection]);
             break;
 
-#ifndef ENABLE_CUSTOM_FIRMWARE_MODS
         case MENU_SCR:
             strcpy(String, gSubMenu_SCRAMBLER[gSubMenuSelection]);
-            #if 1
+            if (gRxVfo->Modulation == MODULATION_FM) {
                 if (gSubMenuSelection > 0 && gSetting_ScrambleEnable)
                     BK4819_EnableScramble(gSubMenuSelection - 1);
                 else
                     BK4819_DisableScramble();
-            #endif
+            }
             break;
-#endif
 
         case MENU_VOX:
             #ifdef ENABLE_VOX
@@ -826,9 +818,7 @@ void UI_DisplayMenu(void)
         case MENU_500TX:
 #endif
         case MENU_350EN:
-#ifndef ENABLE_CUSTOM_FIRMWARE_MODS
         case MENU_SCREN:
-#endif
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         case MENU_SET_TMR:
 #endif

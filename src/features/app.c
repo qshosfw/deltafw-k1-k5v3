@@ -950,7 +950,7 @@ void APP_Update(void)
 
             if(gSetting_set_tot == 1 || gSetting_set_tot == 3)
             {
-                BK4819_DisableScramble();
+                // BK4819_DisableScramble(); // calypso
                 BK4819_PlaySingleTone(gTxTimeoutToneAlert, 30, 1, true);
                 gTxTimeoutToneAlert += 100;
             }
@@ -2087,14 +2087,10 @@ static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 
                     BK4819_ExitDTMF_TX(false);
 
-#ifndef ENABLE_CUSTOM_FIRMWARE_MODS
                     if (gCurrentVfo->SCRAMBLING_TYPE == 0 || !gSetting_ScrambleEnable)
                         BK4819_DisableScramble();
                     else
                         BK4819_EnableScramble(gCurrentVfo->SCRAMBLING_TYPE - 1);
-#else
-                        BK4819_DisableScramble();
-#endif
                 }
             }
             else {

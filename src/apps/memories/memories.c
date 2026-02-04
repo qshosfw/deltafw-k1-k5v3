@@ -70,7 +70,7 @@ static const char *offsetDirNames[] = {"None", "+", "-"};
 static const char *compNames[] = {"Off", "TX", "RX", "TX+RX"};
 static const char *yesNoNames[] = {"No", "Yes"};
 static const char *stepNames[] = {"2.50", "5.00", "6.25", "10.00", "12.50", "25.00", "8.33"};
-static const char *scrambleNames[] = {"Off", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
+static const char *scrambleNames[] = {"Off", "2600Hz", "2700Hz", "2800Hz", "2900Hz", "3000Hz", "3100Hz", "3200Hz", "3300Hz", "3400Hz", "3500Hz"};
 
 // =============================================================================
 // Helper Functions for CTCSS/DCS
