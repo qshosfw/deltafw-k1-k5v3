@@ -143,6 +143,7 @@ enum BacklightOnRxTx_t gSetting_backlight_on_tx_rx;
         bool          gPowerHigh = false;
         bool          gRemoveOffset = false;
     #endif
+    uint8_t       gSetting_set_audio = 0;
 #endif
 
 #ifdef ENABLE_AUDIO_BAR

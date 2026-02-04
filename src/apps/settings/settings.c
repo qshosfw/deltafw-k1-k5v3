@@ -46,6 +46,10 @@ void SETTINGS_InitEEPROM(void)
     uint8_t Data[16] = {0};
     // 0E70..0E77
     PY25Q16_ReadBuffer(0x004000, Data, 8);
+    
+    PY25Q16_ReadBuffer(0x00A000, Data + 8, 8);
+    gSetting_set_audio = (Data[8] < 5) ? Data[8] : 0;
+
     gEeprom.CHAN_1_CALL          = IS_MR_CHANNEL(Data[0]) ? Data[0] : MR_CHANNEL_FIRST;
     gEeprom.SQUELCH_LEVEL        = (Data[1] < 10) ? Data[1] : 1;
     gEeprom.TX_TIMEOUT_TIMER     = (Data[2] > 4 && Data[2] < 180) ? Data[2] : 11;
@@ -913,6 +917,10 @@ void SETTINGS_SaveSettings(void)
 #ifdef ENABLE_SYSTEM_INFO_MENU
     SETTINGS_WriteCurrentVol();
 #endif
+
+    PY25Q16_ReadBuffer(0x00A000, SecBuf, 8);
+    SecBuf[0] = gSetting_set_audio;
+    PY25Q16_WriteBuffer(0x00A000, SecBuf, 8, true);
 }
 
 void SETTINGS_SaveChannel(uint8_t Channel, uint8_t VFO, const VFO_Info_t *pVFO, uint8_t Mode)

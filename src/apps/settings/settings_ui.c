@@ -74,6 +74,9 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
         #endif
 
         // --- Display ---
+        case MENU_SET_AUD:
+            snprintf(buf, bufLen, "%s", gSubMenu_SET_AUD[gSetting_set_audio]);
+            break;
         case MENU_ABR:
             if (gEeprom.BACKLIGHT_TIME == 0) snprintf(buf, bufLen, "OFF");
             else if (gEeprom.BACKLIGHT_TIME >= 61) snprintf(buf, bufLen, "ON");
@@ -253,6 +256,10 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
 static void Settings_UpdateValue(uint8_t settingId, bool up) {
     switch (settingId) {
         // --- Sound ---
+        case MENU_SET_AUD:
+            INC_DEC(gSetting_set_audio, 0, 4, up);
+            RADIO_SetModulation(gRxVfo->Modulation);
+            break;
         case MENU_SQL:
             INC_DEC(gEeprom.SQUELCH_LEVEL, 0, 9, up);
             break;
@@ -527,12 +534,15 @@ static const MenuItem soundItems[] = {
     {"Tail Tone", MENU_STE, getVal, changeVal, NULL, NULL},
     {"Repeater Tone", MENU_RP_STE, getVal, changeVal, NULL, NULL},
     {"1 Call", MENU_1_CALL, getVal, changeVal, NULL, NULL},
+#ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+    {"Rx FM Audio", MENU_SET_AUD, getVal, changeVal, NULL, NULL},
+#endif
     #ifdef ENABLE_ALARM
     {"Alarm", MENU_AL_MOD, getVal, changeVal, NULL, NULL},
     #endif
 };
 static Menu soundMenu = {
-    .title = "Sound", .items = soundItems, .num_items = ARRAY_SIZE(soundItems),
+    .title = "Audio", .items = soundItems, .num_items = ARRAY_SIZE(soundItems),
     .x = 0, .y = MENU_Y, .width = LCD_WIDTH, .height = LCD_HEIGHT - MENU_Y, .itemHeight = MENU_ITEM_H
 };
 

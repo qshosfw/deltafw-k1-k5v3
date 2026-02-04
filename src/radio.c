@@ -1000,6 +1000,38 @@ void RADIO_SetTxParameters(void)
     }
 }
 
+static void AUDIO_ApplyProfile(uint8_t profile)
+{
+    switch (profile)
+    {
+    default:
+    case 0: // FLAT
+        BK4819_WriteRegister(0x54, 0x9009);
+        BK4819_WriteRegister(0x55, 0x3200);
+        break;
+
+    case 1: // CLEAN
+        BK4819_WriteRegister(0x54, 0x9009);
+        BK4819_WriteRegister(0x55, 0x33A9);
+        break;
+
+    case 2: // MID
+        BK4819_WriteRegister(0x54, 0x9009);
+        BK4819_WriteRegister(0x55, 0x3600);
+        break;
+
+    case 3: // BOOST
+        BK4819_WriteRegister(0x54, 0x8546);
+        BK4819_WriteRegister(0x55, 0x3AF0);
+        break;
+
+    case 4: // MAX
+        BK4819_WriteRegister(0x54, 0x8566);
+        BK4819_WriteRegister(0x55, 0x3D00);
+        break;
+    }
+}
+
 void RADIO_SetModulation(ModulationMode_t modulation)
 {
     BK4819_AF_Type_t mod;
@@ -1042,8 +1074,12 @@ void RADIO_SetModulation(ModulationMode_t modulation)
         BK4819_WriteRegister(0x2a,0x7400);
         BK4819_WriteRegister(0x2b,0);
         BK4819_WriteRegister(0x2f,0x9890);
+#ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+        AUDIO_ApplyProfile(gSetting_set_audio);
+#else
         BK4819_WriteRegister(0x54, 0x9009);
         BK4819_WriteRegister(0x55, 0x31a9);
+#endif
     }
     else
     {
@@ -1053,8 +1089,13 @@ void RADIO_SetModulation(ModulationMode_t modulation)
         BK4819_WriteRegister(0x2a,0x7434);
         BK4819_WriteRegister(0x2b,0x300);
         BK4819_WriteRegister(0x2f,0x9990);
+#ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+        BK4819_WriteRegister(0x54, 0x8846);
+        BK4819_WriteRegister(0x55, 0x38C0);
+#else
         //BK4819_WriteRegister(0x54, 0x9775);
         //BK4819_WriteRegister(0x55, 0x32c6);
+#endif
         BK4819_SetFilterBandwidth(BK4819_FILTER_BW_AM, true);
     }
     

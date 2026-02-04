@@ -428,6 +428,15 @@ const char gSubMenu_SCRAMBLER[][7] =
             "KEY_STAR"
         };
     #endif
+
+    const char gSubMenu_SET_AUD[][6] =
+    {
+        "FLAT",
+        "CLEAN",
+        "MID",
+        "BOOST",
+        "MAX"
+    };
 #endif
 
 const t_sidefunction gSubMenu_SIDEFUNCTIONS[] =

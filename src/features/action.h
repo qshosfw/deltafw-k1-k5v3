@@ -44,6 +44,7 @@ void ACTION_SwitchDemodul(void);
     void ACTION_BackLight(void);
     //#if !defined(ENABLE_SPECTRUM) || !defined(ENABLE_FMRADIO)
     void ACTION_Mute(void);
+    void ACTION_RxA(void);
     //#endif
     #ifdef ENABLE_RESCUE_OPERATIONS
         void ACTION_Power_High(void);

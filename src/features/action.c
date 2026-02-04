@@ -111,6 +111,7 @@ void (*action_opt_table[])(void) = {
     [ACTION_OPT_BACKLIGHT] = &ACTION_BackLight,
     //#if !defined(ENABLE_SPECTRUM) || !defined(ENABLE_FMRADIO)
         [ACTION_OPT_MUTE] = &ACTION_Mute,
+        [ACTION_OPT_RXA] = &ACTION_RxA,
     //#else
     //    [ACTION_OPT_MUTE] = &FUNCTION_NOP,
     //#endif
@@ -650,6 +651,12 @@ void ACTION_BackLightOnDemand(void)
             (gEeprom.DAC_GAIN << 0));     // AF DAC Gain (after Gain-1 and Gain-2)
 
         gUpdateStatus = true;
+    }
+
+    void ACTION_RxA(void)
+    {
+        gSetting_set_audio = (gSetting_set_audio + 1) % 5;
+        RADIO_SetModulation(gRxVfo->Modulation);
     }
     //#endif
 

@@ -139,6 +139,7 @@ enum
     MENU_SET_MET,
     MENU_SET_GUI,
     MENU_SET_TMR,
+    MENU_SET_AUD,
     #ifdef ENABLE_NARROWER_BW_FILTER
         MENU_SET_NFM,
     #endif
@@ -196,6 +197,7 @@ extern const char        gSubMenu_D_RSP[4][11];
     #ifdef ENABLE_RESCUE_OPERATIONS
         extern const char gSubMenu_SET_KEY[][9];
     #endif
+    extern const char    gSubMenu_SET_AUD[5][6];
 #endif
 
 extern const char* const gSubMenu_PTT_ID[5];

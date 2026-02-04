@@ -196,6 +196,7 @@ extern enum BacklightOnRxTx_t gSetting_backlight_on_tx_rx;
         extern bool               gPowerHigh;
         extern bool               gRemoveOffset;
     #endif
+    extern uint8_t            gSetting_set_audio;
 #endif
 
 #ifdef ENABLE_AUDIO_BAR
