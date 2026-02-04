@@ -204,7 +204,7 @@ enable_feature(ENABLE_REDUCE_LOW_MID_TX_POWER)
 enable_feature(ENABLE_BYP_RAW_DEMODULATORS)
 enable_feature(ENABLE_BLMIN_TMP_OFF)
 enable_feature(ENABLE_SCAN_RANGES)
-enable_feature(ENABLE_NAVIG_LEFT_RIGHT)
+
 
 
 # ----------------------------------------------------------------------------

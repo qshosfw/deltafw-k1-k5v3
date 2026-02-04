@@ -148,6 +148,7 @@ enum
     #ifdef ENABLE_RESCUE_OPERATIONS
         MENU_SET_KEY,
     #endif
+    MENU_SET_NAV,
     #ifdef ENABLE_NOAA
         MENU_NOAA_S,
     #endif

@@ -1191,21 +1191,23 @@ static void OnKeyDown(uint8_t key)
 #ifdef ENABLE_SCAN_RANGES
         if (!gScanRangeStart)
 #endif
-#ifdef ENABLE_NAVIG_LEFT_RIGHT
-            UpdateCurrentFreq(false);
-#else
-            UpdateCurrentFreq(true);
-#endif
+        {
+            if (gEeprom.SET_NAV == 0)
+                UpdateCurrentFreq(false);
+            else
+                UpdateCurrentFreq(true);
+        }
         break;
     case KEY_DOWN:
 #ifdef ENABLE_SCAN_RANGES
         if (!gScanRangeStart)
 #endif
-#ifdef ENABLE_NAVIG_LEFT_RIGHT
-            UpdateCurrentFreq(true);
-#else
-            UpdateCurrentFreq(false);
-#endif
+        {
+            if (gEeprom.SET_NAV == 0)
+                UpdateCurrentFreq(true);
+            else
+                UpdateCurrentFreq(false);
+        }
         break;
     case KEY_SIDE1:
         Blacklist();
@@ -1322,36 +1324,33 @@ void OnKeyDownStill(KEY_Code_t key)
         break;
     case KEY_UP:
         if (menuState)
+        {
+            if (gEeprom.SET_NAV == 0)
+                SetRegMenuValue(menuState, false);
+            else
+                SetRegMenuValue(menuState, true);
+            break;
+        }
 
-#ifdef ENABLE_NAVIG_LEFT_RIGHT
-        {
-            SetRegMenuValue(menuState, false);
-            break;
-        }
-        UpdateCurrentFreqStill(false);
-#else
-        {
-            SetRegMenuValue(menuState, true);
-            break;
-        }
-        UpdateCurrentFreqStill(true);
-#endif
+        if (gEeprom.SET_NAV == 0)
+            UpdateCurrentFreqStill(false);
+        else
+            UpdateCurrentFreqStill(true);
         break;
     case KEY_DOWN:
         if (menuState)
-#ifdef ENABLE_NAVIG_LEFT_RIGHT
         {
-            SetRegMenuValue(menuState, true);
+            if (gEeprom.SET_NAV == 0)
+                SetRegMenuValue(menuState, true);
+            else
+                SetRegMenuValue(menuState, false);
             break;
         }
-        UpdateCurrentFreqStill(true);
-#else
-        {
-            SetRegMenuValue(menuState, false);
-            break;
-        }
-        UpdateCurrentFreqStill(false);
-#endif
+
+        if (gEeprom.SET_NAV == 0)
+            UpdateCurrentFreqStill(true);
+        else
+            UpdateCurrentFreqStill(false);
         break;
     case KEY_STAR:
         UpdateRssiTriggerLevel(true);

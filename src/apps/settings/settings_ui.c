@@ -24,10 +24,7 @@
 
 // --- Helper Functions ---
 
-static const char* GetStr(const char* const opts[], uint8_t val, uint8_t max) {
-    if (val >= max) return "?";
-    return opts[val];
-}
+
 
 static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
     if (!buf) return;
@@ -206,6 +203,12 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
              break;
         case MENU_BATTYP:
              snprintf(buf, bufLen, "%s", gSubMenu_BATTYP[gEeprom.BATTERY_TYPE]);
+             break;
+        case MENU_SET_NAV:
+             {
+                 const char* modes[] = {"K1 (L/R)", "K5 (U/D)"};
+                 snprintf(buf, bufLen, "%s", modes[gEeprom.SET_NAV]);
+             }
              break;
 
         // --- DTMF ---
@@ -455,6 +458,9 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
          case MENU_BATTYP:
               INC_DEC(gEeprom.BATTERY_TYPE, 0, 4, up);
               break;
+         case MENU_SET_NAV:
+              gEeprom.SET_NAV = !gEeprom.SET_NAV;
+              break;
 
         // --- DTMF ---
          case MENU_PTT_ID:
@@ -604,6 +610,7 @@ static const MenuItem systemItems[] = {
     {"Dual Watch", MENU_TDR, getVal, changeVal, NULL, NULL},
     {"Bat Save", MENU_SAVE, getVal, changeVal, NULL, NULL},
     {"Bat Type", MENU_BATTYP, getVal, changeVal, NULL, NULL},
+    {"Nav Layout", MENU_SET_NAV, getVal, changeVal, NULL, NULL},
 };
 static Menu systemMenu = {
     .title = "System", .items = systemItems, .num_items = ARRAY_SIZE(systemItems),

@@ -1987,24 +1987,24 @@ void MENU_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             MENU_Key_MENU(bKeyPressed, bKeyHeld);
             break;
         case KEY_UP:
-            #ifdef ENABLE_NAVIG_LEFT_RIGHT
+            if (gEeprom.SET_NAV == 0) {
                 if(gIsInSubMenu)
                     MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, -1);
                 else
                     MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, 1);
-            #else
+            } else {
                 MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, 1);
-            #endif
+            }
             break;
         case KEY_DOWN:
-            #ifdef ENABLE_NAVIG_LEFT_RIGHT
+            if (gEeprom.SET_NAV == 0) {
                 if(gIsInSubMenu)
                     MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, 1);
                 else
                     MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, -1);
-            #else
+            } else {
                 MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, -1);
-            #endif
+            }
             break;
         case KEY_EXIT:
             MENU_Key_EXIT(bKeyPressed, bKeyHeld);

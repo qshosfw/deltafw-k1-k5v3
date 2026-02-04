@@ -56,8 +56,10 @@ void SETTINGS_InitEEPROM(void)
         gEeprom.KEY_LOCK = (Data[4] & 0x01) != 0;
         gEeprom.MENU_LOCK = (Data[4] & 0x02) != 0;
         gEeprom.SET_KEY = ((Data[4] >> 2) & 0x0F) > 4 ? 0 : (Data[4] >> 2) & 0x0F;
+        gEeprom.SET_NAV = (Data[4] & 0x40) != 0;
     #else
-        gEeprom.KEY_LOCK             = (Data[4] <  2) ? Data[4] : false;
+        gEeprom.KEY_LOCK = (Data[4] & 0x01) != 0;
+        gEeprom.SET_NAV = (Data[4] & 0x40) != 0;
     #endif
     #ifdef ENABLE_VOX
         gEeprom.VOX_SWITCH       = (Data[5] <  2) ? Data[5] : false;
@@ -667,9 +669,9 @@ void SETTINGS_SaveSettings(void)
     #endif
 
     #ifdef ENABLE_RESCUE_OPERATIONS
-        State[4] = (gEeprom.KEY_LOCK ? 0x01 : 0) | (gEeprom.MENU_LOCK ? 0x02 :0) | ((gEeprom.SET_KEY & 0x0F) << 2);
+        State[4] = (gEeprom.KEY_LOCK ? 0x01 : 0) | (gEeprom.MENU_LOCK ? 0x02 :0) | ((gEeprom.SET_KEY & 0x0F) << 2) | (gEeprom.SET_NAV ? 0x40 : 0);
     #else
-        State[4] = gEeprom.KEY_LOCK;
+        State[4] = (gEeprom.KEY_LOCK ? 0x01 : 0) | (gEeprom.SET_NAV ? 0x40 : 0);
     #endif
 
     #ifdef ENABLE_VOX

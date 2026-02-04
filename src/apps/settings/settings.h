@@ -199,6 +199,7 @@ typedef struct {
     bool                  MENU_LOCK;
     uint8_t               SET_KEY;
 #endif
+    bool                  SET_NAV;
     bool                  VOX_SWITCH;
     uint8_t               VOX_LEVEL;
 #ifdef ENABLE_VOICE
