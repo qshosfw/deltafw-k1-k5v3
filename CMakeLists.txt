@@ -91,6 +91,7 @@ endif()
 
 set(OUTPUT_FILENAME "${EXE_NAME}.${VERSION_STRING}.${GIT_COMMIT_HASH}.${BUILD_DATE_FILE}")
 message("Output file: ${OUTPUT_FILENAME}")
+message("CMAKE_OBJCOPY: ${CMAKE_OBJCOPY}")
 
 # Generate .bin file
 add_custom_command(

@@ -55,8 +55,9 @@ build_preset() {
   echo "---------------------------------------------"
   docker run --rm $([ -t 0 ] && echo "-it" || echo "-i") -v "$PWD":/src -w /src "$IMAGE" \
     bash -c "which arm-none-eabi-gcc && arm-none-eabi-gcc --version && \
-             cmake --preset ${preset} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} && \
-             cmake --build --preset ${preset} -j"
+             cmake --preset ${preset} ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}" && \
+  docker run --rm $([ -t 0 ] && echo "-it" || echo "-i") -v "$PWD":/src -w /src "$IMAGE" \
+    bash -c "cd build/${preset} && ninja"
   echo "✅ Done: ${preset}"
 }
 
