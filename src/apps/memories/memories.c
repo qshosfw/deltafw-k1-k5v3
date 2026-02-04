@@ -65,7 +65,7 @@ static void EnterDetailMenu(uint16_t index);
 
 static const char *powerNames[] = {"User", "Low1", "Low2", "Low3", "Low4", "Low5", "Mid", "High"};
 static const char *bwNames[] = {"Wide", "Narrow"};
-static const char *modNames[] = {"FM", "AM", "USB"};
+
 static const char *offsetDirNames[] = {"None", "+", "-"};
 static const char *compNames[] = {"Off", "TX", "RX", "TX+RX"};
 static const char *yesNoNames[] = {"No", "Yes"};
@@ -261,7 +261,7 @@ static void ChangeBandwidth(const MenuItem *item, bool up) {
 static void GetModulation(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
     if (editChannel.Modulation < MODULATION_UKNOWN) {
-        snprintf(buf, sz, "%s", modNames[editChannel.Modulation]);
+        snprintf(buf, sz, "%s", gModulationStr[editChannel.Modulation]);
     } else {
         snprintf(buf, sz, "?");
     }
@@ -270,7 +270,13 @@ static void GetModulation(const MenuItem *item, char *buf, uint8_t sz) {
 static void ChangeModulation(const MenuItem *item, bool up) {
     (void)item;
     int mod = editChannel.Modulation;
-    mod = (mod + (up ? 1 : 2)) % 3;
+    if (up) {
+        mod++;
+        if (mod >= MODULATION_UKNOWN) mod = 0;
+    } else {
+        mod--;
+        if (mod < 0) mod = MODULATION_UKNOWN - 1;
+    }
     editChannel.Modulation = (ModulationMode_t)mod;
     SaveChannelData();
 }

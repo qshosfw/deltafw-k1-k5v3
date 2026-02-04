@@ -366,7 +366,7 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
              gTxVfo->BUSY_CHANNEL_LOCK = !gTxVfo->BUSY_CHANNEL_LOCK;
              break;
         case MENU_AM:
-             INC_DEC(gTxVfo->Modulation, 0, 2, up);
+             INC_DEC(gTxVfo->Modulation, 0, MODULATION_UKNOWN - 1, up);
              break;
         case MENU_SC_REV:
              INC_DEC(gEeprom.SCAN_RESUME_MODE, 0, 2, up);

@@ -49,7 +49,9 @@ const char gModulationStr[MODULATION_UKNOWN][4] = {
 
 #ifdef ENABLE_BYP_RAW_DEMODULATORS
     [MODULATION_BYP]="BYP",
-    [MODULATION_RAW]="RAW"
+    [MODULATION_RAW]="RAW",
+    [MODULATION_DSB]="DSB",
+    [MODULATION_CW]="CW"
 #endif
 };
 
@@ -747,9 +749,14 @@ void RADIO_SetupRegisters(bool switchToForeground)
             Frequency = gRxVfo->pRX->Frequency;
         else
             Frequency = NoaaFrequencyTable[gNoaaChannel];
-    #else
-        Frequency = gRxVfo->pRX->Frequency;
     #endif
+    
+#ifdef ENABLE_BYP_RAW_DEMODULATORS
+    if (gRxVfo->Modulation == MODULATION_CW) {
+        Frequency -= 650;
+    }
+#endif
+
     BK4819_SetFrequency(Frequency);
 
     BK4819_SetupSquelch(
@@ -1046,6 +1053,12 @@ void RADIO_SetModulation(ModulationMode_t modulation)
         case MODULATION_RAW:
             mod = BK4819_AF_BASEBAND1;
             break;
+        case MODULATION_DSB:
+            mod = BK4819_AF_UNKNOWN3; 
+            break;
+        case MODULATION_CW:
+            mod = BK4819_AF_UNKNOWN3;
+            break;
 #endif
     }
 
@@ -1092,7 +1105,7 @@ void RADIO_SetModulation(ModulationMode_t modulation)
     }
     
     BK4819_SetRegValue(afDacGainRegSpec, 0xF);
-    BK4819_WriteRegister(BK4819_REG_3D, modulation == MODULATION_USB ? 0 : 0x2AAB);
+    BK4819_WriteRegister(BK4819_REG_3D, (modulation == MODULATION_USB || modulation == MODULATION_DSB || modulation == MODULATION_CW || modulation == MODULATION_BYP || modulation == MODULATION_RAW) ? 0 : 0x2AAB);
     BK4819_SetRegValue(afcDisableRegSpec, modulation != MODULATION_FM);
 
     //RADIO_SetupAGC(modulation == MODULATION_AM, false);
@@ -1198,7 +1211,7 @@ void RADIO_PrepareTX(void)
         // over voltage .. this is being a pain
         State = VFO_STATE_VOLTAGE_HIGH;
     }
-#ifndef ENABLE_TX_WHEN_AM
+#ifndef ENABLE_TX_NON_FM
     else if (gCurrentVfo->Modulation != MODULATION_FM) {
         // not allowed to TX if in AM mode
         State = VFO_STATE_TX_DISABLE;

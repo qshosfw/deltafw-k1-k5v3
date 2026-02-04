@@ -31,7 +31,7 @@ FEATURES = {
     "ENABLE_DTMF_CALLING": {"title": "DTMF Calling", "desc": "Selective calling", "category": "Radio", "size": 600, "default": False},
     "ENABLE_AM_FIX": {"title": "AM Fix", "desc": "Improved AM reception", "category": "Radio", "size": 1000, "default": False},
     "ENABLE_WIDE_RX": {"title": "Wide RX", "desc": "Extended frequency range", "category": "Radio", "size": 100, "default": True},
-    "ENABLE_TX_WHEN_AM": {"title": "TX When AM", "desc": "Allow TX in AM mode", "category": "Radio", "size": 50, "default": False},
+    "ENABLE_TX_NON_FM": {"title": "TX When AM", "desc": "Allow TX in AM mode", "category": "Radio", "size": 50, "default": False},
     "ENABLE_SQUELCH_MORE_SENSITIVE": {"title": "Sensitive Squelch", "desc": "More squelch levels", "category": "Radio", "size": 100, "default": True},
     "ENABLE_FASTER_CHANNEL_SCAN": {"title": "Fast Scan", "desc": "Faster scanning", "category": "Radio", "size": 100, "default": True},
     "ENABLE_CTCSS_TAIL_PHASE_SHIFT": {"title": "CTCSS Tail Phase", "desc": "Tail elimination", "category": "Radio", "size": 150, "default": False},
