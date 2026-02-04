@@ -601,6 +601,24 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
 // Main List Action Handler
 // =============================================================================
 
+static void CreateNewChannel(uint16_t index) {
+    VFO_Info_t newChannel;
+    uint32_t freq = gTxVfo->pRX->Frequency;
+    
+    // Safety check for frequency
+    if (freq < 10000000) freq = 14500000;
+    
+    // Init with defaults based on frequency
+    RADIO_InitInfo(&newChannel, index, freq);
+    
+    // Save to EEPROM
+    SETTINGS_SaveChannel(index, 0, &newChannel, 2);
+}
+
+// =============================================================================
+// Main List Action Handler
+// =============================================================================
+
 static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bool key_held) {
     // Translate filtered index to real channel index
     uint16_t realIndex = searchActive ? filteredChannels[index] : index;
@@ -614,7 +632,13 @@ static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bo
 
     if (key == KEY_MENU) {
         if (key_held) {
+            // If channel is valid, edit it
             if (RADIO_CheckValidChannel(realIndex, false, 0)) {
+                EnterDetailMenu(realIndex);
+                AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+            } else {
+                // If channel is empty, create it then edit it
+                CreateNewChannel(realIndex);
                 EnterDetailMenu(realIndex);
                 AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
             }
