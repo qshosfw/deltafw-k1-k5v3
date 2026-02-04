@@ -19,6 +19,13 @@ shift || true  # remove preset from arguments if present
 # Any remaining args will be treated as CMake cache variables
 EXTRA_ARGS=("$@")
 
+# Fetch git source version and build date from host
+GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date "+%Y-%m-%d %H:%M:%S")
+BUILD_DATE_FILE=$(date "+%d%m%Y")
+
+EXTRA_ARGS+=("-DGIT_COMMIT_HASH=$GIT_HASH" "-DBUILD_DATE=\"$BUILD_DATE\"" "-DBUILD_DATE_FILE=$BUILD_DATE_FILE")
+
 # ---------------------------------------------
 # Validate preset name
 # ---------------------------------------------

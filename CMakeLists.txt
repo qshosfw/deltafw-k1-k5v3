@@ -20,15 +20,17 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 enable_language(C ASM)
 
 # Git commit hash (always refresh, never cache)
-execute_process(
-    COMMAND git rev-parse --short HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE GIT_COMMIT_HASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-if("${GIT_COMMIT_HASH}" STREQUAL "")
-    set(GIT_COMMIT_HASH "unknown")
+if(NOT GIT_COMMIT_HASH)
+    execute_process(
+        COMMAND git rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if("${GIT_COMMIT_HASH}" STREQUAL "")
+        set(GIT_COMMIT_HASH "unknown")
+    endif()
 endif()
 
 if(NOT BUILD_DATE)
@@ -83,18 +85,25 @@ target_link_options(${EXE_NAME} PRIVATE -Wl,--no-warn-rwx-segment)
 #  Post build processing
 #
 
+if(NOT BUILD_DATE_FILE)
+    string(TIMESTAMP BUILD_DATE_FILE "%d%m%Y")
+endif()
+
+set(OUTPUT_FILENAME "${EXE_NAME}.${VERSION_STRING}.${GIT_COMMIT_HASH}.${BUILD_DATE_FILE}")
+message("Output file: ${OUTPUT_FILENAME}")
+
 # Generate .bin file
 add_custom_command(
     TARGET ${EXE_NAME}
     POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} -O binary ${EXE_NAME}.elf ${EXE_NAME}.bin
-    COMMENT "Generating .bin file"
+    COMMAND ${CMAKE_OBJCOPY} -O binary ${EXE_NAME}.elf ${OUTPUT_FILENAME}.bin
+    COMMENT "Generating .bin file: ${OUTPUT_FILENAME}.bin"
 )
 
 # Generate .hex file
 add_custom_command(
     TARGET ${EXE_NAME}
     POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} -O ihex ${EXE_NAME}.elf ${EXE_NAME}.hex
-    COMMENT "Generating .hex file"
+    COMMAND ${CMAKE_OBJCOPY} -O ihex ${EXE_NAME}.elf ${OUTPUT_FILENAME}.hex
+    COMMENT "Generating .hex file: ${OUTPUT_FILENAME}.hex"
 )
