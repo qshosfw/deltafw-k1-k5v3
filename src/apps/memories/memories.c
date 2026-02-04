@@ -522,8 +522,11 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
 
     bool valid = RADIO_CheckValidChannel(realIndex, false, 0);
 
+    // Numeric index on the left in tiny font
+    AG_PrintSmall(2, baseline_y, "%03u", realIndex + 1);
+
     if (!valid) {
-        AG_PrintSmall(3, baseline_y, "%03u -", realIndex + 1);
+        AG_PrintMedium(18, baseline_y, "-");
         return;
     }
 
@@ -538,15 +541,15 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
         case MDF_NAME:
         case MDF_NAME_FREQ:
             if (strlen(name) > 0) {
-                snprintf(mainLabel, sizeof(mainLabel), "%03u %s", realIndex + 1, name);
+                snprintf(mainLabel, sizeof(mainLabel), "%s", name);
                 snprintf(rightLabel, sizeof(rightLabel), "%u.%05u", freq/100000, freq%100000);
             } else {
-                snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", realIndex + 1, freq/100000, freq%100000);
+                snprintf(mainLabel, sizeof(mainLabel), "%u.%05u", freq/100000, freq%100000);
                 rightLabel[0] = '\0';
             }
             break;
         case MDF_FREQUENCY:
-            snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", realIndex + 1, freq/100000, freq%100000);
+            snprintf(mainLabel, sizeof(mainLabel), "%u.%05u", freq/100000, freq%100000);
             if (strlen(name) > 0) {
                 snprintf(rightLabel, sizeof(rightLabel), "%s", name);
             } else {
@@ -556,18 +559,18 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
         case MDF_CHANNEL:
         default:
             if (strlen(name) > 0) {
-                snprintf(mainLabel, sizeof(mainLabel), "%03u %s", realIndex + 1, name);
+                snprintf(mainLabel, sizeof(mainLabel), "%s", name);
             } else {
-                snprintf(mainLabel, sizeof(mainLabel), "%03u %u.%05u", realIndex + 1, freq/100000, freq%100000);
+                snprintf(mainLabel, sizeof(mainLabel), "%u.%05u", freq/100000, freq%100000);
             }
             rightLabel[0] = '\0';
             break;
     }
 
-    AG_PrintMedium(3, baseline_y, "%s", mainLabel);
+    AG_PrintMedium(18, baseline_y, "%s", mainLabel);
     
     if (strlen(rightLabel) > 0) {
-        AG_PrintSmallEx(LCD_WIDTH - 5, baseline_y, POS_R, C_FILL, "%s", rightLabel);
+        AG_PrintSmallEx(LCD_WIDTH - 2, baseline_y, POS_R, C_FILL, "%s", rightLabel);
     }
 }
 
