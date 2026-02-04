@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout code
@@ -51,3 +53,37 @@ jobs:
         path: |
           build/Fusion/*.bin
           build/Fusion/*.hex
+
+    - name: Check for Release Condition
+      id: check_release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        python3 tools/release_helper.py
+
+    - name: Create Release
+      if: steps.check_release.outputs.should_release == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.check_release.outputs.release_tag }}
+        body: |
+          ${{ steps.check_release.outputs.changelog }}
+          
+          ### SHA256 Checksums
+          ```
+          $(sha256sum build/Custom/*.bin build/Custom/*.hex build/Fusion/*.bin build/Fusion/*.hex | sed 's|build/.*/||')
+          ```
+        files: |
+          build/Custom/*.bin
+          build/Custom/*.hex
+          build/Fusion/*.bin
+          build/Fusion/*.hex
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Middle-Minor Tag
+      if: steps.check_release.outputs.should_tag_only == 'true'
+      run: |
+        git tag ${{ steps.check_release.outputs.release_tag }}
+        git push origin ${{ steps.check_release.outputs.release_tag }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
