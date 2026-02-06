@@ -80,16 +80,6 @@ void Main(void)
 
     boot_counter_10ms = 250;   // 2.5 sec
 
-#ifdef ENABLE_UART
-    UART_Init();
-    UART_Send(UART_Version, strlen(UART_Version));
-#endif
-#ifdef ENABLE_USB
-    VCP_Init();
-#endif
-
-    // Not implementing authentic device checks
-
     memset(gDTMF_String, '-', sizeof(gDTMF_String));
     gDTMF_String[sizeof(gDTMF_String) - 1] = 0;
 
@@ -98,6 +88,14 @@ void Main(void)
     BOARD_ADC_GetBatteryInfo(&gBatteryCurrentVoltage, &gBatteryCurrent);
 
     SETTINGS_InitEEPROM();
+
+#ifdef ENABLE_UART
+    UART_Init();
+    UART_Send(UART_Version, strlen(UART_Version));
+#endif
+#ifdef ENABLE_USB
+    VCP_Init();
+#endif
 
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         gDW = gEeprom.DUAL_WATCH;
