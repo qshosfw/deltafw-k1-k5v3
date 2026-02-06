@@ -156,7 +156,10 @@ enum
     MENU_F2SHRT,
     MENU_F2LONG,
     MENU_MLONG,
-    MENU_BATTYP
+    MENU_BATTYP,
+#ifdef ENABLE_EEPROM_HEXDUMP
+    MENU_MEMVIEW
+#endif
 };
 
 extern const uint8_t FIRST_HIDDEN_MENU_ITEM;

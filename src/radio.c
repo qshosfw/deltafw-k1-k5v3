@@ -743,11 +743,9 @@ void RADIO_SetupRegisters(bool switchToForeground)
     // mic gain 0.5dB/step 0 to 31
     BK4819_WriteRegister(BK4819_REG_7D, 0xE940 | (gEeprom.MIC_SENSITIVITY_TUNING & 0x1f));
 
-    uint32_t Frequency;
+    uint32_t Frequency = gRxVfo->pRX->Frequency;
     #ifdef ENABLE_NOAA
-        if (!IS_NOAA_CHANNEL(gRxVfo->CHANNEL_SAVE) || !gIsNoaaMode)
-            Frequency = gRxVfo->pRX->Frequency;
-        else
+        if (IS_NOAA_CHANNEL(gRxVfo->CHANNEL_SAVE) && gIsNoaaMode)
             Frequency = NoaaFrequencyTable[gNoaaChannel];
     #endif
     

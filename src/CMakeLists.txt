@@ -68,6 +68,7 @@ target_sources(App INTERFACE
 
     # Helpers
     # helper/battery.c MOVED
+    # helper/identifier.c MOVED
     apps/boot/boot.c
 
     # UI
@@ -79,6 +80,7 @@ target_sources(App INTERFACE
     apps/scanner/scanner_ui.c
     ui/status.c
     ui/ui.c
+    ui/hexdump.c
     ui/ag_graphics.c
     ui/ag_menu.c
     ui/textinput.c
@@ -236,6 +238,8 @@ enable_feature(ENABLE_PMR446_FREQUENCY_BAND)
 enable_feature(ENABLE_GMRS_FRS_MURS_BANDS)
 enable_feature(ENABLE_FREQUENCY_LOCK_REGION_CA)
 enable_feature(ENABLE_FIRMWARE_DEBUG_LOGGING)
+enable_feature(ENABLE_EEPROM_HEXDUMP)
+enable_feature(ENABLE_IDENTIFIER        helper/identifier.c)
 
 
 # ----------------------------------------------------------------------------

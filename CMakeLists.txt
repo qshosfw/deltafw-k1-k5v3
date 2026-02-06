@@ -42,8 +42,8 @@ message("Build date: " ${BUILD_DATE})
 
 # deltafw Branding
 if(ENABLE_CUSTOM_FIRMWARE_MODS)
-    set(AUTHOR_STRING_1 "deltafw" CACHE STRING "Author 1")
-    set(AUTHOR_STRING_2 "qshosfw" CACHE STRING "Author 2")
+    set(AUTHOR_STRING_1 "qshosfw" CACHE STRING "Author 1")
+    set(AUTHOR_STRING_2 "deltafw" CACHE STRING "Author 2")
     set(VERSION_STRING_1 "v1.0" CACHE STRING "Version 1")
     set(VERSION_STRING_2 "v1.0.0" CACHE STRING "Version 2")
     set(EDITION_STRING "Custom" CACHE STRING "Edition")

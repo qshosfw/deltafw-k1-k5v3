@@ -41,6 +41,9 @@
 #include "apps/launcher/launcher.h"
 #include "apps/memories/memories.h"
 #include "apps/sysinfo/sysinfo.h"
+#ifdef ENABLE_EEPROM_HEXDUMP
+    #include "hexdump.h"
+#endif
 #include "ui/ui.h"
 #include "core/misc.h"
 
@@ -70,7 +73,11 @@ void (*UI_DisplayFunctions[])(void) = {
 #endif
     [DISPLAY_LAUNCHER] = &UI_DisplayLauncher,
     [DISPLAY_MEMORIES] = &MEMORIES_Render,
+    [DISPLAY_MEMORIES] = &MEMORIES_Render,
     [DISPLAY_SYSINFO] = &SYSINFO_Render,
+#ifdef ENABLE_EEPROM_HEXDUMP
+    [DISPLAY_HEXDUMP] = &UI_DisplayHexDump, // We'll implement this wrapper in hexdump.c
+#endif
 };
 
 static_assert(ARRAY_SIZE(UI_DisplayFunctions) == DISPLAY_N_ELEM);

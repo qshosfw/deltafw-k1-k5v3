@@ -5,12 +5,21 @@
 #include "../../external/printf/printf.h"
 #include "../../apps/settings/settings.h"
 #include "../../ui/menu.h"
+#include "../../ui/ui.h"
 #include "../../drivers/bsp/bk4819.h"
 #include "../../core/misc.h"
 #include "../../frequencies.h"
 #include "../../audio.h"
 #include "../../dcs.h" // For CTCSS/DCS tables
+#include "../../dcs.h" // For CTCSS/DCS tables
 #include "../../ui/helper.h" // For frequency helpers
+#ifdef ENABLE_EEPROM_HEXDUMP
+#include "../../ui/hexdump.h"
+#include "../../drivers/bsp/i2c.h" // For EEPROM_ReadBuffer if available or define local
+// Usually standard EEPROM read is I2C_ReadBuffer or similar.
+// Let's assume EEPROM_ReadBuffer exists as in user example or define a wrapper.
+extern void EEPROM_ReadBuffer(uint32_t Address, uint8_t *pBuffer, uint32_t Size);
+#endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
@@ -246,8 +255,26 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
              snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_live_DTMF_decoder]);
              break;
 
-        default:
+
+
+        // Custom Actions
+        #ifdef ENABLE_EEPROM_HEXDUMP
+        case MENU_MEMVIEW: // ID for MemView
+             // This logic needs to be in Action handler not UpdateValue.
+             // Wait, Settings_UpdateValue is called for changeVal (Left/Right/Select on options).
+             // Actions (Enter key on purely action items) usually handled in menu system or specialized.
+             // settings_ui.c uses generic menu system.
+             // We need to intercept the Action for this item.
+             // But existing items (e.g. Nav Layout) use changeVal for toggling.
+             // Items with M_ITEM_ACTION usually trigger something.
+             // Root menu items open submenus.
+             // Let's see how submenus are opened relative to this.
+             // Menu system handles submenu opening.
+             // For custom screen, we might need a custom callback or global handler.
+             // `changeVal` is for value modification.
+             // `action` in menu struct is null for items.
              break;
+        #endif
     }
 }
 
@@ -520,6 +547,16 @@ static void changeVal(const MenuItem *item, bool up) {
     Settings_UpdateValue(item->setting, up);
 }
 
+#ifdef ENABLE_EEPROM_HEXDUMP
+static bool Action_MemView(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    if (key == KEY_MENU && key_pressed) {
+        GUI_SelectNextDisplay(DISPLAY_HEXDUMP);
+        return true;
+    }
+    return false;
+}
+#endif
+
 // --- Menu Definitions ---
 
 // Sound
@@ -623,6 +660,9 @@ static const MenuItem systemItems[] = {
     {"Bat Save", MENU_SAVE, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Bat Type", MENU_BATTYP, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Nav Layout", MENU_SET_NAV, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    #ifdef ENABLE_EEPROM_HEXDUMP
+    {"Mem Hex Dump", MENU_MEMVIEW, NULL, NULL, NULL, Action_MemView, M_ITEM_ACTION},
+    #endif
 };
 static Menu systemMenu = {
     .title = "System", .items = systemItems, .num_items = ARRAY_SIZE(systemItems),

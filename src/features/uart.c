@@ -45,6 +45,9 @@
 #include "apps/settings/settings.h"
 #include "core/version.h"
 #include "apps/battery/battery.h"
+#ifdef ENABLE_IDENTIFIER
+#include "helper/identifier.h"
+#endif
 
 #if defined(ENABLE_OVERLAY)
     #include "sram-overlay.h"
@@ -61,59 +64,128 @@
 // !! Make sure this is correct!
 #define MAX_REPLY_SIZE 144
 
+/**
+ * @brief Common UART Packet Header (4 bytes)
+ * | Offset | Type     | Name | Description |
+ * |--------|----------|------|-------------|
+ * | 0      | uint16_t | ID   | Packet Start (0xCDAB) |
+ * | 2      | uint16_t | Size | Payload size (0-MAX_REPLY_SIZE) |
+ */
 typedef struct {
-    uint16_t ID;
-    uint16_t Size;
+    uint16_t ID;   /* Packet Identifier (0xCDAB) */
+    uint16_t Size; /* Payload size in bytes */
 } Header_t;
 
+/**
+ * @brief Common UART Packet Footer (4 bytes)
+ * | Offset | Type     | Name    | Description |
+ * |--------|----------|---------|-------------|
+ * | 0      | uint8_t  | Padding | Obfuscation byte ^ 0xFF |
+ * | 1      | uint8_t  | Padding | Obfuscation byte ^ 0xFF |
+ * | 2      | uint16_t | ID      | Packet End (0xBADC) |
+ */
 typedef struct {
-    uint8_t  Padding[2];
-    uint16_t ID;
+    uint8_t  Padding[2]; /* Obfuscation-based padding */
+    uint16_t ID;         /* Footer Identifier (0xBADC) */
 } Footer_t;
 
+/**
+ * @brief CMD_0514: Request Version & Challenge
+ * Structure: Header(0x0514) + Timestamp(4)
+ * | Offset | Type     | Name      | Description |
+ * |--------|----------|-----------|-------------|
+ * | sizeof | uint32_t | Timestamp | Session ID validation |
+ */
 typedef struct {
     Header_t Header;
-    uint32_t Timestamp;
+    uint32_t Timestamp; /* Session ID / Timestamp */
 } CMD_0514_t;
 
+/**
+ * @brief REPLY_0515: Version & Challenge Response (32 bytes payload)
+ * Structure: Header(0x0515) + Data(32)
+ * | Offset | Type     | Name             | Description |
+ * |--------|----------|------------------|-------------|
+ * | sizeof | char[16] | Version          | Firmware string |
+ * | +16    | bool     | HasCustomAesKey  | Encryption flag |
+ * | +17    | bool     | IsInLockScreen   | Device lock state |
+ * | +18    | uint8_t  | Padding[2]       | Alignment |
+ * | +20    | uint32_t | Challenge[4]     | 128-bit security challenge |
+ */
 typedef struct {
     Header_t Header;
     struct {
-        char     Version[16];
-        bool     bHasCustomAesKey;
-        bool     bIsInLockScreen;
+        char     Version[16];           /* Firmware version string */
+        bool     bHasCustomAesKey;      /* Flag for custom encryption key */
+        bool     bIsInLockScreen;       /* Flag for current device lock state */
         uint8_t  Padding[2];
-        uint32_t Challenge[4];
+        uint32_t Challenge[4];          /* 128-bit challenge for auth */
     } Data;
 } REPLY_0514_t;
 
+/**
+ * @brief CMD_051B: Read EEPROM Memory
+ * Structure: Header(0x051B) + Data(8 bytes)
+ * | Offset | Type     | Name      | Description |
+ * |--------|----------|-----------|-------------|
+ * | sizeof | uint16_t | Offset    | EEPROM address (0-0x1FFF) |
+ * | +2     | uint8_t  | Size      | Read count (max 128) |
+ * | +3     | uint8_t  | Padding   | Alignment |
+ * | +4     | uint32_t | Timestamp | Session ID |
+ */
 typedef struct {
     Header_t Header;
-    uint16_t Offset;
-    uint8_t  Size;
+    uint16_t Offset;    /* EEPROM address to read from */
+    uint8_t  Size;      /* Number of bytes to read */
     uint8_t  Padding;
-    uint32_t Timestamp;
+    uint32_t Timestamp; /* Session validation */
 } CMD_051B_t;
 
+/**
+ * @brief REPLY_051C: EEPROM Data Response (4 + N bytes payload)
+ * | Offset | Type     | Name   | Description |
+ * |--------|----------|--------|-------------|
+ * | sizeof | uint16_t | Offset | EEPROM address |
+ * | +2     | uint8_t  | Size   | Bytes returned |
+ * | +3     | uint8_t  | Padding| Alignment |
+ * | +4     | uint8_t[]| Data   | EEPROM contents |
+ */
 typedef struct {
     Header_t Header;
     struct {
         uint16_t Offset;
         uint8_t  Size;
         uint8_t  Padding;
-        uint8_t  Data[128];
+        uint8_t  Data[128]; /* Variable data payload */
     } Data;
 } REPLY_051B_t;
 
+/**
+ * @brief CMD_051D: Write EEPROM Memory
+ * Structure: Header(0x051D) + Data (8 + N bytes)
+ * | Offset | Type     | Name           | Description |
+ * |--------|----------|----------------|-------------|
+ * | sizeof | uint16_t | Offset         | EEPROM address |
+ * | +2     | uint8_t  | Size           | Bytes to write (8-128) |
+ * | +3     | bool     | AllowPassword  | Force write |
+ * | +4     | uint32_t | Timestamp      | Session ID |
+ * | +8     | uint8_t[]| Data           | Raw bytes |
+ */
 typedef struct {
     Header_t Header;
-    uint16_t Offset;
-    uint8_t  Size;
-    bool     bAllowPassword;
+    uint16_t Offset;    /* EEPROM address to write to */
+    uint8_t  Size;      /* Number of bytes to write (multiple of 8) */
+    bool     bAllowPassword; /* Flag for password-protected write */
     uint32_t Timestamp;
-    uint8_t  Data[0];
+    uint8_t  Data[0];   /* Flexible array member for payload */
 } CMD_051D_t;
 
+/**
+ * @brief REPLY_051E: Write EEPROM Acknowledgement (2 bytes payload)
+ * | Offset | Type     | Name   | Description |
+ * |--------|----------|--------|-------------|
+ * | sizeof | uint16_t | Offset | Acknowledged address |
+ */
 typedef struct {
     Header_t Header;
     struct {
@@ -122,15 +194,42 @@ typedef struct {
 } REPLY_051D_t;
 
 #ifdef ENABLE_EXTRA_UART_CMD
+/**
+ * @brief REPLY_0528: Signal & Radio Status (10 bytes payload)
+ * | Offset | Type     | Name             | Description |
+ * |--------|----------|------------------|-------------|
+ * | sizeof | uint16_t | RSSI             | Raw RSSI (0-511) |
+ * | +2     | uint8_t  | ExNoiseIndicator | Noise floor |
+ * | +3     | uint8_t  | GlitchIndicator  | Glitch count |
+ * | +4     | int16_t  | RSSI_dBm         | RSSI in dBm |
+ * | +6     | int8_t   | Gain_dB          | Currently active gain (dB) |
+ * | +7     | uint8_t  | AfAmplitude      | Voice output amplitude |
+ * | +8     | uint8_t  | Padding[2]       | Alignment |
+ */
 typedef struct {
     Header_t Header;
     struct {
         uint16_t RSSI;
         uint8_t  ExNoiseIndicator;
         uint8_t  GlitchIndicator;
+        int16_t  RSSI_dBm;
+        int8_t   Gain_dB;
+        uint8_t   AfAmplitude;
+        uint8_t  Padding[2];
     } Data;
 } REPLY_0527_t;
 
+/**
+ * @brief REPLY_052A: Battery & Charging Status (8 bytes payload)
+ * | Offset | Type     | Name        | Description |
+ * |--------|----------|-------------|-------------|
+ * | sizeof | uint16_t | Voltage     | mV |
+ * | +2     | uint16_t | Current     | Raw ADC current |
+ * | +4     | uint8_t  | Percent     | 0-100% |
+ * | +5     | uint8_t  | BatteryType | Capacity index |
+ * | +6     | uint8_t  | Flags       | Bit 0: Charging, Bit 1: Low |
+ * | +7     | uint8_t  | Padding     | Alignment |
+ */
 typedef struct {
     Header_t Header;
     struct {
@@ -138,15 +237,23 @@ typedef struct {
         uint16_t Current;
         uint8_t  Percent;
         uint8_t  BatteryType;
+        uint8_t  Flags;
+        uint8_t  Padding;
     } Data;
 } REPLY_0529_t;
 
+/**
+ * @brief CMD_052D: Security Challenge Verification (16 bytes payload)
+ */
 typedef struct {
     Header_t Header;
-    uint32_t Response[4];
+    uint32_t Response[4]; /* 128-bit challenge response */
 } CMD_052D_t;
 #endif
 
+/**
+ * @brief REPLY_052E: authentication Result (4 bytes payload)
+ */
 typedef struct {
     Header_t Header;
     struct {
@@ -155,12 +262,39 @@ typedef struct {
     } Data;
 } REPLY_052D_t;
 
-
 #ifdef ENABLE_EXTRA_UART_CMD
+/**
+ * @brief CMD_052F: High-speed Program session init (4 bytes payload)
+ */
 typedef struct {
     Header_t Header;
     uint32_t Timestamp;
 } CMD_052F_t;
+#ifdef ENABLE_IDENTIFIER
+/**
+ * @brief CMD_0533: Request Full 256-byte CPU ID (4 bytes payload)
+ * | Offset | Type     | Name      | Description |
+ * |--------|----------|-----------|-------------|
+ * | sizeof | uint32_t | Timestamp | Session validation |
+ */
+typedef struct {
+    Header_t Header;
+    uint32_t Timestamp;
+} CMD_0533_t;
+
+/**
+ * @brief REPLY_0534: Full 256-byte CPU ID Response (256 bytes payload)
+ * | Offset | Type      | Name | Description |
+ * |--------|-----------|------|-------------|
+ * | sizeof | uint8_t[]| Data | Raw hardware ID |
+ */
+typedef struct {
+    Header_t Header;
+    struct {
+        uint8_t Data[256]; /* 256 bytes raw unique hardware ID */
+    } Data;
+} REPLY_0534_t;
+#endif
 #endif
 
 static const uint8_t Obfuscation[16] =
@@ -358,7 +492,10 @@ static void CMD_0514(uint32_t Port, const uint8_t *pBuffer)
     SendVersion(Port);
 }
 
-// read eeprom
+/**
+ * @brief CMD_051B: Process EEPROM Read Request
+ * Reads Size bytes from Offset. Checked against session timestamp.
+ */
 static void CMD_051B(uint32_t Port, const uint8_t *pBuffer)
 {
     const CMD_051B_t *pCmd = (const CMD_051B_t *)pBuffer;
@@ -411,7 +548,10 @@ static void CMD_051B(uint32_t Port, const uint8_t *pBuffer)
     SendReply(Port, &Reply, pCmd->Size + 8);
 }
 
-// write eeprom
+/**
+ * @brief CMD_051D: Process EEPROM Write Request
+ * Writes data in 8-byte chunks. Reloads settings if config area modified.
+ */
 static void CMD_051D(uint32_t Port, const uint8_t *pBuffer)
 {
     const CMD_051D_t *pCmd = (const CMD_051D_t *)pBuffer;
@@ -481,37 +621,57 @@ static void CMD_051D(uint32_t Port, const uint8_t *pBuffer)
 }
 
 #ifdef ENABLE_EXTRA_UART_CMD
-// read RSSI
+/**
+ * @brief CMD_0527: Handle RSSI Info Request
+ */
 static void CMD_0527(uint32_t Port)
 {
     REPLY_0527_t Reply;
 
+    memset(&Reply, 0, sizeof(Reply));
     Reply.Header.ID             = 0x0528;
     Reply.Header.Size           = sizeof(Reply.Data);
+   
+    // Essential legacy fields
     Reply.Data.RSSI             = BK4819_ReadRegister(BK4819_REG_67) & 0x01FF;
-    Reply.Data.ExNoiseIndicator = BK4819_ReadRegister(BK4819_REG_65) & 0x007F;
-    Reply.Data.GlitchIndicator  = BK4819_ReadRegister(BK4819_REG_63);
+    Reply.Data.ExNoiseIndicator = BK4819_GetExNoiceIndicator();
+    Reply.Data.GlitchIndicator  = BK4819_GetGlitchIndicator();
 
+    // Future-proofed fields
+    Reply.Data.RSSI_dBm         = BK4819_GetRSSI_dBm();
+    Reply.Data.Gain_dB          = BK4819_GetRxGain_dB();
+    Reply.Data.AfAmplitude      = BK4819_GetVoiceAmplitudeOut();
+   
     SendReply(Port, &Reply, sizeof(Reply));
 }
 
-// read ADC
+/**
+ * @brief CMD_0529: Handle Battery & ADC Stats Request
+ */
 static void CMD_0529(uint32_t Port)
 {
     REPLY_0529_t Reply;
 
+    memset(&Reply, 0, sizeof(Reply));
     Reply.Header.ID   = 0x52A;
     Reply.Header.Size = sizeof(Reply.Data);
 
-    // Original doesn't actually send current!
+    // Basic stats
     BOARD_ADC_GetBatteryInfo(&Reply.Data.Voltage, &Reply.Data.Current);
     Reply.Data.Percent     = BATTERY_VoltsToPercent(gBatteryVoltageAverage);
     Reply.Data.BatteryType = gEeprom.BATTERY_TYPE;
+
+    // Flags
+    if (gChargingWithTypeC) Reply.Data.Flags |= (1 << 0);
+    if (gLowBattery)        Reply.Data.Flags |= (1 << 1);
 
     SendReply(Port, &Reply, sizeof(Reply));
 }
 
 #ifndef ENABLE_CUSTOM_FIRMWARE_MODS
+/**
+ * @brief CMD_052D: Handle Security Challenge Response
+ */
 static void CMD_052D(uint32_t Port, const uint8_t *pBuffer)
 {
     const CMD_052D_t *pCmd = (const CMD_052D_t *)pBuffer;
@@ -554,11 +714,12 @@ static void CMD_052D(uint32_t Port, const uint8_t *pBuffer)
 }
 #endif
 
-// session init, sends back version info and state
-// timestamp is a session id really
-// this command also disables dual watch, crossband, 
-// DTMF side tones, freq reverse, PTT ID, DTMF decoding, frequency offset
-// exits power save, sets main VFO to upper,
+/**
+ * @brief CMD_052F: Process High-speed Program session init
+ * This command sets the radio to a known state for high-speed data transfer
+ * by disabling various features (Dual Watch, Crossband, NOAA, etc.) and
+ * ensuring the radio is in a foreground function.
+ */
 static void CMD_052F(uint32_t Port, const uint8_t *pBuffer)
 {
     const CMD_052F_t *pCmd = (const CMD_052F_t *)pBuffer;
@@ -606,7 +767,40 @@ static void CMD_052F(uint32_t Port, const uint8_t *pBuffer)
 }
 #endif
 
+#ifdef ENABLE_IDENTIFIER
+/**
+ * @brief CMD_0533: Process Request for Full 256-byte CPU ID
+ */
+static void CMD_0533(uint32_t Port, const uint8_t *pBuffer)
+{
+    const CMD_0533_t *pCmd = (const CMD_0533_t *)pBuffer;
+    REPLY_0534_t      Reply;
+    uint32_t          Timestamp = 0;
+
+#if defined(ENABLE_UART)
+    if (Port == UART_PORT_UART) Timestamp = UART_Timestamp;
+#endif
+#if defined(ENABLE_USB)
+    if (Port == UART_PORT_VCP) Timestamp = VCP_Timestamp;
+#endif
+
+    if (pCmd->Timestamp != Timestamp)
+        return;
+
+    Reply.Header.ID   = 0x0534;
+    Reply.Header.Size = sizeof(Reply.Data);
+    
+    GetCpuId(Reply.Data.Data, 256);
+
+    SendReply(Port, &Reply, sizeof(Reply));
+}
+#endif
+
 #ifdef ENABLE_UART_RW_BK_REGS
+/**
+ * @brief CMD_0601: Read BK4819 Register via Serial/USB
+ * structure: Header(0x0601) + Register(1)
+ */
 static void CMD_0601_ReadBK4819Reg(uint32_t Port, const uint8_t *pBuffer)
 {
     typedef struct  __attribute__((__packed__)) {
@@ -631,6 +825,10 @@ static void CMD_0601_ReadBK4819Reg(uint32_t Port, const uint8_t *pBuffer)
     SendReply(Port, &reply, sizeof(reply));
 }
 
+/**
+ * @brief CMD_0602: Write BK4819 Register via Serial/USB
+ * structure: Header(0x0602) + Register(1) + Value(2)
+ */
 static void CMD_0602_WriteBK4819Reg(const uint8_t *pBuffer)
 {
     typedef struct __attribute__((__packed__)) {
@@ -644,6 +842,13 @@ static void CMD_0602_WriteBK4819Reg(const uint8_t *pBuffer)
 }
 #endif
 
+/**
+ * @brief Parses the input buffer to check for a valid encapsulated UART command.
+ * Performs synchronization, size validation, and CRC checks.
+ * 
+ * @param Port UART_PORT_UART or UART_PORT_VCP
+ * @return true if a valid command was found and moved to the command buffer
+ */
 bool UART_IsCommandAvailable(uint32_t Port)
 {
     uint16_t Index;
@@ -788,6 +993,12 @@ bool UART_IsCommandAvailable(uint32_t Port)
     return CRC_Calculate(pUART_Command->Buffer, Size) == Crc;
 }
 
+/**
+ * @brief High-level dispatcher for UART/USB commands.
+ * Identifies the command ID and routes it to the appropriate handler.
+ * 
+ * @param Port UART_PORT_UART or UART_PORT_VCP
+ */
 void UART_HandleCommand(uint32_t Port)
 {
     UART_Command_t *pUART_Command;
@@ -865,6 +1076,12 @@ void UART_HandleCommand(uint32_t Port)
         
         case 0x0602:
             CMD_0602_WriteBK4819Reg(pUART_Command->Buffer);
+            break;
+#endif
+
+#ifdef ENABLE_IDENTIFIER
+        case 0x0533:
+            CMD_0533(Port, pUART_Command->Buffer);
             break;
 #endif
     } // switch

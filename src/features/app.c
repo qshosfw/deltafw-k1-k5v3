@@ -26,7 +26,11 @@
 #endif
 #include "apps/launcher/launcher.h"
 #include "apps/memories/memories.h"
+#include "apps/memories/memories.h"
 #include "apps/sysinfo/sysinfo.h"
+#ifdef ENABLE_EEPROM_HEXDUMP
+    #include "ui/hexdump.h"
+#endif
 #include "features/app.h"
 #include "apps/scanner/chFrScanner.h"
 #include "features/dtmf.h"
@@ -105,7 +109,11 @@ void (*ProcessKeysFunctions[])(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) 
 #endif
     [DISPLAY_LAUNCHER] = &LAUNCHER_ProcessKeys,
     [DISPLAY_MEMORIES] = &MEMORIES_ProcessKeys,
+    [DISPLAY_MEMORIES] = &MEMORIES_ProcessKeys,
     [DISPLAY_SYSINFO] = &SYSINFO_ProcessKeys,
+#ifdef ENABLE_EEPROM_HEXDUMP
+    [DISPLAY_HEXDUMP] = &UI_HexDump_ProcessKeys,
+#endif
 };
 
 #ifdef ENABLE_REGA
