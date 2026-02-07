@@ -39,6 +39,10 @@
 #include "ui/status.h"
 #include "ui/ui.h"
 
+#ifdef ENABLE_CW_KEYER
+    #include "features/cw.h"
+#endif
+
 FUNCTION_Type_t gCurrentFunction;
 
 bool FUNCTION_IsRx()
@@ -46,6 +50,11 @@ bool FUNCTION_IsRx()
     return gCurrentFunction == FUNCTION_MONITOR ||
            gCurrentFunction == FUNCTION_INCOMING ||
            gCurrentFunction == FUNCTION_RECEIVE;
+}
+
+bool FUNCTION_IsTx(void)
+{
+    return gCurrentFunction == FUNCTION_TRANSMIT;
 }
 
 void FUNCTION_Init(void)
@@ -221,6 +230,14 @@ void FUNCTION_Transmit()
         gEnableSpeaker = true;
 
         gVfoConfigureMode = VFO_CONFIGURE;
+        return;
+    }
+#endif
+
+#ifdef ENABLE_CW_KEYER
+    // CW mode: TX is managed by CW module via queue, not here
+    if (gTxVfo->Modulation == MODULATION_CW) {
+        // CW module will set up tone after FUNCTION_Transmit is selected
         return;
     }
 #endif

@@ -88,6 +88,10 @@
 
 #include "ui/textinput.h"
 
+#ifdef ENABLE_CW_KEYER
+    #include "features/cw.h"
+#endif
+
 static bool flagSaveVfo;
 static bool flagSaveSettings;
 static bool flagSaveChannel;
@@ -871,6 +875,12 @@ static void HandleVox(void)
                     FUNCTION_Select(FUNCTION_FOREGROUND);
             }
             else {
+#ifdef ENABLE_BYP_RAW_DEMODULATORS
+                // CW mode: TX managed by CW module, don't interfere
+                if (gTxVfo->Modulation == MODULATION_CW && CW_IsBusy()) {
+                    return;  // Let CW module handle TX end
+                }
+#endif
                 APP_EndTransmission();
 
                 if (gEeprom.REPEATER_TAIL_TONE_ELIMINATION == 0) {
@@ -1408,6 +1418,14 @@ void APP_TimeSlice10ms(void)
             UI_DisplayAudioBar();
 #endif
     }
+    
+#ifdef ENABLE_CW_KEYER
+    // CW queue processor - runs if any VFO is in CW mode
+    if (gEeprom.VfoInfo[0].Modulation == MODULATION_CW || 
+        gEeprom.VfoInfo[1].Modulation == MODULATION_CW) {
+        CW_Tick10ms();
+    }
+#endif
 
     // TextInput Blink Hook
     if (TextInput_Tick()) {
@@ -1888,6 +1906,28 @@ static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
         }
     }
     #endif
+
+#ifdef ENABLE_CW_KEYER
+    // CW mode: All 3 keys add to queue, CW manages TX automatically
+    if (gTxVfo->Modulation == MODULATION_CW) {
+        if (Key == KEY_SIDE1) {
+            CW_SetDitPaddle(bKeyPressed);
+            return;
+        }
+        if (Key == KEY_SIDE2) {
+            CW_SetDahPaddle(bKeyPressed);
+            return;
+        }
+        if (Key == KEY_PTT) {
+            if (bKeyPressed) {
+                CW_StraightKeyDown();
+            } else {
+                CW_StraightKeyUp();
+            }
+            return;
+        }
+    }
+#endif
 
     if (Key == KEY_EXIT && !BACKLIGHT_IsOn() && gEeprom.BACKLIGHT_TIME > 0)
     {   // just turn the light on for now so the user can see what's what

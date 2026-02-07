@@ -25,6 +25,7 @@
                 "ENABLE_WIDE_RX": true,
                 "ENABLE_TX_NON_FM": true,
                 "ENABLE_BYP_RAW_DEMODULATORS": true,
+                "ENABLE_CW_KEYER": true,
                 "ENABLE_NARROWER_BW_FILTER": true,
                 "ENABLE_FREQUENCY_LOCK_REGION_CA": true,
                 "ENABLE_F_CAL_MENU": false,

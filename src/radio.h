@@ -64,6 +64,8 @@ typedef enum {
     MODULATION_BYP,
     MODULATION_RAW,
     MODULATION_DSB,
+#endif
+#ifdef ENABLE_CW_KEYER
     MODULATION_CW,
 #endif
 

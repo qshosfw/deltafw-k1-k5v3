@@ -51,6 +51,8 @@ const char gModulationStr[MODULATION_UKNOWN][4] = {
     [MODULATION_BYP]="BYP",
     [MODULATION_RAW]="RAW",
     [MODULATION_DSB]="DSB",
+#endif
+#ifdef ENABLE_CW_KEYER
     [MODULATION_CW]="CW"
 #endif
 };
@@ -749,11 +751,6 @@ void RADIO_SetupRegisters(bool switchToForeground)
             Frequency = NoaaFrequencyTable[gNoaaChannel];
     #endif
     
-#ifdef ENABLE_BYP_RAW_DEMODULATORS
-    if (gRxVfo->Modulation == MODULATION_CW) {
-        Frequency -= 650;
-    }
-#endif
 
     BK4819_SetFrequency(Frequency);
 
@@ -1054,6 +1051,8 @@ void RADIO_SetModulation(ModulationMode_t modulation)
         case MODULATION_DSB:
             mod = BK4819_AF_UNKNOWN3; 
             break;
+#endif
+#ifdef ENABLE_CW_KEYER
         case MODULATION_CW:
             mod = BK4819_AF_UNKNOWN3;
             break;
@@ -1103,7 +1102,15 @@ void RADIO_SetModulation(ModulationMode_t modulation)
     }
     
     BK4819_SetRegValue(afDacGainRegSpec, 0xF);
-    BK4819_WriteRegister(BK4819_REG_3D, (modulation == MODULATION_USB || modulation == MODULATION_DSB || modulation == MODULATION_CW || modulation == MODULATION_BYP || modulation == MODULATION_RAW) ? 0 : 0x2AAB);
+    bool isBypassingFilter = (modulation == MODULATION_USB);
+#ifdef ENABLE_BYP_RAW_DEMODULATORS
+    isBypassingFilter |= (modulation == MODULATION_DSB || modulation == MODULATION_BYP || modulation == MODULATION_RAW);
+#endif
+#ifdef ENABLE_CW_KEYER
+    isBypassingFilter |= (modulation == MODULATION_CW);
+#endif
+
+    BK4819_WriteRegister(BK4819_REG_3D, isBypassingFilter ? 0 : 0x2AAB);
     BK4819_SetRegValue(afcDisableRegSpec, modulation != MODULATION_FM);
 
     //RADIO_SetupAGC(modulation == MODULATION_AM, false);

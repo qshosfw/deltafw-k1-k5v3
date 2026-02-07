@@ -131,7 +131,7 @@ target_compile_definitions(App INTERFACE SQL_TONE=${SQL_TONE})
 
 
 # ----------------------------------------------------------------------------
-# Communication Interfaces (UART / USB / AirCopy)
+# Communication & System Interfaces
 # ----------------------------------------------------------------------------
 if(ENABLE_AIRCOPY OR ENABLE_UART OR ENABLE_USB)
     target_sources(App INTERFACE
@@ -143,7 +143,6 @@ endif()
 enable_feature(ENABLE_UART
     drivers/bsp/uart.c
     features/uart.c
-    # drivers/bsp/aes.c
 )
 
 if(ENABLE_USB)
@@ -162,90 +161,91 @@ if(ENABLE_UART OR ENABLE_USB)
     )
 endif()
 
+enable_feature(ENABLE_SERIAL_SCREENCAST     screencast.c)
+enable_feature(ENABLE_EXTRA_UART_CMD)               # @reppad
+
 
 # ----------------------------------------------------------------------------
-# Stock Quansheng Features
+# Stock Radio Features
 # ----------------------------------------------------------------------------
 enable_feature(ENABLE_FMRADIO           drivers/bsp/bk1080.c apps/fm/fm.c apps/fm/fm_ui.c)
 enable_feature(ENABLE_AIRCOPY           apps/aircopy/aircopy.c apps/aircopy/aircopy_ui.c)
 enable_feature(ENABLE_VOICE             drivers/bsp/voice.c)
 enable_feature(ENABLE_PWRON_PASSWORD    ui/lock.c)
 enable_feature(ENABLE_FLASHLIGHT        features/flashlight.c)
-
-enable_feature(ENABLE_NOAA)
-enable_feature(ENABLE_VOX)
 enable_feature(ENABLE_ALARM)
 enable_feature(ENABLE_TX1750)
-enable_feature(ENABLE_DTMF_CALLING)
+enable_feature(ENABLE_VOX)
+enable_feature(ENABLE_NOAA)
 
 
 # ----------------------------------------------------------------------------
-# Custom Mods
+# Radio Enhancements & Modulations
 # ----------------------------------------------------------------------------
-enable_feature(ENABLE_SPECTRUM          apps/spectrum/spectrum.c)
-
-
-enable_feature(ENABLE_BIG_FREQ)
-enable_feature(ENABLE_SMALL_BOLD)
-enable_feature(ENABLE_CUSTOM_MENU_LAYOUT)
-enable_feature(ENABLE_KEEP_MEM_NAME)
+enable_feature(ENABLE_NARROWER_BW_FILTER)
 enable_feature(ENABLE_WIDE_RX)
 enable_feature(ENABLE_TX_NON_FM)
-enable_feature(ENABLE_F_CAL_MENU)
-enable_feature(ENABLE_CTCSS_TAIL_PHASE_SHIFT)
-enable_feature(ENABLE_BOOT_BEEPS)
-enable_feature(ENABLE_SHOW_CHARGE_LEVEL)
-enable_feature(ENABLE_REVERSE_BAT_SYMBOL)
-enable_feature(ENABLE_NO_CODE_SCAN_TIMEOUT)
 enable_feature(ENABLE_SQUELCH_MORE_SENSITIVE)
-enable_feature(ENABLE_FASTER_CHANNEL_SCAN)
-enable_feature(ENABLE_RSSI_BAR)
-enable_feature(ENABLE_AUDIO_BAR)
-enable_feature(ENABLE_COPY_CHAN_TO_VFO)
+enable_feature(ENABLE_CTCSS_TAIL_PHASE_SHIFT)
 enable_feature(ENABLE_REDUCE_LOW_MID_TX_POWER)
 enable_feature(ENABLE_BYP_RAW_DEMODULATORS)
-enable_feature(ENABLE_BLMIN_TMP_OFF)
+enable_feature(ENABLE_RESCUE_OPERATIONS)
 enable_feature(ENABLE_SCAN_RANGES)
 
 
-
 # ----------------------------------------------------------------------------
-# Contrib Mods
+# UI & Display Enhancements
 # ----------------------------------------------------------------------------
-enable_feature(ENABLE_REGA              features/rega.c) # @markusb
-enable_feature(ENABLE_EXTRA_UART_CMD)               # @reppad
-
-
-# ----------------------------------------------------------------------------
-# F4HWN Mods
-# ----------------------------------------------------------------------------
-enable_feature(ENABLE_CUSTOM_FIRMWARE_MODS)
-enable_feature(ENABLE_APP_BREAKOUT_GAME           features/breakout.c)
-enable_feature(ENABLE_SERIAL_SCREENCAST     screencast.c)
-
-enable_feature(ENABLE_SPECTRUM_EXTENSIONS)
-enable_feature(ENABLE_RX_TX_TIMER_DISPLAY)
-enable_feature(ENABLE_USBC_CHARGING_INDICATOR)
-enable_feature(ENABLE_DEEP_SLEEP_MODE)
-enable_feature(ENABLE_BOOT_RESUME_STATE)
-enable_feature(ENABLE_NARROWER_BW_FILTER)
+enable_feature(ENABLE_BIG_FREQ)
+enable_feature(ENABLE_SMALL_BOLD)
 enable_feature(ENABLE_INVERTED_LCD_MODE)
 enable_feature(ENABLE_LCD_CONTRAST_OPTION)
-enable_feature(ENABLE_RESCUE_OPERATIONS)
-enable_feature(ENABLE_SYSTEM_INFO_MENU)
-enable_feature(ENABLE_RESET_CHANNEL_FUNCTION)
+enable_feature(ENABLE_RSSI_BAR)
+enable_feature(ENABLE_AUDIO_BAR)
+enable_feature(ENABLE_SHOW_CHARGE_LEVEL)
+enable_feature(ENABLE_USBC_CHARGING_INDICATOR)
+enable_feature(ENABLE_REVERSE_BAT_SYMBOL)
+enable_feature(ENABLE_BOOT_BEEPS)
+enable_feature(ENABLE_BOOT_RESUME_STATE)
+enable_feature(ENABLE_DEEP_SLEEP_MODE)
+enable_feature(ENABLE_RX_TX_TIMER_DISPLAY)
+enable_feature(ENABLE_NO_CODE_SCAN_TIMEOUT)
+enable_feature(ENABLE_BLMIN_TMP_OFF)
+enable_feature(ENABLE_KEEP_MEM_NAME)
+enable_feature(ENABLE_COPY_CHAN_TO_VFO)
+enable_feature(ENABLE_CUSTOM_MENU_LAYOUT)
+
+
+# ----------------------------------------------------------------------------
+# Applications & Specialized Modes
+# ----------------------------------------------------------------------------
+enable_feature(ENABLE_CW_KEYER           features/cw.c)
+enable_feature(ENABLE_DTMF_CALLING)
+enable_feature(ENABLE_SPECTRUM          apps/spectrum/spectrum.c)
+enable_feature(ENABLE_SPECTRUM_EXTENSIONS)
+enable_feature(ENABLE_APP_BREAKOUT_GAME   features/breakout.c)
+enable_feature(ENABLE_REGA              features/rega.c) # @markusb
+
+
+# ----------------------------------------------------------------------------
+# Regional & Frequency Bands
+# ----------------------------------------------------------------------------
 enable_feature(ENABLE_PMR446_FREQUENCY_BAND)
 enable_feature(ENABLE_GMRS_FRS_MURS_BANDS)
 enable_feature(ENABLE_FREQUENCY_LOCK_REGION_CA)
-enable_feature(ENABLE_FIRMWARE_DEBUG_LOGGING)
+
+
+# ----------------------------------------------------------------------------
+# Maintenance & Debugging
+# ----------------------------------------------------------------------------
+enable_feature(ENABLE_CUSTOM_FIRMWARE_MODS)
+enable_feature(ENABLE_SYSTEM_INFO_MENU)
+enable_feature(ENABLE_F_CAL_MENU)
+enable_feature(ENABLE_RESET_CHANNEL_FUNCTION)
 enable_feature(ENABLE_EEPROM_HEXDUMP)
+enable_feature(ENABLE_FIRMWARE_DEBUG_LOGGING)
 enable_feature(ENABLE_IDENTIFIER        helper/identifier.c)
-
-
-# ----------------------------------------------------------------------------
-# Debugging
-# ----------------------------------------------------------------------------
-
 enable_feature(ENABLE_AGC_SHOW_DATA)
 enable_feature(ENABLE_UART_RW_BK_REGS)
 enable_feature(ENABLE_SWD)
+enable_feature(ENABLE_FASTER_CHANNEL_SCAN)

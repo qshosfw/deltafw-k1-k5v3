@@ -42,6 +42,10 @@
     #include "drivers/bsp/system.h"
 #endif
 
+#ifdef ENABLE_CW_KEYER
+    #include "features/cw.h"
+#endif
+
 center_line_t center_line = CENTER_LINE_NONE;
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
@@ -175,6 +179,51 @@ uint8_t log2_approx(unsigned int value) {
     return log;
 }
 
+#ifdef ENABLE_CW_KEYER
+void UI_DisplayCW(uint8_t line)
+{
+    const char *decoded = CW_GetDecodedText();
+    const char *symbols = CW_GetSymbolBuffer();
+    bool showCursor = (gFlashLightBlinkCounter % 40) < 20;
+    
+    // Clear line buffer
+    memset(gFrameBuffer[line], 0, LCD_WIDTH);
+
+    int symLen = symbols[0] ? strlen(symbols) : 0;
+    // Width of ">" + symbols in Smallest font (4px per char)
+    int symWidth = symLen ? (symLen + 1) * 4 : 0;
+    
+    // Available width for decoded text: 128 - 4(left) - 4(right) - symbolsWidth - 8(cursor)
+    int maxDecWidth = 120 - symWidth - 8;
+    int maxDecChars = maxDecWidth / 6;
+    if (maxDecChars < 0) maxDecChars = 0;
+
+    int decLen = decoded ? strlen(decoded) : 0;
+    const char *decStart = (decLen > maxDecChars) ? (decoded + decLen - maxDecChars) : decoded;
+    
+    // 1. Decoded text (SmallNormal)
+    UI_PrintStringSmallNormal(decStart, 4, 0, line);
+    
+    int decLenSeen = strlen(decStart);
+    uint8_t cursorX = 4 + (decLenSeen * 6);
+    
+    // 2. Block cursor (SmallNormal)
+    if (showCursor) {
+        UI_PrintStringSmallNormal("\x7F", cursorX, 0, line);
+    }
+
+    // 3. Current symbols (Smallest font)
+    if (symLen) {
+        char prompt[16];
+        snprintf(prompt, sizeof(prompt), ">%s", symbols);
+        // Right-aligned with 4px padding
+        UI_PrintStringSmallest(prompt, 128 - 4 - symWidth, line * 8 + 1, false, true);
+    }
+    
+    ST7565_BlitLine(line);
+}
+#endif
+
 void UI_DisplayAudioBar(void)
 {
     if (gSetting_mic_bar)
@@ -229,6 +278,13 @@ void UI_DisplayAudioBar(void)
 
         uint8_t *p_line = gFrameBuffer[line];
         memset(p_line, 0, LCD_WIDTH);
+
+#ifdef ENABLE_CW_KEYER
+        if (gTxVfo->Modulation == MODULATION_CW) {
+            UI_DisplayCW(line);
+            return;
+        }
+#endif
 
         DrawLevelBar(2, line, barsOld, 25);
 
@@ -317,6 +373,13 @@ void DisplayRSSIBar(const bool now)
 
     if (now)
         memset(p_line, 0, LCD_WIDTH);
+
+#ifdef ENABLE_CW_KEYER
+    if (gRxVfo->Modulation == MODULATION_CW) {
+        UI_DisplayCW(line);
+        return;
+    }
+#endif
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     int16_t rssi_dBm =
@@ -530,6 +593,11 @@ void UI_DisplayMain(void)
     char               String[22];
 
     center_line = CENTER_LINE_NONE;
+#ifdef ENABLE_CW_KEYER
+    if (gTxVfo->Modulation == MODULATION_CW || gRxVfo->Modulation == MODULATION_CW) {
+        center_line = CENTER_LINE_CW;
+    }
+#endif
 
     // clear the screen
     UI_DisplayClear();
@@ -1490,6 +1558,12 @@ void UI_DisplayMain(void)
 #endif
         }
     }
+#ifdef ENABLE_CW_KEYER
+    else if (center_line == CENTER_LINE_CW)
+    {
+        UI_DisplayCW(isMainOnly() ? 5 : 3);
+    }
+#endif
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     //#ifdef ENABLE_RESCUE_OPERATIONS
