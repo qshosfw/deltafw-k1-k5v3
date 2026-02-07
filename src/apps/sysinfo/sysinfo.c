@@ -97,7 +97,7 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
             break;
         }
         case INFO_CHARGING:
-            snprintf(buf, buflen, "%s", gChargingWithTypeC ? "USB-C" : "No");
+            snprintf(buf, buflen, "%s", gIsCharging ? "Yes" : "No");
             break;
         case INFO_RAM: {
             // Simple estimate: stack pointer region usage

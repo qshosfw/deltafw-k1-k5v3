@@ -33,7 +33,7 @@ uint16_t          gBatteryCurrent;
 uint16_t          gBatteryVoltages[4];
 uint16_t          gBatteryVoltageAverage;
 uint8_t           gBatteryDisplayLevel;
-bool              gChargingWithTypeC;
+bool              gIsCharging;
 bool              gLowBatteryBlink;
 bool              gLowBattery;
 bool              gLowBatteryConfirmed;
@@ -131,10 +131,46 @@ unsigned int BATTERY_VoltsToPercent(const unsigned int voltage_10mV)
 
 void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
 {
+    static uint16_t ChargingCounter = 0;
+    static uint16_t BaseVoltage = 0;
+    static uint16_t TxCooldown = 0;
+    static uint16_t RecoveryCountdown = 0;
+    
     const uint8_t  PreviousBatteryLevel = gBatteryDisplayLevel;
-    const uint16_t Voltage              = (gBatteryVoltages[0] + gBatteryVoltages[1] + gBatteryVoltages[2] + gBatteryVoltages[3]) / 4;
+    const uint16_t RawVoltage           = (gBatteryVoltages[0] + gBatteryVoltages[1] + gBatteryVoltages[2] + gBatteryVoltages[3]) / 4;
+    const uint16_t NewVoltage           = (RawVoltage * 760) / gBatteryCalibration[3];
 
-    gBatteryVoltageAverage = (Voltage * 760) / gBatteryCalibration[3];
+    // --- Advanced Charging Detection Logic ---
+
+    // 1. TX Protection: Pause detection AND voltage averaging during TX and cooldown
+    if (gCurrentFunction == FUNCTION_TRANSMIT) {
+        TxCooldown = 12; // ~6 seconds cooldown (assuming 500ms tick)
+        RecoveryCountdown = 30; // 15 seconds recovery phase
+        return;
+    }
+    if (TxCooldown > 0) {
+        TxCooldown--;
+        return;
+    }
+
+    // Exponential Moving Average (EMA) for smoothing
+    // Alpha = 1/4
+    if (gBatteryVoltageAverage == 0) gBatteryVoltageAverage = NewVoltage;
+    gBatteryVoltageAverage = (gBatteryVoltageAverage * 3 + NewVoltage) / 4;
+
+    // 2. Recovery Phase (Anti-Bounceback)
+    // Force invalidation of charging detection while voltage is recovering relative to the floor
+    if (RecoveryCountdown > 0) {
+        RecoveryCountdown--;
+        BaseVoltage = gBatteryVoltageAverage; // Force sync to ride the wave up
+        ChargingCounter = 0; // Prevent triggering
+        return; // Skip normal detection
+    }
+
+    // 3. Slope / Resting Floor Detection
+    if (BaseVoltage == 0) BaseVoltage = gBatteryVoltageAverage;
+
+    const uint16_t Threshold = 5; // 50mV - Higher sensitivity with EMA
 
     if(gBatteryVoltageAverage > 890)
         gBatteryDisplayLevel = 7; // battery overvoltage
@@ -146,14 +182,8 @@ void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
         gBatteryDisplayLevel = 1;
         const uint8_t levels[] = {5,17,41,65,88};
         uint8_t perc = BATTERY_VoltsToPercent(gBatteryVoltageAverage);
-        //char str[64];
-        //LogUart("----------\n");
-        //sprintf(str, "%d %d %d %d %d %d %d\n", gBatteryVoltages[0], gBatteryVoltages[1], gBatteryVoltages[2], gBatteryVoltages[3], Voltage, gBatteryVoltageAverage, perc);
-        //LogUart(str);
 
         for(uint8_t i = 6; i >= 2; i--){
-            //sprintf(str, "%d %d %d\n", perc, levels[i-2], i);
-            //LogUart(str);
             if (perc > levels[i-2]) {
                 gBatteryDisplayLevel = i;
                 break;
@@ -161,31 +191,56 @@ void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
         }
     }
 
-
     if ((gScreenToDisplay == DISPLAY_MENU) && UI_MENU_GetCurrentMenuId() == MENU_VOL)
         gUpdateDisplay = true;
 
-    if (gBatteryCurrent < 501)
-    {
-        if (gChargingWithTypeC)
-        {
-            gUpdateStatus  = true;
-            gUpdateDisplay = true;
+    // 1. TX Protection: Pause detection during TX and for a cooldown period
+    // This block was moved and modified above.
+
+    // 2. Slope / Resting Floor Detection
+    // This block was moved and modified above.
+
+    if (!gIsCharging) {
+        if (gBatteryVoltageAverage > (BaseVoltage + Threshold)) {
+            if (ChargingCounter < 10) ChargingCounter++;
+        } else {
+            if (ChargingCounter > 0) ChargingCounter--;
+            // Track floor downwards immediately
+            if (gBatteryVoltageAverage < BaseVoltage) {
+                BaseVoltage = gBatteryVoltageAverage;
+            } else {
+                 // Slowly track base upwards if we are steady but below threshold
+                 // This handles slow natural voltage recovery without triggering charge
+                 static uint8_t driftCounter = 0;
+                 if (++driftCounter > 10) { // Every ~5 seconds
+                     BaseVoltage++;
+                     driftCounter = 0;
+                 }
+            }
         }
 
-        gChargingWithTypeC = false;
-    }
-    else
-    {
-        if (!gChargingWithTypeC)
-        {
-            gUpdateStatus  = true;
+        if (ChargingCounter >= 4) { // ~2 seconds of sustained high voltage (> Base + 50mV)
+            gIsCharging = true;
+            gUpdateStatus = true;
             gUpdateDisplay = true;
             BACKLIGHT_TurnOn();
+            BaseVoltage = gBatteryVoltageAverage; // Reset base to the new "charging floor"
         }
-
-        gChargingWithTypeC = true;
+    } else {
+        // We are already in "Charging" state.
+        // Track the peak voltage seen while charging.
+        if (gBatteryVoltageAverage > BaseVoltage) {
+            BaseVoltage = gBatteryVoltageAverage;
+        } else if (gBatteryVoltageAverage < (BaseVoltage - 7)) {
+            // Sudden drop of 7 units (70mV) from the peak - unplugged!
+            gIsCharging = false;
+            ChargingCounter = 0;
+            gUpdateStatus = true;
+            gUpdateDisplay = true;
+            BaseVoltage = gBatteryVoltageAverage;
+        }
     }
+    // --------------------------------
 
     if (PreviousBatteryLevel != gBatteryDisplayLevel)
     {
@@ -227,7 +282,7 @@ void BATTERY_TimeSlice500ms(void)
     // not transmitting
 
     if (lowBatteryCountdown < lowBatteryPeriod) {
-        if (lowBatteryCountdown == lowBatteryPeriod-1 && !gChargingWithTypeC && !gLowBatteryConfirmed) {
+        if (lowBatteryCountdown == lowBatteryPeriod-1 && !gIsCharging && !gLowBatteryConfirmed) {
             AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP);
         }
         return;
@@ -235,7 +290,7 @@ void BATTERY_TimeSlice500ms(void)
 
     lowBatteryCountdown = 0;
 
-    if (gChargingWithTypeC) {
+    if (gIsCharging) {
         return;
     }
 

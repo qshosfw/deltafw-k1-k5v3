@@ -6,8 +6,19 @@
 #include <stdint.h>
 #include <stddef.h>
 
+// Comprehensive device information structure for UART/UI
+typedef struct {
+    uint64_t Serial;
+    char     Version[16];
+    char     CommitHash[8];
+    char     BuildDate[16];
+} DeviceInfo_t;
+
 // Reads the unique CPU ID (first 16 bytes)
 void GetCpuId(uint8_t *dest, int count);
+
+// Fills the comprehensive device information structure
+void GetDeviceInfo(DeviceInfo_t *info);
 
 // Generates a deterministic 64-bit serial from the CPU ID
 uint64_t GetSerial(void);

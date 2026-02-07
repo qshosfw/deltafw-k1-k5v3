@@ -1727,23 +1727,19 @@ void APP_TimeSlice500ms(void)
 
     if (gCurrentFunction != FUNCTION_TRANSMIT)
     {
-
-        if ((gBatteryCheckCounter & 1) == 0)
-        {
-            BOARD_ADC_GetBatteryInfo(&gBatteryVoltages[gBatteryVoltageIndex++], &gBatteryCurrent);
-            if (gBatteryVoltageIndex > 3)
-                gBatteryVoltageIndex = 0;
-            BATTERY_GetReadings(true);
-        }
+        BOARD_ADC_GetBatteryInfo(&gBatteryVoltages[gBatteryVoltageIndex++], &gBatteryCurrent);
+        if (gBatteryVoltageIndex > 3)
+            gBatteryVoltageIndex = 0;
+        BATTERY_GetReadings(true);
     }
 
     // regular display updates (once every 2 sec) - if need be
     if ((gBatteryCheckCounter & 3) == 0)
     {
-        if (gChargingWithTypeC || gSetting_battery_text > 0)
+        if (gIsCharging || gSetting_battery_text > 0)
             gUpdateStatus = true;
         #ifdef ENABLE_SHOW_CHARGE_LEVEL
-            if (gChargingWithTypeC)
+            if (gIsCharging)
                 gUpdateDisplay = true;
         #endif
     }

@@ -1,5 +1,6 @@
 #include "identifier.h"
 #include <string.h>
+#include "core/version.h"
 
 #define CPU_ID_ADDR 0x1FFF3000
 
@@ -9,6 +10,14 @@ void GetCpuId(uint8_t *dest, int count) {
     for (int i = 0; i < count; i++) {
         dest[i] = src[i];
     }
+}
+
+void GetDeviceInfo(DeviceInfo_t *info) {
+    memset(info, 0, sizeof(DeviceInfo_t));
+    info->Serial = GetSerial();
+    strncpy(info->Version, Version, sizeof(info->Version) - 1);
+    strncpy(info->CommitHash, GitCommit, sizeof(info->CommitHash) - 1);
+    strncpy(info->BuildDate, BuildDate, sizeof(info->BuildDate) - 1);
 }
 
 // MurmurHash3 64-bit finalizer mix function

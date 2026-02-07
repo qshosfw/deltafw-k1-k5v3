@@ -48,15 +48,26 @@ void UI_DisplayBattery(uint8_t Level, uint8_t blink) {
         }
     }
 
-    if (gChargingWithTypeC) {
-        gStatusLine[WORK_START + 1] &= 0b11110111;
-        gStatusLine[WORK_START + 2] &= 0b11110111;
-        gStatusLine[WORK_START + 3] &= 0b11110111;
-        gStatusLine[WORK_START + 4] &= 0b11110011;  // Clear bit 2
-        gStatusLine[WORK_START + 5] &= 0b11110111;
-        gStatusLine[WORK_START + 6] &= 0b11111101;  // Clear bit 0
-        gStatusLine[WORK_START + 7] &= 0b11111101;
-        gStatusLine[WORK_START + 8] &= 0b11111101;
+    if (gIsCharging) {
+        // Clear background (draw white box) behind the bolt
+        // Clear bits 0-4 (0b00011111) on relevant columns
+        gStatusLine[WORK_START + 1] &= 0b11100000;
+        gStatusLine[WORK_START + 2] &= 0b11100000;
+        gStatusLine[WORK_START + 3] &= 0b11100000;
+        gStatusLine[WORK_START + 4] &= 0b11100000;
+        gStatusLine[WORK_START + 5] &= 0b11100000;
+        gStatusLine[WORK_START + 6] &= 0b11100000;
+        gStatusLine[WORK_START + 7] &= 0b11100000;
+        gStatusLine[WORK_START + 8] &= 0b11100000;
+
+        // Draw bolt (in black)
+        gStatusLine[WORK_START + 1] |= 0b00001000;
+        gStatusLine[WORK_START + 2] |= 0b00001000;
+        gStatusLine[WORK_START + 3] |= 0b00001010;
+        gStatusLine[WORK_START + 4] |= 0b00001110;
+        gStatusLine[WORK_START + 5] |= 0b00001010;
+        gStatusLine[WORK_START + 6] |= 0b00000010;
+        gStatusLine[WORK_START + 7] |= 0b00000010;
+        gStatusLine[WORK_START + 8] |= 0b00000010;
     }
 }
-

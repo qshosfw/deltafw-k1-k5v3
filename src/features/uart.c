@@ -193,18 +193,9 @@ typedef struct {
     } Data;
 } REPLY_051D_t;
 
-#ifdef ENABLE_EXTRA_UART_CMD
+#ifdef ENABLE_UART_CMD_RSSI
 /**
- * @brief REPLY_0528: Signal & Radio Status (10 bytes payload)
- * | Offset | Type     | Name             | Description |
- * |--------|----------|------------------|-------------|
- * | sizeof | uint16_t | RSSI             | Raw RSSI (0-511) |
- * | +2     | uint8_t  | ExNoiseIndicator | Noise floor |
- * | +3     | uint8_t  | GlitchIndicator  | Glitch count |
- * | +4     | int16_t  | RSSI_dBm         | RSSI in dBm |
- * | +6     | int8_t   | Gain_dB          | Currently active gain (dB) |
- * | +7     | uint8_t  | AfAmplitude      | Voice output amplitude |
- * | +8     | uint8_t  | Padding[2]       | Alignment |
+ * @brief REPLY_0528: RSSI Info Response
  */
 typedef struct {
     Header_t Header;
@@ -214,21 +205,15 @@ typedef struct {
         uint8_t  GlitchIndicator;
         int16_t  RSSI_dBm;
         int8_t   Gain_dB;
-        uint8_t   AfAmplitude;
+        uint8_t  AfAmplitude;
         uint8_t  Padding[2];
     } Data;
 } REPLY_0527_t;
+#endif
 
+#ifdef ENABLE_UART_CMD_BATT
 /**
- * @brief REPLY_052A: Battery & Charging Status (8 bytes payload)
- * | Offset | Type     | Name        | Description |
- * |--------|----------|-------------|-------------|
- * | sizeof | uint16_t | Voltage     | mV |
- * | +2     | uint16_t | Current     | Raw ADC current |
- * | +4     | uint8_t  | Percent     | 0-100% |
- * | +5     | uint8_t  | BatteryType | Capacity index |
- * | +6     | uint8_t  | Flags       | Bit 0: Charging, Bit 1: Low |
- * | +7     | uint8_t  | Padding     | Alignment |
+ * @brief REPLY_052A: Battery & ADC Stats
  */
 typedef struct {
     Header_t Header;
@@ -237,22 +222,22 @@ typedef struct {
         uint16_t Current;
         uint8_t  Percent;
         uint8_t  BatteryType;
-        uint8_t  Flags;
-        uint8_t  Padding;
+        uint16_t Flags;
     } Data;
 } REPLY_0529_t;
+#endif
 
+#ifndef ENABLE_CUSTOM_FIRMWARE_MODS
 /**
- * @brief CMD_052D: Security Challenge Verification (16 bytes payload)
+ * @brief CMD_052D: Security Challenge Verification
  */
 typedef struct {
     Header_t Header;
-    uint32_t Response[4]; /* 128-bit challenge response */
+    uint32_t Response[4];
 } CMD_052D_t;
-#endif
 
 /**
- * @brief REPLY_052E: authentication Result (4 bytes payload)
+ * @brief REPLY_052E: Authentication Result
  */
 typedef struct {
     Header_t Header;
@@ -261,21 +246,21 @@ typedef struct {
         uint8_t Padding[3];
     } Data;
 } REPLY_052D_t;
+#endif
 
 #ifdef ENABLE_EXTRA_UART_CMD
 /**
- * @brief CMD_052F: High-speed Program session init (4 bytes payload)
+ * @brief CMD_052F: High-speed Program session init
  */
 typedef struct {
     Header_t Header;
     uint32_t Timestamp;
 } CMD_052F_t;
-#ifdef ENABLE_IDENTIFIER
+#endif
+
+#ifdef ENABLE_UART_CMD_ID
 /**
- * @brief CMD_0533: Request Full 256-byte CPU ID (4 bytes payload)
- * | Offset | Type     | Name      | Description |
- * |--------|----------|-----------|-------------|
- * | sizeof | uint32_t | Timestamp | Session validation |
+ * @brief CMD_0533: Request Device Identifier Info
  */
 typedef struct {
     Header_t Header;
@@ -283,18 +268,12 @@ typedef struct {
 } CMD_0533_t;
 
 /**
- * @brief REPLY_0534: Full 256-byte CPU ID Response (256 bytes payload)
- * | Offset | Type      | Name | Description |
- * |--------|-----------|------|-------------|
- * | sizeof | uint8_t[]| Data | Raw hardware ID |
+ * @brief REPLY_0534: Proper Device Information Response
  */
 typedef struct {
     Header_t Header;
-    struct {
-        uint8_t Data[256]; /* 256 bytes raw unique hardware ID */
-    } Data;
+    DeviceInfo_t Data;
 } REPLY_0534_t;
-#endif
 #endif
 
 static const uint8_t Obfuscation[16] =
@@ -620,7 +599,7 @@ static void CMD_051D(uint32_t Port, const uint8_t *pBuffer)
     SendReply(Port, &Reply, sizeof(Reply));
 }
 
-#ifdef ENABLE_EXTRA_UART_CMD
+#ifdef ENABLE_UART_CMD_RSSI
 /**
  * @brief CMD_0527: Handle RSSI Info Request
  */
@@ -634,7 +613,7 @@ static void CMD_0527(uint32_t Port)
    
     // Essential legacy fields
     Reply.Data.RSSI             = BK4819_ReadRegister(BK4819_REG_67) & 0x01FF;
-    Reply.Data.ExNoiseIndicator = BK4819_GetExNoiceIndicator();
+    Reply.Data.ExNoiseIndicator = BK4819_GetExNoiseIndicator();
     Reply.Data.GlitchIndicator  = BK4819_GetGlitchIndicator();
 
     // Future-proofed fields
@@ -644,7 +623,9 @@ static void CMD_0527(uint32_t Port)
    
     SendReply(Port, &Reply, sizeof(Reply));
 }
+#endif
 
+#ifdef ENABLE_UART_CMD_BATT
 /**
  * @brief CMD_0529: Handle Battery & ADC Stats Request
  */
@@ -662,11 +643,12 @@ static void CMD_0529(uint32_t Port)
     Reply.Data.BatteryType = gEeprom.BATTERY_TYPE;
 
     // Flags
-    if (gChargingWithTypeC) Reply.Data.Flags |= (1 << 0);
+    if (gIsCharging) Reply.Data.Flags |= (1 << 0);
     if (gLowBattery)        Reply.Data.Flags |= (1 << 1);
 
     SendReply(Port, &Reply, sizeof(Reply));
 }
+#endif
 
 #ifndef ENABLE_CUSTOM_FIRMWARE_MODS
 /**
@@ -714,6 +696,7 @@ static void CMD_052D(uint32_t Port, const uint8_t *pBuffer)
 }
 #endif
 
+#ifdef ENABLE_EXTRA_UART_CMD
 /**
  * @brief CMD_052F: Process High-speed Program session init
  * This command sets the radio to a known state for high-speed data transfer
@@ -767,9 +750,9 @@ static void CMD_052F(uint32_t Port, const uint8_t *pBuffer)
 }
 #endif
 
-#ifdef ENABLE_IDENTIFIER
+#ifdef ENABLE_UART_CMD_ID
 /**
- * @brief CMD_0533: Process Request for Full 256-byte CPU ID
+ * @brief CMD_0533: Process Request for Proper Device Identifier & Info
  */
 static void CMD_0533(uint32_t Port, const uint8_t *pBuffer)
 {
@@ -790,7 +773,7 @@ static void CMD_0533(uint32_t Port, const uint8_t *pBuffer)
     Reply.Header.ID   = 0x0534;
     Reply.Header.Size = sizeof(Reply.Data);
     
-    GetCpuId(Reply.Data.Data, 256);
+    GetDeviceInfo(&Reply.Data);
 
     SendReply(Port, &Reply, sizeof(Reply));
 }
@@ -1041,21 +1024,19 @@ void UART_HandleCommand(uint32_t Port)
         case 0x0521:    // Not implementing non-authentic command
             break;
 
-#ifdef ENABLE_EXTRA_UART_CMD
+#ifdef ENABLE_UART_CMD_RSSI
         case 0x0527:
             CMD_0527(Port);
             break;
+#endif
 
+#ifdef ENABLE_UART_CMD_BATT
         case 0x0529:
             CMD_0529(Port);
             break;
+#endif
 
-        #ifndef ENABLE_CUSTOM_FIRMWARE_MODS
-            case 0x052D:
-                CMD_052D(Port, pUART_Command->Buffer);
-                break;
-        #endif
-
+#ifdef ENABLE_EXTRA_UART_CMD
         case 0x052F:
             CMD_052F(Port, pUART_Command->Buffer);
             break;
@@ -1079,7 +1060,7 @@ void UART_HandleCommand(uint32_t Port)
             break;
 #endif
 
-#ifdef ENABLE_IDENTIFIER
+#ifdef ENABLE_UART_CMD_ID
         case 0x0533:
             CMD_0533(Port, pUART_Command->Buffer);
             break;

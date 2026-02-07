@@ -1495,7 +1495,7 @@ uint8_t  BK4819_GetGlitchIndicator(void)
     return BK4819_ReadRegister(BK4819_REG_63) & 0x00FF;
 }
 
-uint8_t  BK4819_GetExNoiceIndicator(void)
+uint8_t  BK4819_GetExNoiseIndicator(void)
 {
     return BK4819_ReadRegister(BK4819_REG_65) & 0x007F;
 }

@@ -113,15 +113,6 @@ void UI_DisplayStatus() {
          *p++ = ' ';
     }
     
-    // USB-C
-#ifdef ENABLE_USBC_CHARGING_INDICATOR
-    if (gChargingWithTypeC) {
-        *p++ = 'U';
-        *p++ = 'S';
-        *p++ = 'B';
-        *p++ = ' ';
-    }
-#endif
     *p = '\0';
     }
 

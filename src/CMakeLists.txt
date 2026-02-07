@@ -162,7 +162,10 @@ if(ENABLE_UART OR ENABLE_USB)
 endif()
 
 enable_feature(ENABLE_SERIAL_SCREENCAST     screencast.c)
-enable_feature(ENABLE_EXTRA_UART_CMD)               # @reppad
+enable_feature(ENABLE_UART_CMD_RSSI)
+enable_feature(ENABLE_UART_CMD_BATT)
+enable_feature(ENABLE_UART_CMD_ID)
+enable_feature(ENABLE_EXTRA_UART_CMD)               # @reppad legacy
 
 
 # ----------------------------------------------------------------------------
