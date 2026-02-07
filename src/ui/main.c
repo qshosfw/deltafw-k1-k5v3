@@ -924,7 +924,7 @@ void UI_DisplayMain(void)
                 UI_PrintStringSmallNormal(String + 7, 113, 0, line + 1);
                 String[7] = 0;
                 // show the main large frequency digits
-                UI_DisplayFrequency(String, 32, line, false);
+                UI_DisplayFrequencyStr(String, 32, line, false);
             }
             else
 #endif
@@ -1012,7 +1012,7 @@ void UI_DisplayMain(void)
                             UI_PrintStringSmallNormal(String + 7, 113, 0, line + 1);
                             String[7] = 0;
                             // show the main large frequency digits
-                            UI_DisplayFrequency(String, 32, line, false);
+                            UI_DisplayFrequencyStr(String, 32, line, false);
                         }
                         else
 #endif
@@ -1069,7 +1069,7 @@ void UI_DisplayMain(void)
                                     UI_PrintStringSmallNormal(String + 7, 113, 0, line + 4);
                                     String[7] = 0;
                                     // show the main large frequency digits
-                                    UI_DisplayFrequency(String, 32, line + 3, false);
+                                    UI_DisplayFrequencyStr(String, 32, line + 3, false);
                                 }
                                 else
                                 {
@@ -1101,7 +1101,7 @@ void UI_DisplayMain(void)
                     UI_PrintStringSmallNormal(String + 7, 113, 0, line + 1);
                     String[7] = 0;
                     // show the main large frequency digits
-                    UI_DisplayFrequency(String, 32, line, false);
+                    UI_DisplayFrequencyStr(String, 32, line, false);
                 }
                 else
 #endif
