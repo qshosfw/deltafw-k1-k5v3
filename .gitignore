@@ -12,3 +12,7 @@ k5_eeprom.raw
 
 /build
 /serialtool/__pycache__
+*.log
+__pycache__/
+*.pyc
+.vscode/

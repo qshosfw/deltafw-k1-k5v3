@@ -12,34 +12,36 @@ all: help
 # ============================================================================
 
 # Recommended for new UV-K1/K5 V3 radios with expanded flash
+# Recommended for new UV-K1/K5 V3 radios with expanded flash
+# Recommended for new UV-K1/K5 V3 radios with expanded flash
 fusion:
-	./compile-with-docker.sh Fusion
+	@./toolchain/compile-with-docker.sh Fusion
 
 # Standard balanced build
 custom:
-	./compile-with-docker.sh Custom
+	@./toolchain/compile-with-docker.sh Custom
 
 # ============================================================================
 # Preset Builds
 # ============================================================================
 
 bandscope:
-	./compile-with-docker.sh Bandscope
+	@./toolchain/compile-with-docker.sh Bandscope
 
 broadcast:
-	./compile-with-docker.sh Broadcast
+	@./toolchain/compile-with-docker.sh Broadcast
 
 basic:
-	./compile-with-docker.sh Basic
+	@./toolchain/compile-with-docker.sh Basic
 
 rescue:
-	./compile-with-docker.sh RescueOps
+	@./toolchain/compile-with-docker.sh RescueOps
 
 game:
-	./compile-with-docker.sh Game
+	@./toolchain/compile-with-docker.sh Game
 
 all-presets:
-	./compile-with-docker.sh All
+	@./toolchain/compile-with-docker.sh All
 
 # ============================================================================
 # Configuration UI
@@ -47,7 +49,7 @@ all-presets:
 
 # Interactive build configurator
 menuconfig:
-	@python3 tools/menuconfig.py
+	@python3 toolchain/menuconfig.py
 
 config: menuconfig
 
@@ -57,7 +59,18 @@ config: menuconfig
 
 release: fusion
 debug:
-	./compile-with-docker.sh Fusion -DCMAKE_BUILD_TYPE=Debug
+	@./toolchain/compile-with-docker.sh Fusion -DCMAKE_BUILD_TYPE=Debug
+
+# ============================================================================
+# Flashing
+# ============================================================================
+
+# Port is auto-detected by tools/flash.py unless specified
+# PORT = /dev/ttyUSB0 
+
+flash:
+	@python3 toolchain/flasher.py $(if $(PORT),--port $(PORT),) $(if $(FILE),$(FILE),)
+
 
 # ============================================================================
 # Utilities
