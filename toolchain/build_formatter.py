@@ -21,6 +21,7 @@ BG_RED = "\033[41m"
 BG_GREEN = "\033[42m"
 BG_YELLOW = "\033[43m"
 BG_BLUE = "\033[44m"
+UNDERLINE = "\033[4m"
 
 # Icons
 ICON_BUILD = "🔨"
@@ -62,45 +63,67 @@ def format_line(line):
         icon = ICON_BUILD
         if "Linking" in rest: icon = ICON_LINK
         
-        if "Building" in rest and "object" in rest:
-            obj_match = re.search(r'(\S+\.(?:c|s|S|cpp|asm))(\.obj|\.o)?', rest, re.IGNORECASE)
-            if obj_match:
-                rest = f"Compiling {BOLD}{os.path.basename(obj_match.group(1))}{RESET}"
+        # Prettify "Compiling C object ..."
+        # Match: Compiling C object deltafw.elf.elf.p/src_ui_bitmaps.c.o
+        obj_match = re.search(r'Compiling \w+ object \S+/(\S+\.(?:c|s|S|cpp|asm))(?:\.o)?', rest, re.IGNORECASE)
+        if obj_match:
+            rest = f"{BOLD}{obj_match.group(1)}{RESET}"
         
         return f"{prog_color}[{current:>3}/{total:<3}] {RESET}{icon} {rest}"
 
-    # 2. CMake/Compiler Info & Headers
-    if clean_line.startswith("-- ") or "Preset CMake variables" in clean_line or "Manually-specified variables" in clean_line:
+    # 2. Suppress/Prettify INFO lines
+    if clean_line.startswith("INFO:"):
+        # "INFO: autodetecting backend as ninja" -> Skip or Simplify
+        if "backend" in clean_line or "calculating" in clean_line:
+            return ""
         return f"{GRAY}{clean_line}{RESET}"
 
-    # 3. Known Variables & Comments
-    # Handle comments starting with // (including emojis)
-    if clean_line.startswith("//"):
-        return f"{GRAY}{clean_line}{RESET}"
+    # 3. Meson Configuration Setup
+    # "The Meson build system" -> Title
+    if "The Meson build system" in clean_line:
+        return f"{BOLD}{MAGENTA}Meson Build System{RESET}"
+    
+    # "running build ..."
+    if clean_line.startswith("Cleaning..."):
+        return f"{YELLOW}Cleaning...{RESET}"
 
-    # Handle indented variable assignments: VAR="VAL" or VAR = VAL
-    if "=" in clean_line:
-        # Relaxed regex: allow spaces, quotes, optional type
-        # Match: CMAKE_BUILD_TYPE="Release"
-        # Match: ENABLE_FOO:BOOL="TRUE"
-        # Match: EXE_NAME = deltafw
-        var_match = re.search(r'^\s*([A-Za-z0-9_]+)(:[A-Z]+)?\s*=\s*["\']?([^"\']*)["\']?$', clean_line)
-        if var_match:
-             key, type_tag, val = var_match.groups()
-             # Broaden the filter or just colorize all uppercase keys that look like config
-             if key.isupper() or key in ["EXE_NAME", "Output file", "Git commit"]:
-                 return f"  {ICON_CFG} {CYAN}{key}{RESET} = {BOLD}{MAGENTA}{val}{RESET}"
+    # "Project name: deltafw"
+    if clean_line.startswith("Project name:"):
+        return f"{ICON_CFG} {CYAN}Project:{RESET} {BOLD}{clean_line.split(':')[1].strip()}{RESET}"
+    
+    # "Project version: 1.0.0"
+    if clean_line.startswith("Project version:"):
+        return f"{ICON_CFG} {CYAN}Version:{RESET} {BOLD}{clean_line.split(':')[1].strip()}{RESET}"
 
-    # Handle "Property: Value" style
-    if ":" in clean_line:
-         # CMAKE_OBJCOPY: arm-none-eabi-objcopy
-         # Git commit: ...
-         prop_match = re.search(r'^\s*([A-Za-z0-9_ ]+):\s*(.*)$', clean_line)
-         if prop_match:
-             key, val = prop_match.groups()
-             if "warning" not in key.lower() and "error" not in key.lower():
-                 if key in ["Git commit", "Build date", "Output file", "Build type", "CMAKE_OBJCOPY"] or key.startswith("CMAKE_"):
-                    return f"  {ICON_CFG} {CYAN}{key.strip()}{RESET}: {BOLD}{MAGENTA}{val.strip()}{RESET}"
+    # "C compiler for the host machine: ..."
+    # Simplify to "C Compiler: arm-none-eabi-gcc"
+    comp_match = re.search(r'(C|C\+\+) (compiler|linker) for the (host|build) machine: (.*)', clean_line)
+    if comp_match:
+        lang, tool, machine, details = comp_match.groups()
+        # Only show host machine tools (ARM), suppress build machine (x86) to reduce noise
+        if machine == "build":
+            return "" 
+        
+        # Extract just the compiler name if possible (before parentheses)
+        short_details = details.split('(')[0].strip()
+        return f"  {GRAY}{lang} {tool}:{RESET} {short_details}"
+
+    # "Program arm-none-eabi-objcopy found: YES"
+    prog_match = re.search(r'Program (.*) found: YES', clean_line)
+    if prog_match:
+         return f"  {ICON_OK} Found {BOLD}{prog_match.group(1)}{RESET}"
+
+    # "Build targets in project: 3"
+    if clean_line.startswith("Build targets"):
+         return f"{ICON_INFO} {clean_line}"
+
+    # "Found ninja-1.11.1 at ..."
+    if clean_line.startswith("Found ninja"):
+         return f"{ICON_OK} {clean_line}"
+
+    # User defined options (indentation)
+    if clean_line.strip() == "User defined options":
+        return f"\n{BOLD}{UNDERLINE}Configuration:{RESET}"
 
     # 4. Warnings & Errors
     if "warning:" in clean_line.lower():
@@ -108,15 +131,10 @@ def format_line(line):
     if "error:" in clean_line.lower():
         return f"{RED}{ICON_ERR} {clean_line}{RESET}"
     if "Manually-specified variables were not used" in clean_line:
-        return f"{YELLOW}{clean_line}{RESET}"
-
-    # Standalone variable names in warning block (e.g. ENABLE_FOO)
-    if re.match(r'^\s*ENABLE_[A-Z0-9_]+\s*$', clean_line):
-        return f"{YELLOW}{clean_line}{RESET}"
+        # This is often noise in meson
+        return ""
 
     # 5. GCC Context (Caret lines)
-    # 40 | static void ...
-    #    |             ^~~~~~~
     if re.match(r'^\s*\d+\s*\|', clean_line) or clean_line.startswith('|') or (clean_line.startswith('^') and '~' in clean_line):
         return f"{CYAN}{line.rstrip()}{RESET}"
 
@@ -127,7 +145,6 @@ def format_line(line):
     if "Memory region" in clean_line and "Used Size" in clean_line:
         return f"\n{BOLD}{WHITE}Memory Usage:{RESET}"
     
-    # RAM:       13568 B        16 KB     82.81%
     if clean_line.startswith("RAM:") or clean_line.startswith("FLASH:"):
         parts = clean_line.split()
         if len(parts) >= 6:
@@ -141,8 +158,18 @@ def format_line(line):
                 return f"  {BOLD}{region:<8}{RESET} {used:>10} / {total:<8} {bar}"
             except ValueError:
                 pass
-        # Fallback if parsing fails but still looks like RAM/FLASH line
         return f"  {BOLD}{clean_line}{RESET}"
+
+    # Handle "Property: Value" style (generic) - keep it low noise
+    if ":" in clean_line and not clean_line.startswith("Compiling"):
+         # Check if it looks like a config line
+         # EDITION_STRING : Fusion
+         prop_match = re.search(r'^\s*([A-Za-z0-9_]+)\s*:\s*(.*)$', clean_line)
+         if prop_match:
+             key, val = prop_match.groups()
+             # Filter out some noise
+             if key not in ["buildtype", "warning_level", "werror", "b_staticpic"]:
+                return f"  {CYAN}{key:<30}{RESET} : {BOLD}{val}{RESET}"
 
     return line.rstrip()
 

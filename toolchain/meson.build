@@ -1,0 +1,506 @@
+project('deltafw', 'c', 'cpp',
+  version : '1.0.6',
+  default_options : [
+    'warning_level=1',
+    'c_std=c11',
+    'cpp_std=c++11',
+    'buildtype=minsize', 
+    'b_staticpic=false',
+  ])
+
+# Compiler configuration
+cc = meson.get_compiler('c')
+objcopy = find_program('objcopy')
+size_prog = find_program('size')
+
+# Definitions
+defines = []
+extra_inc = []
+
+# Git Hash and Build Date
+git = find_program('git', required : false)
+if git.found()
+  git_hash = run_command(git, 'rev-parse', '--short', 'HEAD', check : false).stdout().strip()
+  if git_hash == ''
+    git_hash = 'unknown'
+  endif
+else
+  git_hash = 'unknown'
+endif
+
+date = find_program('date', required : false)
+if date.found()
+  build_date = run_command(date, '+%Y-%m-%d %H:%M:%S', check : false).stdout().strip()
+  build_date_file = run_command(date, '+%d%m%Y', check : false).stdout().strip()
+else
+  build_date = 'unknown'
+  build_date_file = 'unknown'
+endif
+
+defines += '-DGIT_COMMIT_HASH="' + git_hash + '"'
+defines += '-DBUILD_DATE="' + build_date + '"'
+defines += '-DAUTHOR_STRING="deltafw"'
+defines += '-DVERSION_STRING="v1.0.6"' # Simplified for now, can be parameterized
+
+# Common Flags
+common_flags = [
+  '-mcpu=cortex-m0plus',
+  '-mthumb',
+  '-fno-common',
+  '-ffunction-sections',
+  '-fdata-sections',
+  '-Wno-type-limits'
+]
+
+add_project_arguments(common_flags, language : ['c', 'cpp'])
+add_project_link_arguments(common_flags, language : ['c', 'cpp'])
+
+# Linker Flags
+linker_script = meson.current_source_dir() / '../src/core/py32f071xb.ld'
+link_args = [
+  '-T' + linker_script,
+  '--specs=nano.specs',
+  '-Wl,--gc-sections',
+  '-Wl,--print-memory-usage',
+  '-Wl,--no-warn-rwx-segment',
+  '-Wl,-Map=deltafw.map',
+  '-lm'
+]
+
+# Include Directories
+inc_dirs = include_directories(
+  '..',
+  '../src',
+  '../src/core',
+  '../src/core/Inc',
+  '../src/drivers/hal/Inc',
+  '../src/drivers/cmsis/Include',
+  '../src/drivers/cmsis/Device/PY32F071/Include',
+  '../src/usb'
+)
+
+# Source Files
+sources = files(
+  # Main Entry
+  '../src/core/main.c',
+
+  # Core
+  '../src/core/init.c',
+  '../src/core/misc.c',
+  '../src/core/scheduler.c',
+  '../src/core/version.c',
+  '../src/board.c',
+  '../src/audio.c',
+  '../src/radio.c',
+  '../src/frequencies.c',
+  '../src/dcs.c',
+  '../src/apps/settings/settings.c',
+  '../src/apps/settings/settings_ui.c',
+  '../src/functions.c',
+  '../src/ui/bitmaps.c',
+  '../src/ui/font.c',
+
+  # Features
+  '../src/features/action.c',
+  '../src/features/app.c',
+  '../src/apps/scanner/chFrScanner.c',
+  '../src/features/common.c',
+  '../src/features/dtmf.c',
+  '../src/features/generic.c',
+  '../src/features/main_screen.c',
+  '../src/features/menu.c',
+  '../src/apps/scanner/scanner.c',
+
+  # Drivers BSP
+  '../src/drivers/bsp/backlight.c',
+  '../src/drivers/bsp/bk4829.c',
+  '../src/drivers/bsp/py25q16.c',
+  '../src/drivers/bsp/gpio.c',
+  '../src/drivers/bsp/i2c.c',
+  '../src/drivers/bsp/keyboard.c',
+  '../src/drivers/bsp/st7565.c',
+  '../src/drivers/bsp/system.c',
+  '../src/drivers/bsp/systick.c',
+
+  # Apps
+  '../src/apps/battery/battery.c',
+  '../src/apps/battery/battery_ui.c',
+  '../src/apps/launcher/launcher.c',
+  '../src/apps/memories/memories.c',
+  '../src/apps/sysinfo/sysinfo.c',
+  '../src/apps/boot/boot.c',
+
+  # UI
+  '../src/ui/helper.c',
+  '../src/ui/inputbox.c',
+  '../src/ui/main.c',
+  '../src/ui/menu.c',
+  '../src/apps/scanner/scanner_ui.c',
+  '../src/ui/status.c',
+  '../src/ui/ui.c',
+  '../src/ui/hexdump.c',
+  '../src/ui/ag_graphics.c',
+  '../src/ui/ag_menu.c',
+  '../src/ui/textinput.c',
+  '../src/ui/freqinput.c',
+  '../src/apps/boot/welcome.c',
+
+  # Third Party
+  '../src/external/printf/printf.c',
+
+  # Startup
+  '../src/core/startup_py32f071xx.s',
+
+  # Core Libs / Interrupts
+  '../src/core/Src/main.c',
+  '../src/core/Src/py32f071_it.c',
+  '../src/core/Src/system_py32f071.c',
+
+  # HAL
+  '../src/drivers/hal/Src/py32f071_ll_rcc.c',
+  '../src/drivers/hal/Src/py32f071_ll_pwr.c',
+  '../src/drivers/hal/Src/py32f071_ll_dma.c',
+  '../src/drivers/hal/Src/py32f071_ll_gpio.c',
+  '../src/drivers/hal/Src/py32f071_ll_utils.c',
+  '../src/drivers/hal/Src/py32f071_ll_adc.c',
+  '../src/drivers/hal/Src/py32f071_ll_comp.c',
+  '../src/drivers/hal/Src/py32f071_ll_crc.c',
+  '../src/drivers/hal/Src/py32f071_ll_dac.c',
+  '../src/drivers/hal/Src/py32f071_ll_exti.c',
+  '../src/drivers/hal/Src/py32f071_ll_i2c.c',
+  '../src/drivers/hal/Src/py32f071_ll_rtc.c',
+  '../src/drivers/hal/Src/py32f071_ll_spi.c',
+  '../src/drivers/hal/Src/py32f071_ll_tim.c',
+  '../src/drivers/hal/Src/py32f071_ll_lptim.c',
+  '../src/drivers/hal/Src/py32f071_ll_usart.c',
+)
+
+defines += '-DPY32F071x8'
+defines += '-DUSE_FULL_LL_DRIVER'
+defines += '-DPRINTF_INCLUDE_CONFIG_H'
+
+# Options Processing
+if get_option('ENABLE_CUSTOM_FIRMWARE_MODS')
+    defines += '-DENABLE_CUSTOM_FIRMWARE_MODS'
+    # TODO: Pass string variables properly
+    defines += '-DAUTHOR_STRING_1="qshosfw"'
+    defines += '-DAUTHOR_STRING_2="deltafw"'
+    defines += '-DVERSION_STRING_1="v1.0"'
+    defines += '-DVERSION_STRING_2="v1.0.0"'
+    defines += '-DEDITION_STRING="' + get_option('EDITION_STRING') + '"'
+    defines += '-DALERT_TOT=10'
+endif
+
+if get_option('ENABLE_AIRCOPY')
+  defines += '-DENABLE_AIRCOPY'
+  sources += files('../src/apps/aircopy/aircopy.c', '../src/apps/aircopy/aircopy_ui.c')
+endif
+
+if get_option('ENABLE_UART')
+  defines += '-DENABLE_UART'
+  sources += files('../src/drivers/bsp/uart.c', '../src/features/uart.c')
+endif
+
+if get_option('ENABLE_USB')
+  defines += '-DENABLE_USB'
+  sources += files(
+    '../src/drivers/bsp/vcp.c', 
+    '../src/usb/usbd_cdc_if.c',
+    '../src/middlewares/CherryUSB/core/usbd_core.c',
+    '../src/middlewares/CherryUSB/port/usb_dc_py32.c',
+    '../src/middlewares/CherryUSB/class/cdc/usbd_cdc.c'
+  )
+  extra_inc += include_directories(
+    '../src/middlewares/CherryUSB/core',
+    '../src/middlewares/CherryUSB/port',
+    '../src/middlewares/CherryUSB/common',
+    '../src/middlewares/CherryUSB/class/cdc'
+  )
+  # We can't append to inc_dirs easily without reassigning or merging lists, 
+  # but here we can just add it to the executable include_directories list? 
+  # Actually, inc_dirs is an IncludeDirs object. We can't merge them in Meson < 0.60 easily?
+  # Meson allows lists of include_directories.
+  # So we will add it to a list 'extra_inc_dirs' and pass [inc_dirs, extra_inc_dirs] to executable.
+  # Or just add these paths to the main inc_dirs definition?
+  # Modifying the main inc_dirs definition is cleaner but validation-wise tricky if file structure changes.
+  # Let's just redefine inc_dirs to include these, or append?
+  # Since inc_dirs is defined earlier, we can't append strings to it.
+  # We will clear this issue by adding a new variable specific for USB includes and pass it to executable.
+endif
+
+if get_option('ENABLE_AIRCOPY') or get_option('ENABLE_UART') or get_option('ENABLE_USB')
+  sources += files('../src/drivers/bsp/crc.c', '../src/drivers/bsp/eeprom_compat.c')
+endif
+
+if get_option('ENABLE_SERIAL_SCREENCAST')
+  defines += '-DENABLE_SERIAL_SCREENCAST'
+  sources += files('../src/screencast.c')
+endif
+
+if get_option('ENABLE_UART_CMD_RSSI')
+  defines += '-DENABLE_UART_CMD_RSSI'
+endif
+
+if get_option('ENABLE_UART_CMD_BATT')
+  defines += '-DENABLE_UART_CMD_BATT'
+endif
+
+if get_option('ENABLE_UART_CMD_ID')
+  defines += '-DENABLE_UART_CMD_ID'
+endif
+
+if get_option('ENABLE_EXTRA_UART_CMD')
+  defines += '-DENABLE_EXTRA_UART_CMD'
+endif
+
+if get_option('ENABLE_FMRADIO')
+  defines += '-DENABLE_FMRADIO'
+  sources += files('../src/drivers/bsp/bk1080.c', '../src/apps/fm/fm.c', '../src/apps/fm/fm_ui.c')
+endif
+
+if get_option('ENABLE_VOICE')
+  defines += '-DENABLE_VOICE'
+  sources += files('../src/drivers/bsp/voice.c')
+endif
+
+if get_option('ENABLE_PWRON_PASSWORD')
+  defines += '-DENABLE_PWRON_PASSWORD'
+  sources += files('../src/ui/lock.c')
+endif
+
+if get_option('ENABLE_FLASHLIGHT')
+  defines += '-DENABLE_FLASHLIGHT'
+  sources += files('../src/features/flashlight.c')
+endif
+
+if get_option('ENABLE_ALARM')
+  defines += '-DENABLE_ALARM'
+endif
+
+if get_option('ENABLE_TX1750')
+  defines += '-DENABLE_TX1750'
+endif
+
+if get_option('ENABLE_VOX')
+  defines += '-DENABLE_VOX'
+endif
+
+if get_option('ENABLE_NOAA')
+  defines += '-DENABLE_NOAA'
+endif
+
+if get_option('ENABLE_NARROWER_BW_FILTER')
+  defines += '-DENABLE_NARROWER_BW_FILTER'
+endif
+
+if get_option('ENABLE_WIDE_RX')
+  defines += '-DENABLE_WIDE_RX'
+endif
+
+if get_option('ENABLE_TX_NON_FM')
+  defines += '-DENABLE_TX_NON_FM'
+endif
+
+if get_option('ENABLE_SQUELCH_MORE_SENSITIVE')
+  defines += '-DENABLE_SQUELCH_MORE_SENSITIVE'
+endif
+
+if get_option('ENABLE_CTCSS_TAIL_PHASE_SHIFT')
+  defines += '-DENABLE_CTCSS_TAIL_PHASE_SHIFT'
+endif
+
+if get_option('ENABLE_REDUCE_LOW_MID_TX_POWER')
+  defines += '-DENABLE_REDUCE_LOW_MID_TX_POWER'
+endif
+
+if get_option('ENABLE_BYP_RAW_DEMODULATORS')
+  defines += '-DENABLE_BYP_RAW_DEMODULATORS'
+endif
+
+if get_option('ENABLE_RESCUE_OPERATIONS')
+  defines += '-DENABLE_RESCUE_OPERATIONS'
+endif
+
+if get_option('ENABLE_SCAN_RANGES')
+  defines += '-DENABLE_SCAN_RANGES'
+endif
+
+if get_option('ENABLE_BIG_FREQ')
+  defines += '-DENABLE_BIG_FREQ'
+endif
+
+if get_option('ENABLE_SMALL_BOLD')
+  defines += '-DENABLE_SMALL_BOLD'
+endif
+
+if get_option('ENABLE_INVERTED_LCD_MODE')
+  defines += '-DENABLE_INVERTED_LCD_MODE'
+endif
+
+if get_option('ENABLE_LCD_CONTRAST_OPTION')
+  defines += '-DENABLE_LCD_CONTRAST_OPTION'
+endif
+
+if get_option('ENABLE_RSSI_BAR')
+  defines += '-DENABLE_RSSI_BAR'
+endif
+
+if get_option('ENABLE_AUDIO_BAR')
+  defines += '-DENABLE_AUDIO_BAR'
+endif
+
+if get_option('ENABLE_SHOW_CHARGE_LEVEL')
+  defines += '-DENABLE_SHOW_CHARGE_LEVEL'
+endif
+
+if get_option('ENABLE_USBC_CHARGING_INDICATOR')
+  defines += '-DENABLE_USBC_CHARGING_INDICATOR'
+endif
+
+if get_option('ENABLE_REVERSE_BAT_SYMBOL')
+  defines += '-DENABLE_REVERSE_BAT_SYMBOL'
+endif
+
+if get_option('ENABLE_BOOT_BEEPS')
+  defines += '-DENABLE_BOOT_BEEPS'
+endif
+
+if get_option('ENABLE_BOOT_RESUME_STATE')
+  defines += '-DENABLE_BOOT_RESUME_STATE'
+endif
+
+if get_option('ENABLE_DEEP_SLEEP_MODE')
+  defines += '-DENABLE_DEEP_SLEEP_MODE'
+endif
+
+if get_option('ENABLE_RX_TX_TIMER_DISPLAY')
+  defines += '-DENABLE_RX_TX_TIMER_DISPLAY'
+endif
+
+if get_option('ENABLE_NO_CODE_SCAN_TIMEOUT')
+  defines += '-DENABLE_NO_CODE_SCAN_TIMEOUT'
+endif
+
+if get_option('ENABLE_BLMIN_TMP_OFF')
+  defines += '-DENABLE_BLMIN_TMP_OFF'
+endif
+
+if get_option('ENABLE_KEEP_MEM_NAME')
+  defines += '-DENABLE_KEEP_MEM_NAME'
+endif
+
+if get_option('ENABLE_COPY_CHAN_TO_VFO')
+  defines += '-DENABLE_COPY_CHAN_TO_VFO'
+endif
+
+if get_option('ENABLE_CUSTOM_MENU_LAYOUT')
+  defines += '-DENABLE_CUSTOM_MENU_LAYOUT'
+endif
+
+if get_option('ENABLE_CW_KEYER')
+  defines += '-DENABLE_CW_KEYER'
+  sources += files('../src/features/cw.c')
+endif
+
+if get_option('ENABLE_DTMF_CALLING')
+  defines += '-DENABLE_DTMF_CALLING'
+endif
+
+if get_option('ENABLE_SPECTRUM')
+  defines += '-DENABLE_SPECTRUM'
+  sources += files('../src/apps/spectrum/spectrum.c')
+endif
+
+if get_option('ENABLE_SPECTRUM_EXTENSIONS')
+  defines += '-DENABLE_SPECTRUM_EXTENSIONS'
+endif
+
+if get_option('ENABLE_APP_BREAKOUT_GAME')
+  defines += '-DENABLE_APP_BREAKOUT_GAME'
+  sources += files('../src/features/breakout.c')
+endif
+
+if get_option('ENABLE_REGA')
+  defines += '-DENABLE_REGA'
+  sources += files('../src/features/rega.c')
+endif
+
+if get_option('ENABLE_PMR446_FREQUENCY_BAND')
+  defines += '-DENABLE_PMR446_FREQUENCY_BAND'
+endif
+
+if get_option('ENABLE_GMRS_FRS_MURS_BANDS')
+  defines += '-DENABLE_GMRS_FRS_MURS_BANDS'
+endif
+
+if get_option('ENABLE_FREQUENCY_LOCK_REGION_CA')
+  defines += '-DENABLE_FREQUENCY_LOCK_REGION_CA'
+endif
+
+if get_option('ENABLE_SYSTEM_INFO_MENU')
+  defines += '-DENABLE_SYSTEM_INFO_MENU'
+endif
+
+if get_option('ENABLE_F_CAL_MENU')
+  defines += '-DENABLE_F_CAL_MENU'
+endif
+
+if get_option('ENABLE_RESET_CHANNEL_FUNCTION')
+  defines += '-DENABLE_RESET_CHANNEL_FUNCTION'
+endif
+
+if get_option('ENABLE_EEPROM_HEXDUMP')
+  defines += '-DENABLE_EEPROM_HEXDUMP'
+endif
+
+if get_option('ENABLE_FIRMWARE_DEBUG_LOGGING')
+  defines += '-DENABLE_FIRMWARE_DEBUG_LOGGING'
+endif
+
+if get_option('ENABLE_IDENTIFIER')
+  defines += '-DENABLE_IDENTIFIER'
+  sources += files('../src/helper/identifier.c')
+endif
+
+if get_option('ENABLE_AGC_SHOW_DATA')
+  defines += '-DENABLE_AGC_SHOW_DATA'
+endif
+
+if get_option('ENABLE_UART_RW_BK_REGS')
+  defines += '-DENABLE_UART_RW_BK_REGS'
+endif
+
+if get_option('ENABLE_SWD')
+  defines += '-DENABLE_SWD'
+endif
+
+if get_option('ENABLE_FASTER_CHANNEL_SCAN')
+  defines += '-DENABLE_FASTER_CHANNEL_SCAN'
+endif
+
+# Other Defines
+defines += '-DSQL_TONE=550'
+
+# Create Executable
+elf = executable('deltafw.elf',
+  sources,
+  c_args : defines,
+  link_args : link_args,
+  include_directories : [inc_dirs, extra_inc],
+  name_suffix : 'elf'
+)
+
+# Custom Targets for Binary Generation
+custom_target('bin',
+  output : 'deltafw.bin',
+  input : elf,
+  command : [objcopy, '-O', 'binary', '@INPUT@', '@OUTPUT@'],
+  build_by_default : true
+)
+
+custom_target('hex',
+  output : 'deltafw.hex',
+  input : elf,
+  command : [objcopy, '-O', 'ihex', '@INPUT@', '@OUTPUT@'],
+  build_by_default : true
+)

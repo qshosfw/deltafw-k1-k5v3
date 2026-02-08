@@ -49,7 +49,12 @@ def log_warn(msg):    print(f"{YELLOW}{INVERT} WARN {RESET} {msg}")
 def log_err(msg):     print(f"{RED}{INVERT} FAIL {RESET} {msg}"); sys.exit(1)
 def log_debug(msg):   print(f"{GRAY}[DEBUG] {msg}{RESET}")
 
-def draw_progress(current, total, width=40):
+def draw_progress(current, total, width=40, status_override=None, color_override=None, stats=None):
+    if status_override:
+        # Full bar
+        bar = "█" * width
+        return f"{color_override}[{bar}]{RESET} {BOLD}{status_override}{RESET}"
+    
     percent = (current / total) * 100
     val = max(0, min(100, percent))
     filled = int(width * val / 100)
@@ -59,7 +64,10 @@ def draw_progress(current, total, width=40):
     if val > 60: color = GREEN
     
     bar = "█" * filled + "·" * empty
-    return f"{color}[{bar}]{RESET} {BOLD}{val:>5.1f}%{RESET} {GRAY}({current}/{total}){RESET}"
+    stats_str = f" ({stats})" if stats else ""
+    return f"{color}[{bar}]{RESET} {BOLD}{val:>5.1f}%{RESET}{GRAY}{stats_str}{RESET} {GRAY}({current}/{total}){RESET}"
+
+
 
 # ========== PORT SELECTION ==========
 
@@ -324,13 +332,17 @@ def flash_process(proto, fw_data):
             log_err(f"Write failed at page {page}")
         
         # UI
-        sys.stdout.write(f"\r{draw_progress(page+1, total_pages)}")
+        elapsed = time.time() - start_flash
+        rate = (offset + len(chunk)) / elapsed / 1024
+        stats = f"{elapsed:.1f}s @ {rate:.1f} KB/s"
+        
+        if page + 1 == total_pages:
+            sys.stdout.write(f"\r{draw_progress(page+1, total_pages, status_override=f'Complete ({stats})', color_override=GREEN)}")
+        else:
+            sys.stdout.write(f"\r{draw_progress(page+1, total_pages, stats=stats)}")
         sys.stdout.flush()
         
     print() # Newline
-    elapsed = time.time() - start_flash
-    rate = len(fw_data) / elapsed / 1024
-    log_ok(f"Flashing Complete! ({elapsed:.1f}s @ {rate:.1f} KB/s)")
     
     # Reboot
     proto.send(MSG_REBOOT)
@@ -348,8 +360,9 @@ def main():
     # Resolve File
     fw_file = args.file
     if not fw_file:
-        bins = sorted(glob.glob("build/*/deltafw.*.bin"), key=os.path.getmtime, reverse=True)
-        valid = [b for b in bins if not b.endswith("packed.bin")]
+        # Look in build/ for recent .bin files (preset-named)
+        bins = sorted(glob.glob("build/*.bin"), key=os.path.getmtime, reverse=True)
+        valid = [b for b in bins if not b.endswith("packed.bin") and not b.endswith("deltafw.bin")]
         if valid: 
             fw_file = valid[0]
         elif os.path.exists("firmware.bin"):

@@ -1,0 +1,135 @@
+#       _      _ _        __
+#    __| | ___| | |_ __ _/ _|_      __
+#   / _` |/ _ \ | __/ _` | |_\ \ /\ / /
+#  | (_| |  __/ | || (_| |  _|\ V  V /
+#   \__,_|\___|_|\__\__,_|_|   \_/\_/
+#            deltafw configuration
+
+[project]
+name = "deltafw"
+version = "1.0.6"
+authors = ["qshosfw"]
+supported_devices = ["UV-K1", "UV-K5v3"]
+
+[build]
+# Global build settings
+cross_file = "toolchain/cross_arm.ini"
+compiler = "arm-none-eabi-gcc"
+
+# =============================================================================
+# 🏁 Build Presets
+# =============================================================================
+
+[presets.Fusion]
+description = "🚀 Packed with features, memory intensive"
+options = { EDITION_STRING = "Fusion", ENABLE_FMRADIO = false, ENABLE_VOX = false, ENABLE_AIRCOPY = false }
+
+[presets.Custom]
+description = "✨ Balanced build for daily use"
+options = { EDITION_STRING = "Custom" }        # Uses all defaults
+
+[presets.Bandscope]
+description = "📡 Spectrum analyzer focused"
+options = { EDITION_STRING = "Bandscope", ENABLE_FMRADIO = false, ENABLE_VOX = false }
+
+[presets.Broadcast]
+description = "📻 FM Radio and Comms focused"
+options = { EDITION_STRING = "Broadcast", ENABLE_SPECTRUM = false }
+
+[presets.Basic]
+description = "🛡️ Minimal stable build"
+options = { EDITION_STRING = "Basic", ENABLE_SPECTRUM = false, ENABLE_FMRADIO = true, ENABLE_NOAA = false, ENABLE_SERIAL_SCREENCAST = false }
+
+[presets.RescueOps]
+description = "⛑️ Emergency operations"
+options = { EDITION_STRING = "RescueOps", ENABLE_SPECTRUM = false, ENABLE_FMRADIO = false, ENABLE_NOAA = true, ENABLE_RESCUE_OPERATIONS = true }
+
+[presets.Game]
+description = "🎮 Includes Breakout game"
+options = { EDITION_STRING = "Game", ENABLE_SPECTRUM = false, ENABLE_APP_BREAKOUT_GAME = true }
+
+
+# =============================================================================
+# ⚙️  Default Configuration (Base Options)
+# =============================================================================
+# These values are used if not overridden by a preset.
+
+[defaults]
+
+# 🎛️  Hardware / Drivers
+ENABLE_UART = true
+ENABLE_USB = true
+ENABLE_FMRADIO = true
+ENABLE_FLASHLIGHT = true
+
+# 🔊 Audio & Voice
+ENABLE_VOICE = false
+ENABLE_VOX = true
+ENABLE_ALARM = false
+ENABLE_TX1750 = true
+ENABLE_BOOT_BEEPS = false
+
+# 📟 Display & UI
+ENABLE_BIG_FREQ = true
+ENABLE_SMALL_BOLD = true
+ENABLE_INVERTED_LCD_MODE = true
+ENABLE_LCD_CONTRAST_OPTION = true
+ENABLE_RSSI_BAR = true
+ENABLE_AUDIO_BAR = true
+ENABLE_SHOW_CHARGE_LEVEL = false
+ENABLE_USBC_CHARGING_INDICATOR = true
+ENABLE_REVERSE_BAT_SYMBOL = false
+ENABLE_RX_TX_TIMER_DISPLAY = true
+ENABLE_BLMIN_TMP_OFF = false
+ENABLE_CUSTOM_MENU_LAYOUT = true
+ENABLE_EEPROM_HEXDUMP = true
+ENABLE_SYSTEM_INFO_MENU = false
+ENABLE_F_CAL_MENU = false
+
+# 📡 Radio & Spectrum
+ENABLE_NOAA = false
+ENABLE_PMR446_FREQUENCY_BAND = true
+ENABLE_GMRS_FRS_MURS_BANDS = true
+ENABLE_FREQUENCY_LOCK_REGION_CA = true
+ENABLE_TX_NON_FM = true
+ENABLE_WIDE_RX = true
+ENABLE_NARROWER_BW_FILTER = true
+ENABLE_SQUELCH_MORE_SENSITIVE = true
+ENABLE_CTCSS_TAIL_PHASE_SHIFT = false
+ENABLE_REDUCE_LOW_MID_TX_POWER = false
+ENABLE_BYP_RAW_DEMODULATORS = true
+ENABLE_SCAN_RANGES = true
+ENABLE_FASTER_CHANNEL_SCAN = true
+ENABLE_NO_CODE_SCAN_TIMEOUT = true
+ENABLE_KEEP_MEM_NAME = true
+ENABLE_COPY_CHAN_TO_VFO = true
+ENABLE_RESET_CHANNEL_FUNCTION = false
+
+# 🧩 Apps & Features
+ENABLE_SPECTRUM = true
+ENABLE_SPECTRUM_EXTENSIONS = true
+
+ENABLE_AIRCOPY = false
+ENABLE_SERIAL_SCREENCAST = true
+ENABLE_APP_BREAKOUT_GAME = false
+ENABLE_CW_KEYER = false
+ENABLE_DTMF_CALLING = false
+ENABLE_RESCUE_OPERATIONS = false
+ENABLE_REGA = false
+
+# 🔌 UART Commands
+ENABLE_UART_CMD_RSSI = true
+ENABLE_UART_CMD_BATT = true
+ENABLE_UART_CMD_ID = true
+ENABLE_EXTRA_UART_CMD = false
+
+# 🛠️  System & Debug
+ENABLE_PWRON_PASSWORD = false
+ENABLE_BOOT_RESUME_STATE = true
+ENABLE_DEEP_SLEEP_MODE = true
+ENABLE_CUSTOM_FIRMWARE_MODS = true
+ENABLE_FIRMWARE_DEBUG_LOGGING = false
+ENABLE_IDENTIFIER = true
+ENABLE_AGC_SHOW_DATA = false
+ENABLE_UART_RW_BK_REGS = false
+ENABLE_SWD = false
