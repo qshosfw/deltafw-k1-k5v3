@@ -121,7 +121,7 @@ REGA = false
 UART_CMD_RSSI = true
 UART_CMD_BATT = true
 UART_CMD_ID = true
-EXTRA_UART_CMD = false
+EXTRA_UART_CMD = true
 
 # 🛠️  System & Debug
 PWRON_PASSWORD = false

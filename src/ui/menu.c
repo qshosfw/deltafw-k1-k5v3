@@ -1018,7 +1018,7 @@ void UI_DisplayMenu(void)
         case MENU_VOL:
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
             sprintf(String, "%s %s",
-                AUTHOR_STRING_2,
+                AUTHOR_STRING,
                 VERSION_STRING_2
             );
 #else

@@ -14,7 +14,7 @@
 #endif
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-    const char Version[]      = AUTHOR_STRING_2 " " VERSION_STRING_2;
+    const char Version[]      = AUTHOR_STRING " " VERSION_STRING_2;
     const char Edition[]      = EDITION_STRING;
 #else
     const char Version[]      = AUTHOR_STRING VER;
