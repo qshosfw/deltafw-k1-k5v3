@@ -403,3 +403,11 @@ void UI_PrintStringSmallest(const char *pString, uint8_t x, uint8_t y, bool stat
         x += 4;
     }
 }
+
+int ConvertDomain(int aValue, int aMin, int aMax, int bMin, int bMax) {
+  const int aRange = aMax - aMin;
+  const int bRange = bMax - bMin;
+  if (aValue <= aMin) aValue = aMin;
+  if (aValue >= aMax) aValue = aMax;
+  return ((aValue - aMin) * bRange + aRange / 2) / aRange + bMin;
+}
