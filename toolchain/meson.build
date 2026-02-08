@@ -1,5 +1,5 @@
 project('deltafw', 'c', 'cpp',
-  version : '1.1.0',
+  version : run_command('python3', 'config_parser.py', '../config.toml', 'get_version', check : true).stdout().strip(),
   default_options : [
     'warning_level=1',
     'c_std=c11',
@@ -12,6 +12,15 @@ project('deltafw', 'c', 'cpp',
 cc = meson.get_compiler('c')
 objcopy = find_program('objcopy')
 size_prog = find_program('size')
+
+# Project Configuration from config.toml
+python3 = find_program('python3')
+config_parser = files('config_parser.py')
+config_toml = files('../config.toml')
+
+project_version = run_command(python3, config_parser, config_toml, 'get_version', check : true).stdout().strip()
+project_name = run_command(python3, config_parser, config_toml, 'get_name', check : true).stdout().strip()
+project_authors = run_command(python3, config_parser, config_toml, 'get_authors', check : true).stdout().strip()
 
 # Definitions
 defines = []
@@ -39,8 +48,11 @@ endif
 
 defines += '-DGIT_COMMIT_HASH="' + git_hash + '"'
 defines += '-DBUILD_DATE="' + build_date + '"'
-defines += '-DAUTHOR_STRING="deltafw"'
-defines += '-DVERSION_STRING="v1.1.0"' # Simplified for now, can be parameterized
+defines += '-DAUTHOR_STRING="' + project_name + '"'
+defines += '-DVERSION_STRING="v' + project_version + '"'
+defines += '-DAUTHOR_STRING_2="' + project_authors + '"'
+defines += '-DVERSION_STRING_2="v' + project_version + '"'
+defines += '-DEDITION_STRING="' + get_option('EDITION_STRING') + '"'
 
 # Common Flags
 common_flags = [
@@ -182,12 +194,6 @@ defines += '-DPRINTF_INCLUDE_CONFIG_H'
 # Options Processing
 if get_option('CUSTOM_FIRMWARE_MODS')
     defines += '-DENABLE_CUSTOM_FIRMWARE_MODS'
-    # TODO: Pass string variables properly
-    defines += '-DAUTHOR_STRING_1="qshosfw"'
-    defines += '-DAUTHOR_STRING_2="deltafw"'
-    defines += '-DVERSION_STRING_1="v1.0"'
-    defines += '-DVERSION_STRING_2="v1.0.0"'
-    defines += '-DEDITION_STRING="' + get_option('EDITION_STRING') + '"'
     defines += '-DALERT_TOT=10'
 endif
 

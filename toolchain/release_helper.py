@@ -5,16 +5,18 @@ import re
 import os
 import sys
 
-def get_version_from_presets():
+def get_version_from_config():
     try:
-        with open('CMakePresets.json', 'r') as f:
-            data = json.load(f)
-        # traverse to find VERSION_STRING_2 in default presets
-        for preset in data.get('configurePresets', []):
-            if preset.get('name') == 'default':
-                return preset['cacheVariables'].get('VERSION_STRING_2')
+        if os.path.exists('config.toml'):
+            with open('config.toml', 'r') as f:
+                content = f.read()
+            # Look for version = "1.2.3" under [project]
+            # We assume [project] is at the top or we just look for version = "..."
+            m = re.search(r'version\s*=\s*"([^"]+)"', content)
+            if m:
+                return m.group(1)
     except Exception as e:
-        print(f"Error reading CMakePresets.json: {e}")
+        print(f"Error reading config.toml: {e}")
     return None
 
 def parse_version(v_str):
@@ -48,9 +50,9 @@ def main():
     else:
         output_file = os.environ['GITHUB_OUTPUT']
 
-    current_v_str = get_version_from_presets()
+    current_v_str = get_version_from_config()
     if not current_v_str:
-        print("Could not find version in CMakePresets.json")
+        print("Could not find version in config.toml")
         sys.exit(1)
 
     print(f"Current version based on file: {current_v_str}")

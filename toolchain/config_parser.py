@@ -26,12 +26,28 @@ def main():
         sys.exit(1)
 
     if command == "get_project_info":
-        # Output: VERSION="1.0.0" AUTHORS="..." supported_devices="..."
         project = config.get("project", {})
         version = project.get("version", "0.0.0")
         name = project.get("name", "deltafw")
+        authors = ", ".join(project.get("authors", ["qshosfw"]))
         print(f'VERSION="{version}"')
         print(f'PROJECT_NAME="{name}"')
+        print(f'AUTHORS="{authors}"')
+        
+    elif command == "get_version":
+        project = config.get("project", {})
+        version = project.get("version", "0.0.0")
+        print(version)
+
+    elif command == "get_authors":
+        project = config.get("project", {})
+        authors = ", ".join(project.get("authors", ["qshosfw"]))
+        print(authors)
+
+    elif command == "get_name":
+        project = config.get("project", {})
+        name = project.get("name", "deltafw")
+        print(name)
         
     elif command == "get_preset_args":
         if len(sys.argv) < 4:

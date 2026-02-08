@@ -7,6 +7,8 @@ import math
 import argparse
 import os
 import glob
+import hashlib
+import zlib
 from serial.tools import list_ports
 
 # ========== TUI COLORS ==========
@@ -350,6 +352,69 @@ def flash_process(proto, fw_data):
     proto.send(MSG_REBOOT)
     
 
+# ========== QSHFW CONTAINER PARSER ==========
+
+def parse_qshfw(file_path):
+    with open(file_path, 'rb') as f:
+        data = f.read()
+    
+    if len(data) < 64:
+        return None
+    
+    # 1. Header Magic
+    magic = data[0:8]
+    if magic != b"qshfw\x00\x00\x00":
+        return None
+
+    # 2. Header CRC Check
+    header_raw = data[0:60]
+    expected_crc = struct.unpack('<I', data[60:64])[0]
+    actual_crc = zlib.crc32(header_raw) & 0xFFFFFFFF
+    if actual_crc != expected_crc:
+        log_err(f"Header CRC Mismatch! (Expected: {expected_crc:08X}, Actual: {actual_crc:08X})")
+
+    # 3. Header Fields
+    spec, addr, p_size, m_size, flags = struct.unpack('<IIIII', data[8:28])
+    expected_hash = data[28:60]
+    
+    log_info(f"QSHFW v{spec} Container Detected")
+    
+    # 4. Payload Integrity
+    payload = data[64 : 64 + p_size]
+    actual_hash = hashlib.sha256(payload).digest()
+    if actual_hash != expected_hash:
+        log_err("Payload SHA-256 Mismatch! Corruption detected.")
+    
+    # 5. Metadata Area (TLV)
+    meta_raw = data[64 + p_size : 64 + p_size + m_size]
+    metadata = {}
+    offset = 0
+    while offset < len(meta_raw):
+        tag, length = struct.unpack('<HI', meta_raw[offset : offset + 6])
+        value = meta_raw[offset + 6 : offset + 6 + length]
+        metadata[tag] = value
+        offset += 6 + length
+
+    # 6. Display Metadata
+    tag_map = {
+        0x0001: "Type", 0x0003: "Version", 0x0004: "Target",
+        0x000C: "Name", 0x0005: "Author", 0x0006: "Arch",
+        0x0007: "License",
+        0x0009: "Description", 0x0010: "Commit"
+    }
+    
+    for tag_id, key in tag_map.items():
+        if tag_id in metadata:
+            val = metadata[tag_id].decode('utf-8', errors='ignore')
+            log_info(f"{key:<8}: {BOLD}{val}{RESET}")
+    
+    if 0x0008 in metadata: # Date
+        ts = struct.unpack('<Q', metadata[0x0008])[0]
+        date_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))
+        log_info(f"Date    : {date_str}")
+
+    return payload
+
 def main():
     parser = argparse.ArgumentParser("flasher")
     parser.add_argument("--port", "-p", help="Serial port")
@@ -362,21 +427,33 @@ def main():
     # Resolve File
     fw_file = args.file
     if not fw_file:
-        # Look in build/ for recent .bin files (preset-named)
-        bins = sorted(glob.glob("build/deltafw.*.bin"), key=os.path.getmtime, reverse=True)
-        valid = [b for b in bins if not b.endswith("packed.bin")]
-        if valid: 
-            fw_file = valid[0]
-        elif os.path.exists("firmware.bin"):
-            fw_file = "firmware.bin"
+        # Look in build/ for recent .qshfw files first, then .bin
+        qshfws = sorted(glob.glob("build/deltafw.*.qshfw"), key=os.path.getmtime, reverse=True)
+        if qshfws:
+            fw_file = qshfws[0]
+        else:
+            bins = sorted(glob.glob("build/deltafw.*.bin"), key=os.path.getmtime, reverse=True)
+            valid = [b for b in bins if not b.endswith("packed.bin")]
+            if valid: 
+                fw_file = valid[0]
+            elif os.path.exists("firmware.bin"):
+                fw_file = "firmware.bin"
             
     if not fw_file or not os.path.exists(fw_file):
         log_err("No firmware file found.")
 
     # File Info
     size = os.path.getsize(fw_file)
-    log_info(f"Firmware: {BOLD}{os.path.basename(fw_file)}{RESET} ({size/1024:.1f} KB)")
     
+    # Try QSHFW Parsing
+    fw_data = parse_qshfw(fw_file)
+    if fw_data:
+        log_ok(f"Validated QSHFW Container ({len(fw_data)/1024:.1f} KB payload)")
+    else:
+        log_info(f"Firmware: {BOLD}{os.path.basename(fw_file)}{RESET} (Raw Binary, {size/1024:.1f} KB)")
+        with open(fw_file, 'rb') as f:
+            fw_data = f.read()
+
     # Resolve Port
     port, desc = find_port(args.port)
     if not port: 
@@ -390,7 +467,7 @@ def main():
     proto.connect()
     
     try:
-        flash_process(proto, open(fw_file, "rb").read())
+        flash_process(proto, fw_data)
     except KeyboardInterrupt:
         print()
         log_warn("Cancelled.")

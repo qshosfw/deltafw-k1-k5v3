@@ -150,7 +150,11 @@ build_preset() {
     fi
     DATE=$(date +%d%m%Y)
     LOWER_PRESET=$(echo "$preset" | tr '[:upper:]' '[:lower:]')
-    FILENAME="deltafw.${LOWER_PRESET}.v${VERSION}.${COMMIT}.${DATE}.bin"
+    BASENAME="deltafw.${LOWER_PRESET}.v${VERSION}.${COMMIT}.${DATE}"
+    FILENAME_BIN="${BASENAME}.bin"
+    FILENAME_HEX="${BASENAME}.hex"
+    FILENAME_PACKED="${BASENAME}.packed.bin"
+    FILENAME_QSHFW="${BASENAME}.qshfw"
 
     # Run build with formatter
     # We pipe stderr to stdout (2>&1) so the formatter catches everything
@@ -160,15 +164,31 @@ build_preset() {
         # Copy artifacts to build folder
         log_build "Finalizing artifacts..."
         if [ -f "$BUILD_DIR/deltafw.bin" ]; then
-            # Move/Rename directly in build dir
-            cp "$BUILD_DIR/deltafw.bin" "$BUILD_DIR/$FILENAME"
+            cp "$BUILD_DIR/deltafw.bin" "$BUILD_DIR/$FILENAME_BIN"
+            [ -f "$BUILD_DIR/deltafw.hex" ] && cp "$BUILD_DIR/deltafw.hex" "$BUILD_DIR/$FILENAME_HEX"
+            [ -f "$BUILD_DIR/deltafw_packed.bin" ] && cp "$BUILD_DIR/deltafw_packed.bin" "$BUILD_DIR/$FILENAME_PACKED"
             
-            # Also pack it if needed (optional, keeping simple for now)
-            
+            # Pack into QSHFW Container
+            FULL_GIT_MSG=$(git log -1 --pretty="%B" 2>/dev/null || echo "")
+            python3 toolchain/qshfw_packer.py \
+                "$BUILD_DIR/deltafw.bin" \
+                "$BUILD_DIR/$FILENAME_QSHFW" \
+                --version "$VERSION" \
+                --name "deltafw" \
+                --target "uvk1,uv-k5v3" \
+                --author "qshosfw" \
+                --arch "arm" \
+                --license "GPL-3.0" \
+                --desc "Preset: $preset"$'\n\n'"$FULL_GIT_MSG" \
+                --git "$COMMIT" \
+                --elf "$BUILD_DIR/deltafw.elf.elf" \
+                --map "$BUILD_DIR/deltafw.map"
+
             end_time=$(date +%s)
             duration=$((end_time - start_time))
             log_success "Built ${preset} in ${duration}s"
-            echo -e "${BADGE_OK} Firmware: ${BOLD}${CYAN}${BUILD_DIR}/${FILENAME}${RESET}"
+            echo -e "${BADGE_OK} Firmware: ${BOLD}${CYAN}${BUILD_DIR}/${FILENAME_BIN}${RESET}"
+            echo -e "${BADGE_OK} Container: ${BOLD}${CYAN}${BUILD_DIR}/${FILENAME_QSHFW}${RESET}"
         else
             log_error "Artifact not found!"
             exit 1

@@ -27,38 +27,36 @@ jobs:
 
     - name: Build Custom firmware
       run: |
-        chmod +x compile-with-docker.sh
-        ./compile-with-docker.sh Custom \
-          -DGIT_COMMIT_HASH="${{ steps.build_info.outputs.commit_hash }}" \
-          -DBUILD_DATE="${{ steps.build_info.outputs.build_date }}"
+        chmod +x toolchain/compile-with-meson.sh
+        ./toolchain/compile-with-meson.sh Custom
 
     - name: Build Fusion firmware
       run: |
-        ./compile-with-docker.sh Fusion \
-          -DGIT_COMMIT_HASH="${{ steps.build_info.outputs.commit_hash }}" \
-          -DBUILD_DATE="${{ steps.build_info.outputs.build_date }}"
+        ./toolchain/compile-with-meson.sh Fusion
 
     - name: Upload Custom firmware
       uses: actions/upload-artifact@v4
       with:
         name: deltafw-custom-${{ steps.build_info.outputs.commit_hash }}
         path: |
-          build/Custom/*.bin
-          build/Custom/*.hex
+          build/deltafw.custom.*.bin
+          build/deltafw.custom.*.hex
+          build/deltafw.custom.*.qshfw
 
     - name: Upload Fusion firmware
       uses: actions/upload-artifact@v4
       with:
         name: deltafw-fusion-${{ steps.build_info.outputs.commit_hash }}
         path: |
-          build/Fusion/*.bin
-          build/Fusion/*.hex
+          build/deltafw.fusion.*.bin
+          build/deltafw.fusion.*.hex
+          build/deltafw.fusion.*.qshfw
 
     - name: Check for Release Condition
       id: check_release
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
-        python3 tools/release_helper.py
+        python3 toolchain/release_helper.py
 
     - name: Create Release
       if: steps.check_release.outputs.should_release == 'true'
@@ -70,13 +68,12 @@ jobs:
           
           ### SHA256 Checksums
           ```
-          $(sha256sum build/Custom/*.bin build/Custom/*.hex build/Fusion/*.bin build/Fusion/*.hex | sed 's|build/.*/||')
+          $(sha256sum build/deltafw.*.bin build/deltafw.*.hex build/deltafw.*.qshfw | sed 's|build/||')
           ```
         files: |
-          build/Custom/*.bin
-          build/Custom/*.hex
-          build/Fusion/*.bin
-          build/Fusion/*.hex
+          build/deltafw.*.bin
+          build/deltafw.*.hex
+          build/deltafw.*.qshfw
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
