@@ -89,7 +89,7 @@ void UI_DisplayFM(void)
             sprintf(String, "%.3s.%.1s",ascii, ascii + 3);
         }
 
-        UI_DisplayFrequency(String, 36, 1, gInputBoxIndex == 0);  // frequency
+        UI_DisplayFrequency(String, 36, 1, gInputBoxIndex == 0, false);  // frequency
         ST7565_BlitFullScreen();
         return;
     }

@@ -18,6 +18,9 @@
 #include "drivers/bsp/st7565.h"
 #include "screencast.h"
 #include "core/misc.h"
+#ifdef ENABLE_USB
+    #include "drivers/bsp/vcp.h"
+#endif
 
 static void Screenshot_Send(const uint8_t *buf, uint16_t len)
 {
