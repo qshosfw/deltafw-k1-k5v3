@@ -42,7 +42,7 @@
     #include "drivers/bsp/system.h"
 #endif
 
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
     #include "features/cw.h"
 #endif
 
@@ -179,7 +179,7 @@ uint8_t log2_approx(unsigned int value) {
     return log;
 }
 
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
 void UI_DisplayCW(uint8_t line)
 {
     const char *decoded = CW_GetDecodedText();
@@ -266,7 +266,7 @@ void UI_DisplayAudioBar(void)
         uint8_t *p_line = gFrameBuffer[line];
         memset(p_line, 0, LCD_WIDTH);
 
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
         if (gTxVfo->Modulation == MODULATION_CW) {
             UI_DisplayCW(line);
             return;
@@ -471,7 +471,7 @@ void UI_DisplayMain(void)
     char               String[22];
 
     center_line = CENTER_LINE_NONE;
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
     if (gTxVfo->Modulation == MODULATION_CW || gRxVfo->Modulation == MODULATION_CW) {
         center_line = CENTER_LINE_CW;
     }
@@ -1189,7 +1189,7 @@ void UI_DisplayMain(void)
 #endif
         }
     }
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
     else if (center_line == CENTER_LINE_CW)
     {
         UI_DisplayCW(isMainOnly() ? 5 : 3);

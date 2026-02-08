@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
 
 // CW Timing Parameters (~15 WPM)
 #define CW_TONE_FREQ_HZ         600     // Standard CW sidetone frequency
@@ -120,6 +120,6 @@ const char* CW_GetDecodedText(void);
 const char* CW_GetSymbolBuffer(void); // Get current symbol sequence
 void CW_ClearDecoded(void);
 
-#endif // ENABLE_CW_KEYER
+#endif // ENABLE_CW_MOD_KEYER
 
 #endif // CW_H

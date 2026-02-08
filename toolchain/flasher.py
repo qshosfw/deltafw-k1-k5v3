@@ -49,7 +49,7 @@ def log_warn(msg):    print(f"{YELLOW}{INVERT} WARN {RESET} {msg}")
 def log_err(msg):     print(f"{RED}{INVERT} FAIL {RESET} {msg}"); sys.exit(1)
 def log_debug(msg):   print(f"{GRAY}[DEBUG] {msg}{RESET}")
 
-def draw_progress(current, total, width=40, status_override=None, color_override=None, stats=None):
+def draw_progress(current, total, width=25, status_override=None, color_override=None, stats=None):
     if status_override:
         # Full bar
         bar = "█" * width
@@ -333,13 +333,15 @@ def flash_process(proto, fw_data):
         
         # UI
         elapsed = time.time() - start_flash
-        rate = (offset + len(chunk)) / elapsed / 1024
-        stats = f"{elapsed:.1f}s @ {rate:.1f} KB/s"
+        rate = (offset + len(chunk)) / elapsed / 1024 if elapsed > 0 else 0
+        stats_str = f"{elapsed:.1f}s @ {rate:.1f} KB/s"
         
         if page + 1 == total_pages:
-            sys.stdout.write(f"\r{draw_progress(page+1, total_pages, status_override=f'Complete ({stats})', color_override=GREEN)}")
+            line = draw_progress(page+1, total_pages, status_override=f"Complete ({stats_str})", color_override=GREEN)
         else:
-            sys.stdout.write(f"\r{draw_progress(page+1, total_pages, stats=stats)}")
+            line = draw_progress(page+1, total_pages, stats=stats_str)
+            
+        sys.stdout.write(f"\r\033[K{line}")
         sys.stdout.flush()
         
     print() # Newline
@@ -361,8 +363,8 @@ def main():
     fw_file = args.file
     if not fw_file:
         # Look in build/ for recent .bin files (preset-named)
-        bins = sorted(glob.glob("build/*.bin"), key=os.path.getmtime, reverse=True)
-        valid = [b for b in bins if not b.endswith("packed.bin") and not b.endswith("deltafw.bin")]
+        bins = sorted(glob.glob("build/deltafw.*.bin"), key=os.path.getmtime, reverse=True)
+        valid = [b for b in bins if not b.endswith("packed.bin")]
         if valid: 
             fw_file = valid[0]
         elif os.path.exists("firmware.bin"):

@@ -1,5 +1,5 @@
 project('deltafw', 'c', 'cpp',
-  version : '1.0.6',
+  version : '1.1.0',
   default_options : [
     'warning_level=1',
     'c_std=c11',
@@ -40,7 +40,7 @@ endif
 defines += '-DGIT_COMMIT_HASH="' + git_hash + '"'
 defines += '-DBUILD_DATE="' + build_date + '"'
 defines += '-DAUTHOR_STRING="deltafw"'
-defines += '-DVERSION_STRING="v1.0.6"' # Simplified for now, can be parameterized
+defines += '-DVERSION_STRING="v1.1.0"' # Simplified for now, can be parameterized
 
 # Common Flags
 common_flags = [
@@ -180,7 +180,7 @@ defines += '-DUSE_FULL_LL_DRIVER'
 defines += '-DPRINTF_INCLUDE_CONFIG_H'
 
 # Options Processing
-if get_option('ENABLE_CUSTOM_FIRMWARE_MODS')
+if get_option('CUSTOM_FIRMWARE_MODS')
     defines += '-DENABLE_CUSTOM_FIRMWARE_MODS'
     # TODO: Pass string variables properly
     defines += '-DAUTHOR_STRING_1="qshosfw"'
@@ -191,17 +191,17 @@ if get_option('ENABLE_CUSTOM_FIRMWARE_MODS')
     defines += '-DALERT_TOT=10'
 endif
 
-if get_option('ENABLE_AIRCOPY')
+if get_option('AIRCOPY')
   defines += '-DENABLE_AIRCOPY'
   sources += files('../src/apps/aircopy/aircopy.c', '../src/apps/aircopy/aircopy_ui.c')
 endif
 
-if get_option('ENABLE_UART')
+if get_option('UART')
   defines += '-DENABLE_UART'
   sources += files('../src/drivers/bsp/uart.c', '../src/features/uart.c')
 endif
 
-if get_option('ENABLE_USB')
+if get_option('USB')
   defines += '-DENABLE_USB'
   sources += files(
     '../src/drivers/bsp/vcp.c', 
@@ -228,253 +228,253 @@ if get_option('ENABLE_USB')
   # We will clear this issue by adding a new variable specific for USB includes and pass it to executable.
 endif
 
-if get_option('ENABLE_AIRCOPY') or get_option('ENABLE_UART') or get_option('ENABLE_USB')
+if get_option('AIRCOPY') or get_option('UART') or get_option('USB')
   sources += files('../src/drivers/bsp/crc.c', '../src/drivers/bsp/eeprom_compat.c')
 endif
 
-if get_option('ENABLE_SERIAL_SCREENCAST')
+if get_option('SERIAL_SCREENCAST')
   defines += '-DENABLE_SERIAL_SCREENCAST'
   sources += files('../src/screencast.c')
 endif
 
-if get_option('ENABLE_UART_CMD_RSSI')
+if get_option('UART_CMD_RSSI')
   defines += '-DENABLE_UART_CMD_RSSI'
 endif
 
-if get_option('ENABLE_UART_CMD_BATT')
+if get_option('UART_CMD_BATT')
   defines += '-DENABLE_UART_CMD_BATT'
 endif
 
-if get_option('ENABLE_UART_CMD_ID')
+if get_option('UART_CMD_ID')
   defines += '-DENABLE_UART_CMD_ID'
 endif
 
-if get_option('ENABLE_EXTRA_UART_CMD')
+if get_option('EXTRA_UART_CMD')
   defines += '-DENABLE_EXTRA_UART_CMD'
 endif
 
-if get_option('ENABLE_FMRADIO')
+if get_option('FMRADIO')
   defines += '-DENABLE_FMRADIO'
   sources += files('../src/drivers/bsp/bk1080.c', '../src/apps/fm/fm.c', '../src/apps/fm/fm_ui.c')
 endif
 
-if get_option('ENABLE_VOICE')
+if get_option('VOICE')
   defines += '-DENABLE_VOICE'
   sources += files('../src/drivers/bsp/voice.c')
 endif
 
-if get_option('ENABLE_PWRON_PASSWORD')
+if get_option('PWRON_PASSWORD')
   defines += '-DENABLE_PWRON_PASSWORD'
   sources += files('../src/ui/lock.c')
 endif
 
-if get_option('ENABLE_FLASHLIGHT')
+if get_option('FLASHLIGHT')
   defines += '-DENABLE_FLASHLIGHT'
   sources += files('../src/features/flashlight.c')
 endif
 
-if get_option('ENABLE_ALARM')
+if get_option('ALARM')
   defines += '-DENABLE_ALARM'
 endif
 
-if get_option('ENABLE_TX1750')
+if get_option('TX1750')
   defines += '-DENABLE_TX1750'
 endif
 
-if get_option('ENABLE_VOX')
+if get_option('VOX')
   defines += '-DENABLE_VOX'
 endif
 
-if get_option('ENABLE_NOAA')
+if get_option('NOAA')
   defines += '-DENABLE_NOAA'
 endif
 
-if get_option('ENABLE_NARROWER_BW_FILTER')
+if get_option('NARROWER_BW_FILTER')
   defines += '-DENABLE_NARROWER_BW_FILTER'
 endif
 
-if get_option('ENABLE_WIDE_RX')
+if get_option('WIDE_RX')
   defines += '-DENABLE_WIDE_RX'
 endif
 
-if get_option('ENABLE_TX_NON_FM')
+if get_option('TX_NON_FM')
   defines += '-DENABLE_TX_NON_FM'
 endif
 
-if get_option('ENABLE_SQUELCH_MORE_SENSITIVE')
+if get_option('SQUELCH_MORE_SENSITIVE')
   defines += '-DENABLE_SQUELCH_MORE_SENSITIVE'
 endif
 
-if get_option('ENABLE_CTCSS_TAIL_PHASE_SHIFT')
+if get_option('CTCSS_TAIL_PHASE_SHIFT')
   defines += '-DENABLE_CTCSS_TAIL_PHASE_SHIFT'
 endif
 
-if get_option('ENABLE_REDUCE_LOW_MID_TX_POWER')
+if get_option('REDUCE_LOW_MID_TX_POWER')
   defines += '-DENABLE_REDUCE_LOW_MID_TX_POWER'
 endif
 
-if get_option('ENABLE_BYP_RAW_DEMODULATORS')
+if get_option('BYP_RAW_DEMODULATORS')
   defines += '-DENABLE_BYP_RAW_DEMODULATORS'
 endif
 
-if get_option('ENABLE_RESCUE_OPERATIONS')
+if get_option('RESCUE_OPERATIONS')
   defines += '-DENABLE_RESCUE_OPERATIONS'
 endif
 
-if get_option('ENABLE_SCAN_RANGES')
+if get_option('SCAN_RANGES')
   defines += '-DENABLE_SCAN_RANGES'
 endif
 
-if get_option('ENABLE_BIG_FREQ')
+if get_option('BIG_FREQ')
   defines += '-DENABLE_BIG_FREQ'
 endif
 
-if get_option('ENABLE_SMALL_BOLD')
+if get_option('SMALL_BOLD')
   defines += '-DENABLE_SMALL_BOLD'
 endif
 
-if get_option('ENABLE_INVERTED_LCD_MODE')
+if get_option('INVERTED_LCD_MODE')
   defines += '-DENABLE_INVERTED_LCD_MODE'
 endif
 
-if get_option('ENABLE_LCD_CONTRAST_OPTION')
+if get_option('LCD_CONTRAST_OPTION')
   defines += '-DENABLE_LCD_CONTRAST_OPTION'
 endif
 
-if get_option('ENABLE_RSSI_BAR')
+if get_option('RSSI_BAR')
   defines += '-DENABLE_RSSI_BAR'
 endif
 
-if get_option('ENABLE_AUDIO_BAR')
+if get_option('AUDIO_BAR')
   defines += '-DENABLE_AUDIO_BAR'
 endif
 
-if get_option('ENABLE_SHOW_CHARGE_LEVEL')
+if get_option('SHOW_CHARGE_LEVEL')
   defines += '-DENABLE_SHOW_CHARGE_LEVEL'
 endif
 
-if get_option('ENABLE_USBC_CHARGING_INDICATOR')
+if get_option('USBC_CHARGING_INDICATOR')
   defines += '-DENABLE_USBC_CHARGING_INDICATOR'
 endif
 
-if get_option('ENABLE_REVERSE_BAT_SYMBOL')
+if get_option('REVERSE_BAT_SYMBOL')
   defines += '-DENABLE_REVERSE_BAT_SYMBOL'
 endif
 
-if get_option('ENABLE_BOOT_BEEPS')
+if get_option('BOOT_BEEPS')
   defines += '-DENABLE_BOOT_BEEPS'
 endif
 
-if get_option('ENABLE_BOOT_RESUME_STATE')
+if get_option('BOOT_RESUME_STATE')
   defines += '-DENABLE_BOOT_RESUME_STATE'
 endif
 
-if get_option('ENABLE_DEEP_SLEEP_MODE')
+if get_option('DEEP_SLEEP_MODE')
   defines += '-DENABLE_DEEP_SLEEP_MODE'
 endif
 
-if get_option('ENABLE_RX_TX_TIMER_DISPLAY')
+if get_option('RX_TX_TIMER_DISPLAY')
   defines += '-DENABLE_RX_TX_TIMER_DISPLAY'
 endif
 
-if get_option('ENABLE_NO_CODE_SCAN_TIMEOUT')
+if get_option('NO_CODE_SCAN_TIMEOUT')
   defines += '-DENABLE_NO_CODE_SCAN_TIMEOUT'
 endif
 
-if get_option('ENABLE_BLMIN_TMP_OFF')
+if get_option('BLMIN_TMP_OFF')
   defines += '-DENABLE_BLMIN_TMP_OFF'
 endif
 
-if get_option('ENABLE_KEEP_MEM_NAME')
+if get_option('KEEP_MEM_NAME')
   defines += '-DENABLE_KEEP_MEM_NAME'
 endif
 
-if get_option('ENABLE_COPY_CHAN_TO_VFO')
+if get_option('COPY_CHAN_TO_VFO')
   defines += '-DENABLE_COPY_CHAN_TO_VFO'
 endif
 
-if get_option('ENABLE_CUSTOM_MENU_LAYOUT')
+if get_option('CUSTOM_MENU_LAYOUT')
   defines += '-DENABLE_CUSTOM_MENU_LAYOUT'
 endif
 
-if get_option('ENABLE_CW_KEYER')
-  defines += '-DENABLE_CW_KEYER'
+if get_option('CW_MOD_KEYER')
+  defines += '-DENABLE_CW_MOD_KEYER'
   sources += files('../src/features/cw.c')
 endif
 
-if get_option('ENABLE_DTMF_CALLING')
+if get_option('DTMF_CALLING')
   defines += '-DENABLE_DTMF_CALLING'
 endif
 
-if get_option('ENABLE_SPECTRUM')
+if get_option('SPECTRUM')
   defines += '-DENABLE_SPECTRUM'
   sources += files('../src/apps/spectrum/spectrum.c')
 endif
 
-if get_option('ENABLE_SPECTRUM_EXTENSIONS')
+if get_option('SPECTRUM_EXTENSIONS')
   defines += '-DENABLE_SPECTRUM_EXTENSIONS'
 endif
 
-if get_option('ENABLE_APP_BREAKOUT_GAME')
+if get_option('APP_BREAKOUT_GAME')
   defines += '-DENABLE_APP_BREAKOUT_GAME'
   sources += files('../src/features/breakout.c')
 endif
 
-if get_option('ENABLE_REGA')
+if get_option('REGA')
   defines += '-DENABLE_REGA'
   sources += files('../src/features/rega.c')
 endif
 
-if get_option('ENABLE_PMR446_FREQUENCY_BAND')
+if get_option('PMR446_FREQUENCY_BAND')
   defines += '-DENABLE_PMR446_FREQUENCY_BAND'
 endif
 
-if get_option('ENABLE_GMRS_FRS_MURS_BANDS')
+if get_option('GMRS_FRS_MURS_BANDS')
   defines += '-DENABLE_GMRS_FRS_MURS_BANDS'
 endif
 
-if get_option('ENABLE_FREQUENCY_LOCK_REGION_CA')
+if get_option('FREQUENCY_LOCK_REGION_CA')
   defines += '-DENABLE_FREQUENCY_LOCK_REGION_CA'
 endif
 
-if get_option('ENABLE_SYSTEM_INFO_MENU')
+if get_option('SYSTEM_INFO_MENU')
   defines += '-DENABLE_SYSTEM_INFO_MENU'
 endif
 
-if get_option('ENABLE_F_CAL_MENU')
+if get_option('F_CAL_MENU')
   defines += '-DENABLE_F_CAL_MENU'
 endif
 
-if get_option('ENABLE_RESET_CHANNEL_FUNCTION')
+if get_option('RESET_CHANNEL_FUNCTION')
   defines += '-DENABLE_RESET_CHANNEL_FUNCTION'
 endif
 
-if get_option('ENABLE_EEPROM_HEXDUMP')
+if get_option('EEPROM_HEXDUMP')
   defines += '-DENABLE_EEPROM_HEXDUMP'
 endif
 
-if get_option('ENABLE_FIRMWARE_DEBUG_LOGGING')
+if get_option('FIRMWARE_DEBUG_LOGGING')
   defines += '-DENABLE_FIRMWARE_DEBUG_LOGGING'
 endif
 
-if get_option('ENABLE_IDENTIFIER')
+if get_option('IDENTIFIER')
   defines += '-DENABLE_IDENTIFIER'
   sources += files('../src/helper/identifier.c')
 endif
 
-if get_option('ENABLE_AGC_SHOW_DATA')
+if get_option('AGC_SHOW_DATA')
   defines += '-DENABLE_AGC_SHOW_DATA'
 endif
 
-if get_option('ENABLE_UART_RW_BK_REGS')
+if get_option('UART_RW_BK_REGS')
   defines += '-DENABLE_UART_RW_BK_REGS'
 endif
 
-if get_option('ENABLE_SWD')
+if get_option('SWD')
   defines += '-DENABLE_SWD'
 endif
 
-if get_option('ENABLE_FASTER_CHANNEL_SCAN')
+if get_option('FASTER_CHANNEL_SCAN')
   defines += '-DENABLE_FASTER_CHANNEL_SCAN'
 endif
 

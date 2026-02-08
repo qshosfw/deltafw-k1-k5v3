@@ -1052,7 +1052,7 @@ void RADIO_SetModulation(ModulationMode_t modulation)
             mod = BK4819_AF_UNKNOWN3; 
             break;
 #endif
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
         case MODULATION_CW:
             mod = BK4819_AF_UNKNOWN3;
             break;

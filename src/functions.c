@@ -39,7 +39,7 @@
 #include "ui/status.h"
 #include "ui/ui.h"
 
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
     #include "features/cw.h"
 #endif
 
@@ -234,7 +234,7 @@ void FUNCTION_Transmit()
     }
 #endif
 
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
     // CW mode: TX is managed by CW module via queue, not here
     if (gTxVfo->Modulation == MODULATION_CW) {
         // CW module will set up tone after FUNCTION_Transmit is selected

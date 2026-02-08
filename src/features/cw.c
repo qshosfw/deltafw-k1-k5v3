@@ -15,7 +15,7 @@
 
 #include "cw.h"
 
-#ifdef ENABLE_CW_KEYER
+#ifdef ENABLE_CW_MOD_KEYER
 
 #include <string.h>
 #include "drivers/bsp/bk4819.h"
@@ -499,4 +499,4 @@ void CW_ClearDecoded(void)
     gCW.symbolBuf[0] = '\0';
 }
 
-#endif // ENABLE_CW_KEYER
+#endif // ENABLE_CW_MOD_KEYER

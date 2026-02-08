@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.0.6"
+version = "1.1.0"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -22,7 +22,7 @@ compiler = "arm-none-eabi-gcc"
 
 [presets.Fusion]
 description = "🚀 Packed with features, memory intensive"
-options = { EDITION_STRING = "Fusion", ENABLE_FMRADIO = false, ENABLE_VOX = false, ENABLE_AIRCOPY = false }
+options = { EDITION_STRING = "Fusion", FMRADIO = false, VOX = false, AIRCOPY = false }
 
 [presets.Custom]
 description = "✨ Balanced build for daily use"
@@ -30,23 +30,23 @@ options = { EDITION_STRING = "Custom" }        # Uses all defaults
 
 [presets.Bandscope]
 description = "📡 Spectrum analyzer focused"
-options = { EDITION_STRING = "Bandscope", ENABLE_FMRADIO = false, ENABLE_VOX = false }
+options = { EDITION_STRING = "Bandscope", FMRADIO = false, VOX = false }
 
 [presets.Broadcast]
 description = "📻 FM Radio and Comms focused"
-options = { EDITION_STRING = "Broadcast", ENABLE_SPECTRUM = false }
+options = { EDITION_STRING = "Broadcast", SPECTRUM = false }
 
 [presets.Basic]
 description = "🛡️ Minimal stable build"
-options = { EDITION_STRING = "Basic", ENABLE_SPECTRUM = false, ENABLE_FMRADIO = true, ENABLE_NOAA = false, ENABLE_SERIAL_SCREENCAST = false }
+options = { EDITION_STRING = "Basic", SPECTRUM = false, FMRADIO = true, NOAA = false, SERIAL_SCREENCAST = false }
 
 [presets.RescueOps]
 description = "⛑️ Emergency operations"
-options = { EDITION_STRING = "RescueOps", ENABLE_SPECTRUM = false, ENABLE_FMRADIO = false, ENABLE_NOAA = true, ENABLE_RESCUE_OPERATIONS = true }
+options = { EDITION_STRING = "RescueOps", SPECTRUM = false, FMRADIO = false, NOAA = true, RESCUE_OPERATIONS = true }
 
 [presets.Game]
 description = "🎮 Includes Breakout game"
-options = { EDITION_STRING = "Game", ENABLE_SPECTRUM = false, ENABLE_APP_BREAKOUT_GAME = true }
+options = { EDITION_STRING = "Game", SPECTRUM = false, APP_BREAKOUT_GAME = true }
 
 
 # =============================================================================
@@ -57,79 +57,79 @@ options = { EDITION_STRING = "Game", ENABLE_SPECTRUM = false, ENABLE_APP_BREAKOU
 [defaults]
 
 # 🎛️  Hardware / Drivers
-ENABLE_UART = true
-ENABLE_USB = true
-ENABLE_FMRADIO = true
-ENABLE_FLASHLIGHT = true
+UART = true
+USB = true
+FMRADIO = true
+FLASHLIGHT = true
 
 # 🔊 Audio & Voice
-ENABLE_VOICE = false
-ENABLE_VOX = true
-ENABLE_ALARM = false
-ENABLE_TX1750 = true
-ENABLE_BOOT_BEEPS = false
+VOICE = false
+VOX = true
+ALARM = false
+TX1750 = true
+BOOT_BEEPS = false
 
 # 📟 Display & UI
-ENABLE_BIG_FREQ = true
-ENABLE_SMALL_BOLD = true
-ENABLE_INVERTED_LCD_MODE = true
-ENABLE_LCD_CONTRAST_OPTION = true
-ENABLE_RSSI_BAR = true
-ENABLE_AUDIO_BAR = true
-ENABLE_SHOW_CHARGE_LEVEL = false
-ENABLE_USBC_CHARGING_INDICATOR = true
-ENABLE_REVERSE_BAT_SYMBOL = false
-ENABLE_RX_TX_TIMER_DISPLAY = true
-ENABLE_BLMIN_TMP_OFF = false
-ENABLE_CUSTOM_MENU_LAYOUT = true
-ENABLE_EEPROM_HEXDUMP = true
-ENABLE_SYSTEM_INFO_MENU = false
-ENABLE_F_CAL_MENU = false
+BIG_FREQ = true
+SMALL_BOLD = true
+INVERTED_LCD_MODE = true
+LCD_CONTRAST_OPTION = true
+RSSI_BAR = true
+AUDIO_BAR = true
+SHOW_CHARGE_LEVEL = false
+USBC_CHARGING_INDICATOR = true
+REVERSE_BAT_SYMBOL = false
+RX_TX_TIMER_DISPLAY = true
+BLMIN_TMP_OFF = false
+CUSTOM_MENU_LAYOUT = true
+EEPROM_HEXDUMP = true
+SYSTEM_INFO_MENU = false
+F_CAL_MENU = false
 
 # 📡 Radio & Spectrum
-ENABLE_NOAA = false
-ENABLE_PMR446_FREQUENCY_BAND = true
-ENABLE_GMRS_FRS_MURS_BANDS = true
-ENABLE_FREQUENCY_LOCK_REGION_CA = true
-ENABLE_TX_NON_FM = true
-ENABLE_WIDE_RX = true
-ENABLE_NARROWER_BW_FILTER = true
-ENABLE_SQUELCH_MORE_SENSITIVE = true
-ENABLE_CTCSS_TAIL_PHASE_SHIFT = false
-ENABLE_REDUCE_LOW_MID_TX_POWER = false
-ENABLE_BYP_RAW_DEMODULATORS = true
-ENABLE_SCAN_RANGES = true
-ENABLE_FASTER_CHANNEL_SCAN = true
-ENABLE_NO_CODE_SCAN_TIMEOUT = true
-ENABLE_KEEP_MEM_NAME = true
-ENABLE_COPY_CHAN_TO_VFO = true
-ENABLE_RESET_CHANNEL_FUNCTION = false
+NOAA = false
+PMR446_FREQUENCY_BAND = true
+GMRS_FRS_MURS_BANDS = true
+FREQUENCY_LOCK_REGION_CA = true
+TX_NON_FM = true
+WIDE_RX = true
+NARROWER_BW_FILTER = true
+SQUELCH_MORE_SENSITIVE = true
+CTCSS_TAIL_PHASE_SHIFT = false
+REDUCE_LOW_MID_TX_POWER = false
+BYP_RAW_DEMODULATORS = true
+SCAN_RANGES = true
+FASTER_CHANNEL_SCAN = true
+NO_CODE_SCAN_TIMEOUT = true
+KEEP_MEM_NAME = true
+COPY_CHAN_TO_VFO = true
+RESET_CHANNEL_FUNCTION = false
 
 # 🧩 Apps & Features
-ENABLE_SPECTRUM = true
-ENABLE_SPECTRUM_EXTENSIONS = true
+SPECTRUM = true
+SPECTRUM_EXTENSIONS = true
 
-ENABLE_AIRCOPY = false
-ENABLE_SERIAL_SCREENCAST = true
-ENABLE_APP_BREAKOUT_GAME = false
-ENABLE_CW_KEYER = false
-ENABLE_DTMF_CALLING = false
-ENABLE_RESCUE_OPERATIONS = false
-ENABLE_REGA = false
+AIRCOPY = false
+SERIAL_SCREENCAST = true
+APP_BREAKOUT_GAME = false
+CW_MOD_KEYER = false
+DTMF_CALLING = false
+RESCUE_OPERATIONS = false
+REGA = false
 
 # 🔌 UART Commands
-ENABLE_UART_CMD_RSSI = true
-ENABLE_UART_CMD_BATT = true
-ENABLE_UART_CMD_ID = true
-ENABLE_EXTRA_UART_CMD = false
+UART_CMD_RSSI = true
+UART_CMD_BATT = true
+UART_CMD_ID = true
+EXTRA_UART_CMD = false
 
 # 🛠️  System & Debug
-ENABLE_PWRON_PASSWORD = false
-ENABLE_BOOT_RESUME_STATE = true
-ENABLE_DEEP_SLEEP_MODE = true
-ENABLE_CUSTOM_FIRMWARE_MODS = true
-ENABLE_FIRMWARE_DEBUG_LOGGING = false
-ENABLE_IDENTIFIER = true
-ENABLE_AGC_SHOW_DATA = false
-ENABLE_UART_RW_BK_REGS = false
-ENABLE_SWD = false
+PWRON_PASSWORD = false
+BOOT_RESUME_STATE = true
+DEEP_SLEEP_MODE = true
+CUSTOM_FIRMWARE_MODS = true
+FIRMWARE_DEBUG_LOGGING = false
+IDENTIFIER = true
+AGC_SHOW_DATA = false
+UART_RW_BK_REGS = false
+SWD = false

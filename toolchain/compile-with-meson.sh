@@ -149,7 +149,8 @@ build_preset() {
         COMMIT="unknown"
     fi
     DATE=$(date +%d%m%Y)
-    FILENAME="${preset}.v${VERSION}.${COMMIT}.${DATE}.bin"
+    LOWER_PRESET=$(echo "$preset" | tr '[:upper:]' '[:lower:]')
+    FILENAME="deltafw.${LOWER_PRESET}.v${VERSION}.${COMMIT}.${DATE}.bin"
 
     # Run build with formatter
     # We pipe stderr to stdout (2>&1) so the formatter catches everything

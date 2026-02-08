@@ -875,7 +875,7 @@ static void HandleVox(void)
                     FUNCTION_Select(FUNCTION_FOREGROUND);
             }
             else {
-#ifdef ENABLE_BYP_RAW_DEMODULATORS
+#ifdef ENABLE_CW_MOD_KEYER
                 // CW mode: TX managed by CW module, don't interfere
                 if (gTxVfo->Modulation == MODULATION_CW && CW_IsBusy()) {
                     return;  // Let CW module handle TX end
