@@ -13,6 +13,30 @@ import time
 import os
 from datetime import datetime
 
+# ========== TUI COLORS ==========
+RESET = "\033[0m"
+BOLD = "\033[1m"
+INVERT = "\033[7m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+CYAN = "\033[36m"
+WHITE = "\033[37m"
+GRAY = "\033[90m"
+
+# ========== TUI HELPERS ==========
+
+def print_header():
+    print(f"\n  ⚡ {BOLD}deltafw QSH Tool{RESET}")
+    print(f"  ══════════════════════════════════════════════════════════\n")
+
+def log_info(msg):    print(f"{BLUE}{INVERT} INFO {RESET} {msg}")
+def log_ok(msg):      print(f"{GREEN}{INVERT}  OK  {RESET} {msg}")
+def log_warn(msg):    print(f"{YELLOW}{INVERT} WARN {RESET} {msg}")
+def log_err(msg):     print(f"{RED}{INVERT} FAIL {RESET} {msg}"); sys.exit(1)
+def log_debug(msg):   print(f"{GRAY}[DEBUG] {msg}{RESET}")
+
 # =============================================================================
 # 1. CONSTANTS & PROTOCOL DEFINITIONS
 # =============================================================================
@@ -76,7 +100,7 @@ TAG_MAP = {
     TAG_F_NAME: "FW Name", TAG_F_VERSION: "FW Version", TAG_F_DESC: "FW Desc",
     TAG_F_AUTHOR: "FW Author", TAG_F_LICENSE: "License", TAG_F_ARCH: "Architecture",
     TAG_F_TARGET: "Target HW", TAG_F_DATE: "Build Date", TAG_F_GIT: "Git Commit",
-    TAG_F_BOOT_MIN: "Min Bootloader", TAG_F_PAGE_SIZE: "Page Size", TAG_F_BASE_ADDR: "Flash Base",
+    TAG_F_BOOT_MIN: "Min Bootloader", TAG_F_PAGE_SIZE: "Page Size", TAG_F_BASE_ADDR: "Flash Base Addr",
     TAG_R_LABEL: "Res Label", TAG_R_TYPE: "Res Type",
     TAG_D_LABEL: "Mem Label", TAG_D_START_ADDR: "Start Addr", TAG_D_END_ADDR: "End Addr",
     TAG_D_WRITABLE: "Writable", TAG_D_CH_COUNT: "Channel Count", TAG_D_CH_NAMES: "Channel Names",
@@ -151,7 +175,7 @@ def parse_tlv_stream(data, start_offset=0):
             break
             
         if ptr + length > len(data):
-            print(f"[!] Warning: TLV overflow at tag {tag}")
+            log_warn(f"TLV overflow at tag {tag}")
             break
             
         raw_val = data[ptr:ptr+length]
@@ -247,9 +271,9 @@ class QSHFile:
             f.write(out)
             f.write(checksum)
             
-        print(f"[+] Created {filename}")
-        print(f"    Total Size: {len(out)+32} bytes")
-        print(f"    SHA-256: {binascii.hexlify(checksum).decode()}")
+        log_ok(f"Created {BOLD}{filename}{RESET}")
+        log_info(f"Size: {BOLD}{len(out)+32}{RESET} bytes")
+        log_info(f"SHA-256: {binascii.hexlify(checksum).decode()}")
 
     @staticmethod
     def load(filename):
@@ -257,7 +281,7 @@ class QSHFile:
             raw = f.read()
             
         if len(raw) < 42: # Min header + empty TLV + hash
-            print("[-] File too short")
+            log_err("File too short")
             return None
             
         # Verify Hash
@@ -266,12 +290,12 @@ class QSHFile:
         calc_hash = hashlib.sha256(body).digest()
         
         if file_hash != calc_hash:
-            print("[-] INTEGRITY CHECK FAILED: Hash mismatch")
+            log_err("INTEGRITY CHECK FAILED: Hash mismatch")
             return None
             
         # Header
         if body[:8] != MAGIC_BYTES:
-            print("[-] Invalid Magic Bytes")
+            log_err("Invalid Magic Bytes")
             return None
             
         rev = struct.unpack('<H', body[8:10])[0]
@@ -287,7 +311,7 @@ class QSHFile:
             ptr += 4
             
             if ptr + b_size > len(body):
-                print("[-] Blob truncated")
+                log_warn("Blob truncated")
                 break
                 
             # Blob Content
@@ -372,6 +396,7 @@ def main():
     p_unp.add_argument('-d', '--dest', default=".", help="Destination folder")
 
     args = parser.parse_args()
+    print_header()
 
     # --- EXECUTION ---
 
@@ -454,9 +479,8 @@ def main():
              f.add_blob(data, meta)
              
         else:
-            print(f"[-] Error: Missing required binary input for type '{args.type}'")
-            print("    Use --fw-bin, --mem-bin, or --res-file depending on type.")
-            sys.exit(1)
+            log_err(f"Missing required binary input for type '{args.type}'")
+            # log_err calls sys.exit(1)
             
         f.save(args.output)
 
@@ -464,14 +488,14 @@ def main():
         c = QSHFile.load(args.input)
         if not c: sys.exit(1)
         
-        print("\n=== GLOBAL METADATA ===")
+        log_info("Global Metadata")
         for t, v in c.global_meta.items():
             t_name = TAG_MAP.get(t, f"0x{t:02X}")
             if "Date" in t_name and isinstance(v, int):
                 v = datetime.fromtimestamp(v).strftime('%Y-%m-%d %H:%M:%S')
-            print(f"  {t_name:<20}: {v}")
+            print(f"  {CYAN}{t_name:<20}{RESET}: {BOLD}{v}{RESET}")
             
-        print(f"\n=== BLOBS ({len(c.blobs)}) ===")
+        log_info(f"Blobs ({len(c.blobs)})")
         for i, b in enumerate(c.blobs):
             print(f"\n[Blob {i+1}] Size: {len(b.data)} bytes")
             for t, v in b.metadata.items():
@@ -483,7 +507,7 @@ def main():
                     v = f"0x{v:08X}"
                 if "UID" in t_name and isinstance(v, int):
                     v = f"0x{v:016X}"
-                print(f"  {t_name:<20}: {v}")
+                print(f"  {GRAY}{t_name:<20}{RESET}: {v}")
 
     elif args.cmd == 'unpack':
         c = QSHFile.load(args.input)
@@ -509,10 +533,14 @@ def main():
             if TAG_X_TYPE in b.metadata: 
                 ext = f".{b.metadata[TAG_X_TYPE]}"
             
+            # Avoid redundant extensions
+            if str(name).lower().endswith(ext.lower()):
+                ext = ""
+            
             out_path = os.path.join(args.dest, safe_name + ext)
             with open(out_path, 'wb') as f:
                 f.write(b.data)
-            print(f"  -> {out_path}")
+            log_ok(f"Extracted -> {BOLD}{out_path}{RESET}")
 
 if __name__ == '__main__':
     main()
