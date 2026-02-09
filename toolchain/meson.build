@@ -497,7 +497,7 @@ elf = executable('deltafw.elf',
 )
 
 # Custom Targets for Binary Generation
-custom_target('bin',
+bin_target = custom_target('bin',
   output : 'deltafw.bin',
   input : elf,
   command : [objcopy, '-O', 'binary', '@INPUT@', '@OUTPUT@'],
@@ -508,5 +508,29 @@ custom_target('hex',
   output : 'deltafw.hex',
   input : elf,
   command : [objcopy, '-O', 'ihex', '@INPUT@', '@OUTPUT@'],
+  build_by_default : true
+)
+
+# QSH Packer Target
+qsh_packer = files('qsh_packer.py')
+
+custom_target('qsh',
+  output : 'deltafw.qsh',
+  input : bin_target,
+  command : [
+    python3, qsh_packer, 'pack', '@OUTPUT@',
+    '--type', 'firmware',
+    '--fw-bin', '@INPUT@',
+    '--title', 'deltafw',
+    '--author', '@0@'.format(project_authors),
+    '--desc', 'https://github.com/qshosfw/deltafw-k1-k5v3',
+    '--fw-ver', '@0@'.format(project_version),
+    '--fw-target', 'uvk1,uvk5v3',
+    '--fw-git', '@0@'.format(git_hash),
+    '--fw-arch', 'cortex-m0+',
+    '--fw-page-size', '256',
+    '--fw-base-addr', '0x08000000',
+    '--fw-license', 'GPLv3'
+  ],
   build_by_default : true
 )

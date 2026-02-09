@@ -154,7 +154,7 @@ build_preset() {
     FILENAME_BIN="${BASENAME}.bin"
     FILENAME_HEX="${BASENAME}.hex"
     FILENAME_PACKED="${BASENAME}.packed.bin"
-    FILENAME_QSHFW="${BASENAME}.qshfw"
+    FILENAME_QSH="${BASENAME}.qsh"
 
     # Run build with formatter
     # We pipe stderr to stdout (2>&1) so the formatter catches everything
@@ -168,27 +168,30 @@ build_preset() {
             [ -f "$BUILD_DIR/deltafw.hex" ] && cp "$BUILD_DIR/deltafw.hex" "$BUILD_DIR/$FILENAME_HEX"
             [ -f "$BUILD_DIR/deltafw_packed.bin" ] && cp "$BUILD_DIR/deltafw_packed.bin" "$BUILD_DIR/$FILENAME_PACKED"
             
-            # Pack into QSHFW Container
-            FULL_GIT_MSG=$(git log -1 --pretty="%B" 2>/dev/null || echo "")
-            python3 toolchain/qshfw_packer.py \
-                "$BUILD_DIR/deltafw.bin" \
-                "$BUILD_DIR/$FILENAME_QSHFW" \
-                --version "$VERSION" \
-                --name "deltafw" \
-                --target "uvk1,uv-k5v3" \
+            # Pack into QSH Container
+            FULL_GIT_MSG=$(git log -1 --pretty="%B" 2>/dev/null | tr -d '"' | tr '\n' ' ' || echo "")
+            python3 toolchain/qsh_packer.py pack \
+                "$BUILD_DIR/$FILENAME_QSH" \
+                --type firmware \
+                --fw-bin "$BUILD_DIR/deltafw.bin" \
+                --title "deltafw" \
                 --author "qshosfw" \
-                --arch "arm" \
-                --license "GPL-3.0" \
-                --desc "Preset: $preset"$'\n\n'"$FULL_GIT_MSG" \
-                --git "$COMMIT" \
-                --elf "$BUILD_DIR/deltafw.elf.elf" \
-                --map "$BUILD_DIR/deltafw.map"
+                --desc "Preset: $preset | $FULL_GIT_MSG" \
+                --fw-ver "$VERSION" \
+                --fw-target "uvk1,uv-k5v3" \
+                --fw-git "$COMMIT" \
+                --fw-arch "arm" \
+                --fw-license "GPL-3.0" \
+                --fw-page-size 256 \
+                --fw-base-addr 0x08000000 \
+                --aux-file "$BUILD_DIR/deltafw.elf.elf" \
+                --aux-type "elf"
 
             end_time=$(date +%s)
             duration=$((end_time - start_time))
             log_success "Built ${preset} in ${duration}s"
             echo -e "${BADGE_OK} Firmware: ${BOLD}${CYAN}${BUILD_DIR}/${FILENAME_BIN}${RESET}"
-            echo -e "${BADGE_OK} Container: ${BOLD}${CYAN}${BUILD_DIR}/${FILENAME_QSHFW}${RESET}"
+            echo -e "${BADGE_OK} Container: ${BOLD}${CYAN}${BUILD_DIR}/${FILENAME_QSH}${RESET}"
         else
             log_error "Artifact not found!"
             exit 1

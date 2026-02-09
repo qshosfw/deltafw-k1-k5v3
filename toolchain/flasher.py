@@ -350,70 +350,71 @@ def flash_process(proto, fw_data):
     
     # Reboot
     proto.send(MSG_REBOOT)
-    
 
-# ========== QSHFW CONTAINER PARSER ==========
+# ========== QSH CONTAINER PARSER ==========
 
-def parse_qshfw(file_path):
+def parse_qsh(file_path):
+    # Instead of importing (which might have path issues), 
+    # we'll implement a clean loader for the new spec.
     with open(file_path, 'rb') as f:
-        data = f.read()
+        raw = f.read()
     
-    if len(data) < 64:
-        return None
-    
-    # 1. Header Magic
-    magic = data[0:8]
-    if magic != b"qshfw\x00\x00\x00":
+    if len(raw) < 10 or raw[:8] != b'\xe6QSH\r\n\x1a\n':
         return None
 
-    # 2. Header CRC Check
-    header_raw = data[0:60]
-    expected_crc = struct.unpack('<I', data[60:64])[0]
-    actual_crc = zlib.crc32(header_raw) & 0xFFFFFFFF
-    if actual_crc != expected_crc:
-        log_err(f"Header CRC Mismatch! (Expected: {expected_crc:08X}, Actual: {actual_crc:08X})")
+    # Verify Hash
+    body = raw[:-32]
+    file_hash = raw[-32:]
+    calc_hash = hashlib.sha256(body).digest()
+    if file_hash != calc_hash:
+        log_err("QSH Integrity Check Failed (Hash mismatch)")
 
-    # 3. Header Fields
-    spec, addr, p_size, m_size, flags = struct.unpack('<IIIII', data[8:28])
-    expected_hash = data[28:60]
+    log_info("QSH Container Detected")
     
-    log_info(f"QSHFW v{spec} Container Detected")
-    
-    # 4. Payload Integrity
-    payload = data[64 : 64 + p_size]
-    actual_hash = hashlib.sha256(payload).digest()
-    if actual_hash != expected_hash:
-        log_err("Payload SHA-256 Mismatch! Corruption detected.")
-    
-    # 5. Metadata Area (TLV)
-    meta_raw = data[64 + p_size : 64 + p_size + m_size]
-    metadata = {}
-    offset = 0
-    while offset < len(meta_raw):
-        tag, length = struct.unpack('<HI', meta_raw[offset : offset + 6])
-        value = meta_raw[offset + 6 : offset + 6 + length]
-        metadata[tag] = value
-        offset += 6 + length
+    # Simple TLV Parser for what we need
+    def get_tlvs(data, start):
+        res = {}
+        ptr = start
+        while ptr + 4 <= len(data):
+            tag = struct.unpack('<H', data[ptr:ptr+2])[0]
+            length = struct.unpack('<H', data[ptr+2:ptr+4])[0]
+            ptr += 4
+            if tag == 0: break
+            val = data[ptr : ptr+length]
+            res[tag] = val
+            ptr += length
+        return res, ptr
 
-    # 6. Display Metadata
-    tag_map = {
-        0x0001: "Type", 0x0003: "Version", 0x0004: "Target",
-        0x000C: "Name", 0x0005: "Author", 0x0006: "Arch",
-        0x0007: "License",
-        0x0009: "Description", 0x0010: "Commit"
-    }
+    # Global
+    g_meta, ptr = get_tlvs(body, 10)
     
-    for tag_id, key in tag_map.items():
-        if tag_id in metadata:
-            val = metadata[tag_id].decode('utf-8', errors='ignore')
-            log_info(f"{key:<8}: {BOLD}{val}{RESET}")
-    
-    if 0x0008 in metadata: # Date
-        ts = struct.unpack('<Q', metadata[0x0008])[0]
-        date_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))
-        log_info(f"Date    : {date_str}")
-
-    return payload
+    # Find Firmware Blob
+    while ptr < len(body):
+        # Read Blob Size
+        if ptr + 4 > len(body): break
+        b_size = struct.unpack('<I', body[ptr:ptr+4])[0]
+        ptr += 4
+        b_content = body[ptr : ptr+b_size]
+        ptr += b_size
+        
+        b_meta, b_head_len = get_tlvs(b_content, 0)
+        b_data = b_content[b_head_len:]
+        
+        # Is it firmware? (TAG_F_NAME=0x11, TAG_F_VERSION=0x12)
+        if 0x11 in b_meta or 0x12 in b_meta:
+            name = b_meta.get(0x11, b"Unknown").decode('ascii', errors='ignore')
+            ver = b_meta.get(0x12, b"Unknown").decode('ascii', errors='ignore')
+            target = b_meta.get(0x17, b"Unknown").decode('ascii', errors='ignore')
+            
+            log_ok(f"Found Firmware: {BOLD}{name}{RESET} v{BOLD}{ver}{RESET}")
+            log_info(f"Target HW: {BOLD}{target}{RESET}")
+            
+            if 0x19 in b_meta: # TAG_F_GIT
+                 log_info(f"Git Hash: {BOLD}{b_meta[0x19].decode()}{RESET}")
+            
+            return b_data
+            
+    return None
 
 def main():
     parser = argparse.ArgumentParser("flasher")
@@ -427,10 +428,10 @@ def main():
     # Resolve File
     fw_file = args.file
     if not fw_file:
-        # Look in build/ for recent .qshfw files first, then .bin
-        qshfws = sorted(glob.glob("build/deltafw.*.qshfw"), key=os.path.getmtime, reverse=True)
-        if qshfws:
-            fw_file = qshfws[0]
+        # Priority: .qsh -> .bin
+        qshs = sorted(glob.glob("build/deltafw.*.qsh"), key=os.path.getmtime, reverse=True)
+        if qshs:
+            fw_file = qshs[0]
         else:
             bins = sorted(glob.glob("build/deltafw.*.bin"), key=os.path.getmtime, reverse=True)
             valid = [b for b in bins if not b.endswith("packed.bin")]
@@ -445,10 +446,13 @@ def main():
     # File Info
     size = os.path.getsize(fw_file)
     
-    # Try QSHFW Parsing
-    fw_data = parse_qshfw(fw_file)
+    # Try Parsers
+    fw_data = None
+    if fw_file.endswith(".qsh"):
+        fw_data = parse_qsh(fw_file)
+        
     if fw_data:
-        log_ok(f"Validated QSHFW Container ({len(fw_data)/1024:.1f} KB payload)")
+        log_ok(f"Validated Container ({len(fw_data)/1024:.1f} KB payload)")
     else:
         log_info(f"Firmware: {BOLD}{os.path.basename(fw_file)}{RESET} (Raw Binary, {size/1024:.1f} KB)")
         with open(fw_file, 'rb') as f:
