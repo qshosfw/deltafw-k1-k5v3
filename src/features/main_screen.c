@@ -473,35 +473,21 @@ static void MAIN_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 #ifdef ENABLE_VOICE
             gAnotherVoiceID = (VOICE_ID_t)Key;
 #endif
-            uint8_t totalDigits = 6; // by default frequency is lower than 1 GHz
-            if (gTxVfo->pRX->Frequency >= _1GHz_in_KHz) {
-                totalDigits = 7; // if frequency is uppen than GHz
-            }
+            const char *inputStr = INPUTBOX_GetAscii();
+            uint8_t totalDigits = (gTxVfo->pRX->Frequency >= _1GHz_in_KHz) ? 9 : 8;
 
-            if (gInputBoxIndex == 0) {
-                // do nothing
-                return;
-            }
+            if (gInputBoxIndex == 0) return;
             
             gKeyInputCountdown = (gInputBoxIndex == totalDigits) ? (key_input_timeout_500ms / 16) : (key_input_timeout_500ms / 3);
 
-            const char *inputStr = INPUTBOX_GetAscii();
-            uint8_t inputLength = gInputBoxIndex;
+            uint32_t Frequency = StrToUL(inputStr);
 
-            // convert to int
-            uint32_t inputFreq = StrToUL(inputStr);
-
-            // how many zero to add
-            uint8_t zerosToAdd = totalDigits - inputLength;
-
-            // add missing zero
-            for (uint8_t i = 0; i < zerosToAdd; i++) {
-                inputFreq *= 10;
+            // Scale based on input length to reach 10Hz internal units
+            for (uint8_t i = 0; i < (totalDigits - gInputBoxIndex); i++) {
+                Frequency *= 10;
             }
 
-            uint32_t Frequency = inputFreq * 100;
-
-            // clamp the frequency entered to some valid value
+            // Clamping to band limits
             if (Frequency < frequencyBandTable[0].lower) {
                 Frequency = frequencyBandTable[0].lower;
             }
@@ -513,6 +499,7 @@ static void MAIN_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                 Frequency = frequencyBandTable[BAND_N_ELEM - 1].upper;
             }
 
+            const uint8_t Vfo = gEeprom.TX_VFO;
             const FREQUENCY_Band_t band = FREQUENCY_GetBand(Frequency);
 
             if (gTxVfo->Band != band) {
@@ -525,19 +512,16 @@ static void MAIN_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                 RADIO_ConfigureChannel(Vfo, VFO_CONFIGURE_RELOAD);
             }
 
-            Frequency = FREQUENCY_RoundToStep(Frequency, gTxVfo->StepFrequency);
-
-            if (Frequency >= BX4819_band1.upper && Frequency < BX4819_band2.lower)
-            {   // clamp the frequency to the limit
-                const uint32_t center = (BX4819_band1.upper + BX4819_band2.lower) / 2;
-                Frequency = (Frequency < center) ? BX4819_band1.upper - gTxVfo->StepFrequency : BX4819_band2.lower;
-            }
-
+            // Final rounding and step selection happens in MAIN_FinalizeFreqInput on timeout, Enter, or all digits entered.
             gTxVfo->freq_config_RX.Frequency = Frequency;
+
+            if (gInputBoxIndex == totalDigits) {
+                MAIN_FinalizeFreqInput();
+                gInputBoxIndex = 0;
+            }
 
             gRequestSaveChannel = 1;
             return;
-
         }
         #ifdef ENABLE_NOAA
             else
@@ -712,6 +696,9 @@ static void MAIN_Key_MENU(bool bKeyPressed, bool bKeyHeld)
 
     if (!bKeyPressed && !gDTMF_InputMode) { // menu key released
         const bool bFlag = !gInputBoxIndex;
+        if (!bFlag && IS_FREQ_CHANNEL(gTxVfo->CHANNEL_SAVE)) {
+            MAIN_FinalizeFreqInput();
+        }
         gInputBoxIndex   = 0;
 
         if (bFlag) {
@@ -1005,4 +992,28 @@ void MAIN_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                 gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
             break;
     }
+}
+void MAIN_FinalizeFreqInput(void)
+{
+    if (!IS_FREQ_CHANNEL(gTxVfo->CHANNEL_SAVE) || gInputBoxIndex == 0)
+        return;
+
+    uint32_t frequency = gTxVfo->pRX->Frequency;
+    
+    // Select best step and update VFO
+    STEP_Setting_t bestStep = FREQUENCY_GetBestMatchingStep(frequency, gTxVfo->STEP_SETTING);
+    if (bestStep != gTxVfo->STEP_SETTING) {
+        gTxVfo->STEP_SETTING = bestStep;
+        gTxVfo->StepFrequency = gStepFrequencyTable[bestStep];
+    }
+    
+    // Final round to the (potentially new) step
+    frequency = FREQUENCY_RoundToStep(frequency, gTxVfo->StepFrequency);
+    gTxVfo->pRX->Frequency = frequency;
+    
+    // Update Radio
+    RADIO_ConfigureChannel(gEeprom.TX_VFO, VFO_CONFIGURE_RELOAD); 
+    RADIO_SetupRegisters(true);
+    
+    gRequestSaveChannel = 1;
 }

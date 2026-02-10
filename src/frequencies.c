@@ -159,6 +159,29 @@ uint32_t FREQUENCY_RoundToStep(uint32_t freq, uint16_t step)
     return (freq + (step + 1) / 2) / step * step;
 }
 
+STEP_Setting_t FREQUENCY_GetBestMatchingStep(uint32_t frequency, STEP_Setting_t currentStep)
+{
+    // Try current step first
+    if ((frequency % gStepFrequencyTable[currentStep]) == 0) {
+        return currentStep;
+    }
+
+    // Priority list of steps to check (from largest to smallest)
+    static const STEP_Setting_t prioritySteps[] = {
+        STEP_25kHz, STEP_12_5kHz, STEP_125kHz, STEP_100kHz, STEP_50kHz,
+        STEP_10kHz, STEP_6_25kHz, STEP_5kHz, STEP_2_5kHz,
+        STEP_1_25kHz, STEP_1kHz, STEP_0_5kHz, STEP_0_25kHz, STEP_0_1kHz, STEP_0_05kHz, STEP_0_01kHz
+    };
+
+    for (uint8_t i = 0; i < ARRAY_SIZE(prioritySteps); i++) {
+        if ((frequency % gStepFrequencyTable[prioritySteps[i]]) == 0) {
+            return prioritySteps[i];
+        }
+    }
+
+    return currentStep;
+}
+
 int32_t TX_freq_check(const uint32_t Frequency)
 {   // return '0' if TX frequency is allowed
     // otherwise return '-1'

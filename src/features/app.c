@@ -1603,6 +1603,11 @@ void APP_TimeSlice500ms(void)
                 SETTINGS_SaveVfoIndices();
             }
 
+            if (IS_FREQ_CHANNEL(gTxVfo->CHANNEL_SAVE) && gInputBoxIndex > 0)
+            {
+                MAIN_FinalizeFreqInput();
+            }
+
             cancelUserInputModes();
         }
     }

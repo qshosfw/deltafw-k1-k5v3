@@ -21,7 +21,7 @@
 
 #include "drivers/bsp/keyboard.h"
 
-extern char    gInputBox[8];
+extern char    gInputBox[10];
 extern uint8_t gInputBoxIndex;
 
 void INPUTBOX_Append(const KEY_Code_t Digit);

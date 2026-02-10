@@ -802,20 +802,39 @@ void UI_DisplayMain(void)
         else if (gInputBoxIndex > 0 && IS_FREQ_CHANNEL(gEeprom.ScreenChannel[vfo_num]) && gEeprom.TX_VFO == vfo_num)
         {   // user entering a frequency
             const char * ascii = INPUTBOX_GetAscii();
-            bool isGigaF = frequency>=_1GHz_in_KHz;
-            sprintf(String, "%.*s.%.3s", 3 + isGigaF, ascii, ascii + 3 + isGigaF);
-#ifdef ENABLE_BIG_FREQ
+            bool isGigaF = (frequency >= _1GHz_in_KHz);
+            uint8_t mDigits = isGigaF ? 4 : 3;
+
+            char mhz[5];
+            char khzBig[4];
+            char khzSmall[3];
+
+            // Slice the 10-char ASCII buffer into components
+            memcpy(mhz, ascii, mDigits); mhz[mDigits] = 0;
+            memcpy(khzBig, ascii + mDigits, 3); khzBig[3] = 0;
+            memcpy(khzSmall, ascii + mDigits + 3, 2); khzSmall[2] = 0;
+
+            #ifdef ENABLE_BIG_FREQ
             if(!isGigaF) {
-                // show the remaining 2 small frequency digits
-                UI_PrintStringSmallNormal(String + 7, 113, 0, line + 1);
-                String[7] = 0;
-                // show the main large frequency digits
-                UI_DisplayFrequencyStr(String, 32, line, false);
+                // Large digits for MHz.kHz
+                sprintf(String, "%s.%s", mhz, khzBig);
+                
+                // Dynamic X to keep it snug against small digits at 113
+                // We use spaces in the input box to push it right if needed
+                uint8_t startX = 32;
+                uint8_t len = strlen(String);
+                if (len < 7) startX += (7 - len) * 13;
+                
+                UI_DisplayFrequencyStr(String, startX, line, false);
+
+                // Small digits for Hz (high precision)
+                UI_PrintStringSmallNormal(khzSmall, 113, 0, line + 1);
             }
             else
-#endif
+            #endif
             {
-                // show the frequency in the main font
+                // Non-big freq or GHz range
+                sprintf(String, "%s.%s%s", mhz, khzBig, khzSmall);
                 UI_PrintString(String, 32, 0, line, 8);
             }
 
@@ -873,8 +892,16 @@ void UI_DisplayMain(void)
                             // show the remaining 2 small frequency digits
                             UI_PrintStringSmallNormal(String + 7, 113, 0, line + 1);
                             String[7] = 0;
+
                             // show the main large frequency digits
-                            UI_DisplayFrequencyStr(String, 32, line, false);
+                            // Dynamic start to keep it snug with small digits at 113
+                            uint8_t startX = 32;
+                            const char *p = String;
+                            while(*p == ' ') p++; // skip leading spaces for alignment
+                            uint8_t len = strlen(p);
+                            if (len < 7) startX += (7 - len) * 13;
+
+                            UI_DisplayFrequencyStr(String, startX, line, false);
                         }
                         else
 #endif
@@ -990,88 +1017,101 @@ void UI_DisplayMain(void)
 
         // ************
 
-        // Consolidated Attribute Line (Matoz Style + ScanList Text)
-        // Order: ScanList, SCR, DTMF, R, Offset, BW, Power, DCS/CTCSS
+        // Consolidated Attribute Line (Enhanced Matoz Style)
+        // Order: ScanList, SCR, BCL, CMP, DTMF, R, Offset, BW, Power, DCS/CTCSS
         
-        char AttrStr[64];
-        memset(AttrStr, 0, sizeof(AttrStr));
         const VFO_Info_t *vfoInfo = &gEeprom.VfoInfo[vfo_num];
 
-        // 1. Scan List (S1, S2, S12)
+        // Attribute labels collection
+        const char *labels[12];
+        uint8_t nLabels = 0;
+
+        // 1. Scan List Participation (Supports 3 lists)
         if (IS_MR_CHANNEL(gEeprom.ScreenChannel[vfo_num])) {
             const ChannelAttributes_t att = gMR_ChannelAttributes[gEeprom.ScreenChannel[vfo_num]];
-            if (att.scanlist1 && att.scanlist2) {
-                strcat(AttrStr, "S12 ");
-            } else if (att.scanlist1) {
-                strcat(AttrStr, "S1 ");
-            } else if (att.scanlist2) {
-                strcat(AttrStr, "S2 ");
-            }
+            if (att.scanlist1 && att.scanlist2 && att.scanlist3) labels[nLabels++] = "S123";
+            else if (att.scanlist1 && att.scanlist2) labels[nLabels++] = "S12";
+            else if (att.scanlist2 && att.scanlist3) labels[nLabels++] = "S23";
+            else if (att.scanlist1 && att.scanlist3) labels[nLabels++] = "S13";
+            else if (att.scanlist1) labels[nLabels++] = "S1";
+            else if (att.scanlist2) labels[nLabels++] = "S2";
+            else if (att.scanlist3) labels[nLabels++] = "S3";
         }
 
         // 2. Scramble
-        if (vfoInfo->SCRAMBLING_TYPE > 0 && gSetting_ScrambleEnable) {
-            strcat(AttrStr, "SCR ");
-        }
+        if (vfoInfo->SCRAMBLING_TYPE > 0 && gSetting_ScrambleEnable) labels[nLabels++] = "SCR";
 
-        // 3. DTMF
+        // 3. Busy Channel Lockout
+        if (vfoInfo->BUSY_CHANNEL_LOCK) labels[nLabels++] = "BCL";
+
+        // 4. Compander
+        if (vfoInfo->Compander) labels[nLabels++] = "CMP";
+
+        // 5. VOX
+        if (gEeprom.VOX_SWITCH) labels[nLabels++] = "VOX";
+
+        // 6. DTMF
         #ifdef ENABLE_DTMF_CALLING
-        if (vfoInfo->DTMF_DECODING_ENABLE || gSetting_KILLED) {
-            strcat(AttrStr, "DTMF ");
-        }
+        if (vfoInfo->DTMF_DECODING_ENABLE || gSetting_KILLED) labels[nLabels++] = "DTM";
         #endif
 
-        // 4. Reverse
-        if (vfoInfo->FrequencyReverse) {
-            strcat(AttrStr, "R ");
-        }
+        // 7. Reverse
+        if (vfoInfo->FrequencyReverse) labels[nLabels++] = "R";
 
-        // 5. Offset Direction (+, -, D)
-        const char *dir_list[] = {"", "+", "-"}; // Standard
+        // 8. Offset Direction
+        const char *dir_list[] = {"", "+", "-"};
         if (vfoInfo->freq_config_RX.Frequency != vfoInfo->freq_config_TX.Frequency) {
-            if (vfoInfo->TX_OFFSET_FREQUENCY_DIRECTION < 3)
-                strcat(AttrStr, dir_list[vfoInfo->TX_OFFSET_FREQUENCY_DIRECTION]);
-            strcat(AttrStr, " ");
+            if (vfoInfo->TX_OFFSET_FREQUENCY_DIRECTION < 3 && vfoInfo->TX_OFFSET_FREQUENCY_DIRECTION > 0)
+                labels[nLabels++] = dir_list[vfoInfo->TX_OFFSET_FREQUENCY_DIRECTION];
         }
 
-        // 6. Bandwidth (Matoz labels)
-        // bwNames: 25k, 12.5k, 8.33k, 6.25k
+        // 9. Bandwidth
         const char *bwNames[] = {"25k", "12.5k", "8.33k", "6.25k"};
-        if (vfoInfo->CHANNEL_BANDWIDTH < 4) {
-            strcat(AttrStr, bwNames[vfoInfo->CHANNEL_BANDWIDTH]);
-            strcat(AttrStr, " ");
-        }
+        if (vfoInfo->CHANNEL_BANDWIDTH < 4) labels[nLabels++] = bwNames[vfoInfo->CHANNEL_BANDWIDTH];
 
-        // 7. Power (Matoz labels)
-        // powerNames: LOW, MID, HIGH
-        const char *powerNames[] = {"LOW", "MID", "HIGH"};
-        // Logic to handle custom user power levels if needed, or simple mapping
+        // 10. Power (Granular 8 levels)
+        const char *powerNames[] = {"USER", "LOW1", "LOW2", "LOW3", "LOW4", "LOW5", "MID", "HIGH"};
         uint8_t pwrIndex = vfoInfo->OUTPUT_POWER;
-        if (pwrIndex > 2) pwrIndex = 2; // Safety cap
-        strcat(AttrStr, powerNames[pwrIndex]);
-        strcat(AttrStr, " ");
+        if (pwrIndex > 7) pwrIndex = 7;
+        labels[nLabels++] = powerNames[pwrIndex];
 
-        // 8. DCS/CTCSS
-        // dcsNames: "", "CT", "DCS", "DCS"
+        // 11. DCS/CTCSS
         const char *dcsNames[] = {"", "CT", "DCS", "DCS"};
         const FREQ_Config_t *pConfig = (gCurrentFunction == FUNCTION_TRANSMIT) ? vfoInfo->pTX : vfoInfo->pRX;
-        if (pConfig->CodeType < 4 && pConfig->CodeType > 0) {
-            strcat(AttrStr, dcsNames[pConfig->CodeType]);
-            // Maybe append code value? User asked for "labels text", assumed simple "DCS" or specifics? 
-            // Matoz printed just "DCS" or "CT" in line 271 logic (dcsNames[type]).
-            // I'll stick to just keys for now to save space.
+        if (pConfig->CodeType < 4 && pConfig->CodeType > 0) labels[nLabels++] = dcsNames[pConfig->CodeType];
+
+        // Rendering with dynamic spacing
+        if (nLabels > 0) {
+            uint16_t charW = 0;
+            for (uint8_t i = 0; i < nLabels; i++) {
+                charW += strlen(labels[i]) * 4;
+            }
+
+            // Available range: X=6 to X=118 (internal area)
+            // Preferred gap: 10px (wide/loose)
+            int16_t gap = 10;
+            uint16_t totalW;
+            
+            // Shrink gap if necessary to fit in 112px
+            while (gap > 2) {
+                totalW = charW + (gap * (nLabels - 1));
+                if (totalW <= 112) break;
+                gap--;
+            }
+            totalW = charW + (gap * (nLabels - 1));
+
+            // Target center X=58 (balanced slightly left)
+            int16_t x = 58 - (totalW / 2);
+
+            // Bounds check
+            if (x < 6) x = 6;
+            if (x + totalW > 118) x = 118 - totalW;
+
+            for (uint8_t i = 0; i < nLabels; i++) {
+                UI_PrintStringSmallest(labels[i], (uint8_t)x, (line + 2) * 8 + 1, false, true);
+                x += strlen(labels[i]) * 4 + gap;
+            }
         }
-
-        // Print Consolidated String
-        // Y Position: (line + 2) * 8 + 1 (Attributes row)
-        // X Position: Centered
-        // Char width = 4px (3px font + 1px space)
-        
-        uint8_t len = strlen(AttrStr);
-        uint8_t x_pos = (LCD_WIDTH - (len * 4)) / 2;
-        if (x_pos > LCD_WIDTH) x_pos = 0; // Overflow check if string > 32 chars
-
-        UI_PrintStringSmallest(AttrStr, x_pos, (line + 2) * 8 + 1, false, true);
 
         // Modulation (Top Right - Keep separate as per Matoz style)
         const char *modNames[] = {"FM", "AM", "USB", "BYP", "RAW", "DSB", "CW"};

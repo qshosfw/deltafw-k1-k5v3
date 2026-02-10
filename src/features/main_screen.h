@@ -21,6 +21,7 @@
 
 void MAIN_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld);
 void channelMoveSwitch(void);
+void MAIN_FinalizeFreqInput(void);
 
 #endif
 
