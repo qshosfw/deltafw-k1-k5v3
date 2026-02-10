@@ -57,7 +57,7 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
         case MENU_MIC:
             snprintf(buf, bufLen, "+%u.%udB", gMicGain_dB2[gEeprom.MIC_SENSITIVITY] / 2, gMicGain_dB2[gEeprom.MIC_SENSITIVITY] % 2);
             break;
-        #ifdef ENABLE_AUDIO_BAR
+        #ifdef ENABLE_MIC_BAR
         case MENU_MIC_BAR:
             snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_mic_bar]);
             break;
@@ -308,7 +308,7 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
         case MENU_MIC:
             INC_DEC(gEeprom.MIC_SENSITIVITY, 0, 4, up);
             break;
-        #ifdef ENABLE_AUDIO_BAR
+        #ifdef ENABLE_MIC_BAR
         case MENU_MIC_BAR:
             gSetting_mic_bar = !gSetting_mic_bar;
             break;
@@ -566,7 +566,7 @@ static const MenuItem soundItems[] = {
     {"Roger", MENU_ROGER, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"VOX", MENU_VOX, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Mic Sens", MENU_MIC, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
-    #ifdef ENABLE_AUDIO_BAR
+    #ifdef ENABLE_MIC_BAR
     {"Mic Bar", MENU_MIC_BAR, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #endif
     #ifdef ENABLE_VOICE

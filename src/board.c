@@ -164,7 +164,7 @@ void BOARD_ADC_Init(void)
     LL_ADC_Enable(ADC1);
 }
 
-void BOARD_ADC_GetBatteryInfo(uint16_t *pVoltage, uint16_t *pCurrent)
+void BOARD_ADC_GetBatteryInfo(uint16_t *pVoltage)
 {
     // Read voltage from channel 8 (PB0)
     LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_8);
@@ -173,14 +173,6 @@ void BOARD_ADC_GetBatteryInfo(uint16_t *pVoltage, uint16_t *pCurrent)
         ;
     LL_ADC_ClearFlag_EOS(ADC1);
     *pVoltage = LL_ADC_REG_ReadConversionData12(ADC1);
-
-    // Read current from channel 9 (PB1)
-    LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_9);
-    LL_ADC_REG_StartConversionSWStart(ADC1);
-    while (!LL_ADC_IsActiveFlag_EOS(ADC1))
-        ;
-    LL_ADC_ClearFlag_EOS(ADC1);
-    *pCurrent = LL_ADC_REG_ReadConversionData12(ADC1);
 }
 
 void BOARD_Init(void)

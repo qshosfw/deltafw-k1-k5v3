@@ -20,7 +20,7 @@
 enum center_line_t {
     CENTER_LINE_NONE = 0,
     CENTER_LINE_IN_USE,
-    CENTER_LINE_AUDIO_BAR,
+    CENTER_LINE_MIC_BAR,
     CENTER_LINE_RSSI,
     CENTER_LINE_AM_FIX_DATA,
     CENTER_LINE_DTMF_DEC,
@@ -39,7 +39,12 @@ typedef enum center_line_t center_line_t;
 extern center_line_t center_line;
 extern const int8_t dBmCorrTable[7];
 
+#ifdef ENABLE_RSSI_BAR
+void UI_DisplayRSSIBar(const bool now);
+#endif
+#ifdef ENABLE_MIC_BAR
 void UI_DisplayAudioBar(void);
+#endif
 void UI_MAIN_TimeSlice500ms(void);
 void UI_DisplayMain(void);
 

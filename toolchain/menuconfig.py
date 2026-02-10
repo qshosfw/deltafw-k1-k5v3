@@ -46,7 +46,7 @@ FEATURES = {
     "ENABLE_SMALL_BOLD": {"title": "Small Bold Font", "desc": "Bold small font", "category": "UI", "size": 200, "default": True},
     "ENABLE_CUSTOM_MENU_LAYOUT": {"title": "Custom Menu", "desc": "Enhanced menus", "category": "UI", "size": 200, "default": True},
     "ENABLE_RSSI_BAR": {"title": "RSSI Bar", "desc": "Signal strength bar", "category": "UI", "size": 400, "default": True},
-    "ENABLE_AUDIO_BAR": {"title": "Audio Bar", "desc": "TX audio indicator", "category": "UI", "size": 300, "default": True},
+    "ENABLE_MIC_BAR": {"title": "Audio Bar", "desc": "TX audio indicator", "category": "UI", "size": 300, "default": True},
     "ENABLE_RX_TX_TIMER_DISPLAY": {"title": "RX/TX Timer", "desc": "Duration timers", "category": "UI", "size": 200, "default": True},
     "ENABLE_INVERTED_LCD_MODE": {"title": "Inverted LCD", "desc": "Invert colors option", "category": "UI", "size": 100, "default": True},
     "ENABLE_LCD_CONTRAST_OPTION": {"title": "LCD Contrast", "desc": "Adjustable contrast", "category": "UI", "size": 100, "default": True},

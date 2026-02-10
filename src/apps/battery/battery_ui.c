@@ -48,6 +48,7 @@ void UI_DisplayBattery(uint8_t Level, uint8_t blink) {
         }
     }
 
+#ifdef ENABLE_BATTERY_CHARGING
     if (gIsCharging) {
         // Clear background (draw white box) behind the bolt
         // Clear bits 0-4 (0b00011111) on relevant columns
@@ -70,4 +71,5 @@ void UI_DisplayBattery(uint8_t Level, uint8_t blink) {
         gStatusLine[WORK_START + 7] |= 0b00000010;
         gStatusLine[WORK_START + 8] |= 0b00000010;
     }
+#endif
 }

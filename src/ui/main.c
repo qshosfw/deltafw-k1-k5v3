@@ -73,6 +73,8 @@ const int8_t dBmCorrTable[7] = {
              -1  // band 7
         };
 
+void UI_DisplayRSSIBar(const bool now);
+
 const char *VfoStateStr[] = {
        [VFO_STATE_NORMAL]="",
        [VFO_STATE_BUSY]="BUSY",
@@ -85,282 +87,37 @@ const char *VfoStateStr[] = {
 
 // ***************************************************************************
 
+#if defined(ENABLE_AM_FIX) && defined(ENABLE_AM_FIX_SHOW_DATA)
+#include "am_fix.h"
+#endif
+
+#if !defined(ENABLE_RSSI_BAR) && !defined(ENABLE_MIC_BAR)
 static void DrawSmallAntennaAndBars(uint8_t *p, unsigned int level)
 {
-    if(level>6)
-        level = 6;
+	p[0] = 0b00000000;
+	p[1] = 0b00000010;
+	p[2] = 0b00000100;
+	p[3] = 0b01111000;
+	p[4] = 0b00000100;
+	p[5] = 0b00000010;
+	p[6] = 0b00000000;
 
-    memcpy(p, BITMAP_Antenna, ARRAY_SIZE(BITMAP_Antenna));
-
-    for(uint8_t i = 1; i <= level; i++) {
-        char bar = (0xff << (6-i)) & 0x7F;
-        memset(p + 2 + i*3, bar, 2);
-    }
-}
-#if defined ENABLE_AUDIO_BAR || defined ENABLE_RSSI_BAR
-
-static void DrawLevelBar(uint8_t xpos, uint8_t line, uint8_t level, uint8_t bars)
-{
-#ifndef ENABLE_CUSTOM_FIRMWARE_MODS
-    const char hollowBar[] = {
-        0b01111111,
-        0b01000001,
-        0b01000001,
-        0b01111111
-    };
-#endif
-    
-    uint8_t *p_line = gFrameBuffer[line];
-    level = MIN(level, bars);
-
-    for(uint8_t i = 0; i < level; i++) {
-#ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-        if(gSetting_set_met)
-        {
-            const char hollowBar[] = {
-                0b01111111,
-                0b01000001,
-                0b01000001,
-                0b01111111
-            };
-
-            if(i < bars - 4) {
-                for(uint8_t j = 0; j < 4; j++)
-                    p_line[xpos + i * 5 + j] = (~(0x7F >> (i + 1))) & 0x7F;
-            }
-            else {
-                memcpy(p_line + (xpos + i * 5), &hollowBar, ARRAY_SIZE(hollowBar));
-            }
-        }
-        else
-        {
-            const char hollowBar[] = {
-                0b00111110,
-                0b00100010,
-                0b00100010,
-                0b00111110
-            };
-
-            const char simpleBar[] = {
-                0b00111110,
-                0b00111110,
-                0b00111110,
-                0b00111110
-            };
-
-            if(i < bars - 4) {
-                memcpy(p_line + (xpos + i * 5), &simpleBar, ARRAY_SIZE(simpleBar));
-            }
-            else {
-                memcpy(p_line + (xpos + i * 5), &hollowBar, ARRAY_SIZE(hollowBar));
-            }
-        }
-#else
-        if(i < bars - 4) {
-            for(uint8_t j = 0; j < 4; j++)
-                p_line[xpos + i * 5 + j] = (~(0x7F >> (i+1))) & 0x7F;
-        }
-        else {
-            memcpy(p_line + (xpos + i * 5), &hollowBar, ARRAY_SIZE(hollowBar));
-        }
-#endif
-    }
+	if (level > 0)
+	{
+		p[ 8] = 0b01000000;
+		if (level > 1)
+			p[ 9] = 0b01100000;
+		if (level > 2)
+			p[11] = 0b01110000;
+		if (level > 3)
+			p[12] = 0b01111000;
+		if (level > 4)
+			p[14] = 0b01111100;
+		if (level > 5)
+			p[15] = 0b01111110;
+	}
 }
 #endif
-
-#ifdef ENABLE_AUDIO_BAR
-
-// Approximation of a logarithmic scale using integer arithmetic
-uint8_t log2_approx(unsigned int value) {
-    uint8_t log = 0;
-    while (value >>= 1) {
-        log++;
-    }
-    return log;
-}
-
-#ifdef ENABLE_CW_MOD_KEYER
-void UI_DisplayCW(uint8_t line)
-{
-    const char *decoded = CW_GetDecodedText();
-    const char *symbols = CW_GetSymbolBuffer();
-    bool showCursor = (gFlashLightBlinkCounter % 40) < 20;
-    
-    // Clear line buffer
-    memset(gFrameBuffer[line], 0, LCD_WIDTH);
-
-    int symLen = symbols[0] ? strlen(symbols) : 0;
-    // Width of ">" + symbols in Smallest font (4px per char)
-    int symWidth = symLen ? (symLen + 1) * 4 : 0;
-    
-    // Available width for decoded text: 128 - 4(left) - 4(right) - symbolsWidth - 8(cursor)
-    int maxDecWidth = 120 - symWidth - 8;
-    int maxDecChars = maxDecWidth / 6;
-    if (maxDecChars < 0) maxDecChars = 0;
-
-    int decLen = decoded ? strlen(decoded) : 0;
-    const char *decStart = (decLen > maxDecChars) ? (decoded + decLen - maxDecChars) : decoded;
-    
-    // 1. Decoded text (SmallNormal)
-    UI_PrintStringSmallNormal(decStart, 4, 0, line);
-    
-    int decLenSeen = strlen(decStart);
-    uint8_t cursorX = 4 + (decLenSeen * 6);
-    
-    // 2. Block cursor (SmallNormal)
-    if (showCursor) {
-        UI_PrintStringSmallNormal("\x7F", cursorX, 0, line);
-    }
-
-    // 3. Current symbols (Smallest font)
-    if (symLen) {
-        char prompt[16];
-        snprintf(prompt, sizeof(prompt), " %s", symbols);
-        // Right-aligned with 4px padding
-        UI_PrintStringSmallest(prompt, 128 - 4 - symWidth, line * 8 + 1, false, true);
-    }
-    
-    ST7565_BlitLine(line);
-}
-#endif
-
-void UI_DisplayAudioBar(void)
-{
-    if (gSetting_mic_bar)
-    {
-        if(gLowBattery && !gLowBatteryConfirmed)
-            return;
-
-#ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-        RxBlinkLed = 0;
-        RxBlinkLedCounter = 0;
-        BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
-        unsigned int line;
-        if (isMainOnly())
-        {
-            line = 5;
-        }
-        else
-        {
-            line = 3;
-        }
-#else
-        const unsigned int line = 3;
-#endif
-
-        if (gCurrentFunction != FUNCTION_TRANSMIT ||
-            gScreenToDisplay != DISPLAY_MAIN
-#ifdef ENABLE_DTMF_CALLING
-            || gDTMF_CallState != DTMF_CALL_STATE_NONE
-#endif
-            )
-        {
-            return;  // screen is in use
-        }
-
-#if defined(ENABLE_ALARM) || defined(ENABLE_TX1750)
-        if (gAlarmState != ALARM_STATE_OFF)
-            return;
-#endif
-
-        uint8_t *p_line = gFrameBuffer[line];
-        memset(p_line, 0, LCD_WIDTH);
-
-#ifdef ENABLE_CW_MOD_KEYER
-        if (gTxVfo->Modulation == MODULATION_CW) {
-            UI_DisplayCW(line);
-            return;
-        }
-#endif
-
-        // Matoz-style Mic Bar logic corrected
-        // Read register 0x6F for AF level
-        // Range approx 26 (noise) to 127 (max)
-        uint8_t afDB = BK4819_ReadRegister(0x6F) & 0b1111111;
-        
-        // Calculate constrained pixel width (Max 81px to stop at X=105, text at 109)
-        // ConvertDomain(val, min, max, out_min, out_max)
-        uint8_t afPX = ConvertDomain(afDB, 26, 127, 0, 81);
-
-        const uint8_t BAR_LEFT_MARGIN = 24;
-        
-        for (int i = 0; i < afPX; i += 4) {
-            uint8_t x = BAR_LEFT_MARGIN + i;
-            if (x + 3 > 105) break; // Safety stop before text area
-
-            p_line[x] = p_line[x + 2] = 0b00111110;
-            p_line[x + 1] = 0b00111110; // Solid bar for visibility
-        }
-
-        // Display dB value
-        char String[16];
-        sprintf(String, "%d dB", afDB);
-        UI_PrintStringSmallest(String, 109, line * 8 + 1, false, true);
-
-        if (gCurrentFunction == FUNCTION_TRANSMIT)
-            ST7565_BlitFullScreen();
-    }
-}
-#endif
-
-
-// RSSI helpers for Matoz style bar
-static const uint8_t U8RssiMap[] = { 121, 115, 109, 103, 97, 91, 85, 79, 73, 63 };
-
-static uint8_t DBm2S(int dbm) {
-    uint8_t i = 0;
-    dbm *= -1;
-    for (i = 0; i < ARRAY_SIZE(U8RssiMap); i++) {
-        if (dbm >= U8RssiMap[i]) return i;
-    }
-    return i;
-}
-
-static int Rssi2DBm(uint16_t rssi) {
-    return (rssi / 2) - 160 + dBmCorrTable[gRxVfo->Band];
-}
-
-void DisplayRSSIBar(const bool now)
-{
-#if defined(ENABLE_RSSI_BAR)
-    const unsigned int line = 3;
-    uint8_t *p_line = gFrameBuffer[line];
-    char str[16];
-
-    // Clear the line
-    memset(p_line, 0, 128);
-
-    // Get RSSI and convert
-    int16_t rssi = BK4819_GetRSSI();
-    int dBm = Rssi2DBm(rssi);
-    uint8_t s = DBm2S(dBm);
-
-    // Draw Bar (Matoz style)
-    const uint8_t BAR_LEFT_MARGIN = 24;
-    for (int i = BAR_LEFT_MARGIN, sv = 1; i < BAR_LEFT_MARGIN + s * 4; i += 4, sv++) {
-        if (i + 3 < 128) {
-            p_line[i] = p_line[i + 2] = 0b00111110;
-            p_line[i + 1] = (sv > 9) ? 0b00100010 : 0b00111110;
-        }
-    }
-
-    // Draw dBm text (Tiny) at X=110
-    sprintf(str, "%d %s", dBm, "dBm");
-    UI_PrintStringSmallest(str, 100, line * 8 + 1, false, true);
-
-    // Draw S-unit text (Tiny) at X=3
-    if (s < 10) {
-        sprintf(str, "S%u", s);
-    } else {
-        sprintf(str, "S9+%u0", s - 9);
-    }
-    UI_PrintStringSmallest(str, 3, line * 8 + 1, false, true);
-
-    if (now) ST7565_BlitLine(line);
-#endif
-}
-
-
 
 #ifdef ENABLE_AGC_SHOW_DATA
 void UI_MAIN_PrintAGC(bool now)
@@ -410,7 +167,9 @@ void UI_MAIN_TimeSlice500ms(void)
 #endif
 
         if(FUNCTION_IsRx()) {
-            DisplayRSSIBar(true);
+#ifdef ENABLE_RSSI_BAR
+            UI_DisplayRSSIBar(true);
+#endif
         }
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS // Blink Green Led for white...
         else if(gSetting_set_eot > 0 && RxBlinkLed == 2)
@@ -541,7 +300,9 @@ void UI_DisplayMain(void)
         }
         const bool         isMainVFO  = (vfo_num == gEeprom.TX_VFO);
         uint8_t           *p_line0    = gFrameBuffer[line + 0];
+#if !defined(ENABLE_RSSI_BAR) && !defined(ENABLE_MIC_BAR)
         uint8_t           *p_line1    = gFrameBuffer[line + 1];
+#endif
 
         enum Vfo_txtr_mode mode       = VFO_MODE_NONE;      
         char              attrStr[32]; // Buffer for concatenated attributes
@@ -552,7 +313,6 @@ void UI_DisplayMain(void)
         const unsigned int line       = (vfo_num == 0) ? line0 : line1;
         const bool         isMainVFO  = (vfo_num == gEeprom.TX_VFO);
         uint8_t           *p_line0    = gFrameBuffer[line + 0];
-        uint8_t           *p_line1    = gFrameBuffer[line + 1];
         enum Vfo_txtr_mode mode       = VFO_MODE_NONE;
 #endif
 
@@ -611,11 +371,13 @@ void UI_DisplayMain(void)
 #endif
 
 
-            if (gDTMF_InputMode
 #ifdef ENABLE_DTMF_CALLING
+            if (gDTMF_InputMode
                 || gDTMF_CallState != DTMF_CALL_STATE_NONE || gDTMF_IsTx
-#endif
             ) {
+#else
+            if (false) {
+#endif
                 char *pPrintStr = "";
                 // show DTMF stuff
 #ifdef ENABLE_DTMF_CALLING
@@ -644,11 +406,11 @@ void UI_DisplayMain(void)
                     }
                 }
                 else
-#endif
                 {
                     sprintf(String, ">%s", gDTMF_InputBox);
                     pPrintStr = String;
                 }
+#endif
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
                 if (isMainOnly())
@@ -976,43 +738,14 @@ void UI_DisplayMain(void)
         // ************
 
         {   // show the TX/RX level
-            int8_t Level = -1;
-
-            if (mode == VFO_MODE_TX)
-            {   // TX power level
-                /*
-                switch (gRxVfo->OUTPUT_POWER)
-                {
-                    case OUTPUT_POWER_LOW1:     Level = 2; break;
-                    case OUTPUT_POWER_LOW2:     Level = 2; break;
-                    case OUTPUT_POWER_LOW3:     Level = 2; break;
-                    case OUTPUT_POWER_LOW4:     Level = 2; break;
-                    case OUTPUT_POWER_LOW5:     Level = 2; break;
-                    case OUTPUT_POWER_MID:      Level = 4; break;
-                    case OUTPUT_POWER_HIGH:     Level = 6; break;
-                }
-
-                if (gRxVfo->OUTPUT_POWER == OUTPUT_POWER_MID) {
-                    Level = 4;
-                } else if (gRxVfo->OUTPUT_POWER == OUTPUT_POWER_HIGH) {
-                    Level = 6;
-                } else {
-                    Level = 2;
-                }
-                */
-                Level = gRxVfo->OUTPUT_POWER - 1;
-            }
-            else
             if (mode == VFO_MODE_RX)
             {   // RX signal level
-                #ifndef ENABLE_RSSI_BAR
-                    // bar graph
-                    if (gVFO_RSSI_bar_level[vfo_num] > 0)
-                        Level = gVFO_RSSI_bar_level[vfo_num];
-                #endif
+#if !defined(ENABLE_RSSI_BAR) && !defined(ENABLE_MIC_BAR)
+                if (gVFO_RSSI_bar_level[vfo_num] > 0) {
+                    DrawSmallAntennaAndBars(p_line1 + 110, gVFO_RSSI_bar_level[vfo_num]);
+                }
+#endif
             }
-            //if(Level >= 0)
-                //DrawSmallAntennaAndBars(p_line1 + LCD_WIDTH, Level);
         }
 
         // ************
@@ -1128,9 +861,9 @@ void UI_DisplayMain(void)
 
         const bool rx = FUNCTION_IsRx();
 
-#ifdef ENABLE_AUDIO_BAR
+#ifdef ENABLE_MIC_BAR
         if (gSetting_mic_bar && gCurrentFunction == FUNCTION_TRANSMIT) {
-            center_line = CENTER_LINE_AUDIO_BAR;
+            center_line = CENTER_LINE_MIC_BAR;
             UI_DisplayAudioBar();
         }
         else
@@ -1156,12 +889,13 @@ void UI_DisplayMain(void)
 #ifdef ENABLE_RSSI_BAR
         if (rx) {
             center_line = CENTER_LINE_RSSI;
-            DisplayRSSIBar(false);
+            UI_DisplayRSSIBar(false);
         }
         else
 #endif
         if (rx || gCurrentFunction == FUNCTION_FOREGROUND || gCurrentFunction == FUNCTION_POWER_SAVE)
         {
+#ifdef ENABLE_DTMF_CALLING
             #if 1
                 if (gSetting_live_DTMF_decoder && gDTMF_RX_live[0] != 0)
                 {   // show live DTMF decode
@@ -1169,9 +903,7 @@ void UI_DisplayMain(void)
                     const unsigned int idx = (len > (17 - 5)) ? len - (17 - 5) : 0;  // limit to last 'n' chars
 
                     if (gScreenToDisplay != DISPLAY_MAIN
-#ifdef ENABLE_DTMF_CALLING
                         || gDTMF_CallState != DTMF_CALL_STATE_NONE
-#endif
                         )
                         return;
 
@@ -1208,6 +940,7 @@ void UI_DisplayMain(void)
                     UI_PrintStringSmallNormal(String, 2, 0, 3);
                 }
             #endif
+#endif
 
 #ifdef ENABLE_SHOW_CHARGE_LEVEL
             else if (gChargingWithTypeC)

@@ -199,7 +199,7 @@ extern enum BacklightOnRxTx_t gSetting_backlight_on_tx_rx;
     extern uint8_t            gSetting_set_audio;
 #endif
 
-#ifdef ENABLE_AUDIO_BAR
+#ifdef ENABLE_MIC_BAR
     extern bool              gSetting_mic_bar;
 #endif
 extern bool                  gSetting_live_DTMF_decoder;

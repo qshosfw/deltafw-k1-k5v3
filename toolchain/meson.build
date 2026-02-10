@@ -146,6 +146,7 @@ sources = files(
   '../src/ui/helper.c',
   '../src/ui/inputbox.c',
   '../src/ui/main.c',
+  '../src/ui/bar.c',
   '../src/ui/menu.c',
   '../src/apps/scanner/scanner_ui.c',
   '../src/ui/status.c',
@@ -351,8 +352,8 @@ if get_option('RSSI_BAR')
   defines += '-DENABLE_RSSI_BAR'
 endif
 
-if get_option('AUDIO_BAR')
-  defines += '-DENABLE_AUDIO_BAR'
+if get_option('MIC_BAR')
+  defines += '-DENABLE_MIC_BAR'
 endif
 
 if get_option('SHOW_CHARGE_LEVEL')
@@ -461,6 +462,19 @@ endif
 
 if get_option('FIRMWARE_DEBUG_LOGGING')
   defines += '-DENABLE_FIRMWARE_DEBUG_LOGGING'
+endif
+
+if get_option('AM_FIX')
+  defines += '-DENABLE_AM_FIX'
+  sources += files('../src/am_fix.c')
+endif
+
+if get_option('AM_FIX_SHOW_DATA')
+  defines += '-DENABLE_AM_FIX_SHOW_DATA'
+endif
+
+if get_option('BATTERY_CHARGING')
+  defines += '-DENABLE_BATTERY_CHARGING'
 endif
 
 if get_option('IDENTIFIER')

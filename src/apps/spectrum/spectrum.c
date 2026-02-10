@@ -972,8 +972,7 @@ static void DrawStatus()
 #endif
     UI_PrintStringSmallest(String, 0, 0, true, true);
 
-    BOARD_ADC_GetBatteryInfo(&gBatteryVoltages[gBatteryCheckCounter++ % 4],
-                             &gBatteryCurrent);
+    BOARD_ADC_GetBatteryInfo(&gBatteryVoltages[gBatteryCheckCounter++ % 4]);
 
     uint16_t voltage = (gBatteryVoltages[0] + gBatteryVoltages[1] +
                         gBatteryVoltages[2] + gBatteryVoltages[3]) /

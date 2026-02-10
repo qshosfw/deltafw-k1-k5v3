@@ -1413,7 +1413,7 @@ void APP_TimeSlice10ms(void)
 
     if (gCurrentFunction == FUNCTION_TRANSMIT)
     {   // transmitting
-#ifdef ENABLE_AUDIO_BAR
+#ifdef ENABLE_MIC_BAR
         if (gSetting_mic_bar && (gFlashLightBlinkCounter % (150 / 10)) == 0) // once every 150ms
             UI_DisplayAudioBar();
 #endif
@@ -1712,9 +1712,9 @@ void APP_TimeSlice500ms(void)
 
     if (gReducedService)
     {
-        BOARD_ADC_GetBatteryInfo(&gBatteryCurrentVoltage, &gBatteryCurrent);
+        BOARD_ADC_GetBatteryInfo(&gBatteryCurrentVoltage);
 
-        if (gBatteryCurrent > 500 || gBatteryCalibration[3] < gBatteryCurrentVoltage)
+        if (gBatteryCalibration[3] < gBatteryCurrentVoltage)
         {
             #ifdef ENABLE_OVERLAY
                 overlay_FLASH_RebootToBootloader();
@@ -1732,7 +1732,7 @@ void APP_TimeSlice500ms(void)
 
     if (gCurrentFunction != FUNCTION_TRANSMIT)
     {
-        BOARD_ADC_GetBatteryInfo(&gBatteryVoltages[gBatteryVoltageIndex++], &gBatteryCurrent);
+        BOARD_ADC_GetBatteryInfo(&gBatteryVoltages[gBatteryVoltageIndex++]);
         if (gBatteryVoltageIndex > 3)
             gBatteryVoltageIndex = 0;
         BATTERY_GetReadings(true);

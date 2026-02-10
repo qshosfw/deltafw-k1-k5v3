@@ -28,7 +28,6 @@ typedef enum {
     INFO_MAC,
 #endif
     INFO_BATTERY,
-    INFO_CURRENT,
     INFO_CHARGING,
     INFO_RAM,
     INFO_LICENSE,
@@ -52,7 +51,6 @@ static const char* GetInfoLabel(InfoItem item) {
         case INFO_MAC:      return "MAC";
 #endif
         case INFO_BATTERY:  return "Battery";
-        case INFO_CURRENT:  return "Current";
         case INFO_CHARGING: return "Charging";
         case INFO_RAM:      return "RAM";
         case INFO_LICENSE:  return "License";
@@ -89,11 +87,6 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
             uint16_t voltage = gBatteryVoltageAverage;
             uint8_t percent = BATTERY_VoltsToPercent(voltage);
             snprintf(buf, buflen, "%u.%02uV %u%%", voltage / 100, voltage % 100, percent);
-            break;
-        }
-        case INFO_CURRENT: {
-            // Display raw ADC value for current sensing
-            snprintf(buf, buflen, "ADC: %u", gBatteryCurrent);
             break;
         }
         case INFO_CHARGING:

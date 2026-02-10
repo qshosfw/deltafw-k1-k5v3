@@ -646,7 +646,7 @@ void UI_DisplayMenu(void)
             break;
 
         case MENU_MIC_BAR:
-            #ifdef ENABLE_AUDIO_BAR
+            #ifdef ENABLE_MIC_BAR
                 strcpy(String, gSubMenu_OFF_ON[gSubMenuSelection]);
             #else
                 strcpy(String, gSubMenu_NA);

@@ -23,7 +23,7 @@
 void     BOARD_FLASH_Init(void);
 void     BOARD_GPIO_Init(void);
 void     BOARD_ADC_Init(void);
-void     BOARD_ADC_GetBatteryInfo(uint16_t *pVoltage, uint16_t *pCurrent);
+void     BOARD_ADC_GetBatteryInfo(uint16_t *pVoltage);
 void     BOARD_Init(void);
 
 #endif

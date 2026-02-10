@@ -29,7 +29,6 @@
 
 uint16_t          gBatteryCalibration[6];
 uint16_t          gBatteryCurrentVoltage;
-uint16_t          gBatteryCurrent;
 uint16_t          gBatteryVoltages[4];
 uint16_t          gBatteryVoltageAverage;
 uint8_t           gBatteryDisplayLevel;
@@ -131,10 +130,12 @@ unsigned int BATTERY_VoltsToPercent(const unsigned int voltage_10mV)
 
 void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
 {
+#ifdef ENABLE_BATTERY_CHARGING
     static uint16_t ChargingCounter = 0;
     static uint16_t BaseVoltage = 0;
-    static uint16_t TxCooldown = 0;
-    static uint16_t RecoveryCountdown = 0;
+    static uint16_t PreTxVoltage = 0;
+    static uint16_t RecoveryTimer = 0;
+#endif
     
     const uint8_t  PreviousBatteryLevel = gBatteryDisplayLevel;
     const uint16_t RawVoltage           = (gBatteryVoltages[0] + gBatteryVoltages[1] + gBatteryVoltages[2] + gBatteryVoltages[3]) / 4;
@@ -142,14 +143,14 @@ void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
 
     // --- Advanced Charging Detection Logic ---
 
-    // 1. TX Protection: Pause detection AND voltage averaging during TX and cooldown
+#ifdef ENABLE_BATTERY_CHARGING
+    // 1. TX Monitoring & Baseline Capture
     if (gCurrentFunction == FUNCTION_TRANSMIT) {
-        TxCooldown = 12; // ~6 seconds cooldown (assuming 500ms tick)
-        RecoveryCountdown = 30; // 15 seconds recovery phase
-        return;
-    }
-    if (TxCooldown > 0) {
-        TxCooldown--;
+        // Capture baseline voltage right before or during TX (if not already captured)
+        if (PreTxVoltage == 0) {
+            PreTxVoltage = gBatteryVoltageAverage;
+        }
+        RecoveryTimer = 60; // Start 30s recovery timer (500ms ticks)
         return;
     }
 
@@ -158,20 +159,29 @@ void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
     if (gBatteryVoltageAverage == 0) gBatteryVoltageAverage = NewVoltage;
     gBatteryVoltageAverage = (gBatteryVoltageAverage * 3 + NewVoltage) / 4;
 
-    // 2. Recovery Phase (Anti-Bounceback)
-    // Force invalidation of charging detection while voltage is recovering relative to the floor
-    if (RecoveryCountdown > 0) {
-        RecoveryCountdown--;
-        BaseVoltage = gBatteryVoltageAverage; // Force sync to ride the wave up
-        ChargingCounter = 0; // Prevent triggering
-        return; // Skip normal detection
+    // 2. Recovery & Stabilization Phase (Post-TX)
+    if (RecoveryTimer > 0) {
+        RecoveryTimer--;
+        
+        // Stabilization check: wait for voltage to settle back towards PreTxVoltage
+        // We allow detection if voltage is <= PreTx + 1 (10mV bounce is okay)
+        // OR if the timer expires (failsafe)
+        if (gBatteryVoltageAverage > (PreTxVoltage + 1) && RecoveryTimer > 0) {
+            // Still bouncing, ignore for charging detection
+            BaseVoltage = gBatteryVoltageAverage; // Follow the bounce down
+            ChargingCounter = 0;
+            return; 
+        }
+        // Stabilized or timed out
+        PreTxVoltage = 0; 
     }
+#else
+    // Standard smoothing if charging logic is disabled
+    if (gBatteryVoltageAverage == 0) gBatteryVoltageAverage = NewVoltage;
+    gBatteryVoltageAverage = (gBatteryVoltageAverage * 3 + NewVoltage) / 4;
+#endif
 
-    // 3. Slope / Resting Floor Detection
-    if (BaseVoltage == 0) BaseVoltage = gBatteryVoltageAverage;
-
-    const uint16_t Threshold = 5; // 50mV - Higher sensitivity with EMA
-
+    // Update display level based on smoothed average
     if(gBatteryVoltageAverage > 890)
         gBatteryDisplayLevel = 7; // battery overvoltage
     else if(gBatteryVoltageAverage < 630 && (gEeprom.BATTERY_TYPE == BATTERY_TYPE_1600_MAH || gEeprom.BATTERY_TYPE == BATTERY_TYPE_2200_MAH))
@@ -194,11 +204,11 @@ void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
     if ((gScreenToDisplay == DISPLAY_MENU) && UI_MENU_GetCurrentMenuId() == MENU_VOL)
         gUpdateDisplay = true;
 
-    // 1. TX Protection: Pause detection during TX and for a cooldown period
-    // This block was moved and modified above.
+#ifdef ENABLE_BATTERY_CHARGING
+    // 3. Charging Detection Logic
+    if (BaseVoltage == 0) BaseVoltage = gBatteryVoltageAverage;
 
-    // 2. Slope / Resting Floor Detection
-    // This block was moved and modified above.
+    const uint16_t Threshold = 5; // 50mV sensitivity
 
     if (!gIsCharging) {
         if (gBatteryVoltageAverage > (BaseVoltage + Threshold)) {
@@ -219,20 +229,19 @@ void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
             }
         }
 
-        if (ChargingCounter >= 4) { // ~2 seconds of sustained high voltage (> Base + 50mV)
+        if (ChargingCounter >= 5) { // ~2.5 seconds of sustained rise
             gIsCharging = true;
             gUpdateStatus = true;
             gUpdateDisplay = true;
             BACKLIGHT_TurnOn();
-            BaseVoltage = gBatteryVoltageAverage; // Reset base to the new "charging floor"
+            BaseVoltage = gBatteryVoltageAverage; // Reset floor to current voltage
         }
     } else {
-        // We are already in "Charging" state.
-        // Track the peak voltage seen while charging.
+        // Track the peak voltage seen while charging
         if (gBatteryVoltageAverage > BaseVoltage) {
             BaseVoltage = gBatteryVoltageAverage;
-        } else if (gBatteryVoltageAverage < (BaseVoltage - 7)) {
-            // Sudden drop of 7 units (70mV) from the peak - unplugged!
+        } else if (gBatteryVoltageAverage < (BaseVoltage - 8)) {
+            // Sudden drop of 80mV from charging peak - unplugged!
             gIsCharging = false;
             ChargingCounter = 0;
             gUpdateStatus = true;
@@ -240,7 +249,7 @@ void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
             BaseVoltage = gBatteryVoltageAverage;
         }
     }
-    // --------------------------------
+#endif
 
     if (PreviousBatteryLevel != gBatteryDisplayLevel)
     {

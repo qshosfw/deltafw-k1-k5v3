@@ -230,7 +230,7 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
                 case MENU_AM_FIX:
             #endif
         #endif
-        #ifdef ENABLE_AUDIO_BAR
+        #ifdef ENABLE_MIC_BAR
             case MENU_MIC_BAR:
         #endif
         case MENU_BCL:
@@ -691,7 +691,7 @@ void MENU_AcceptSetting(void)
             gFlagReconfigureVfos = true;
             break;
 
-        #ifdef ENABLE_AUDIO_BAR
+        #ifdef ENABLE_MIC_BAR
             case MENU_MIC_BAR:
                 gSetting_mic_bar = gSubMenuSelection;
                 break;
@@ -1178,7 +1178,7 @@ void MENU_ShowCurrentSetting(void)
             gSubMenuSelection = gEeprom.MIC_SENSITIVITY;
             break;
 
-#ifdef ENABLE_AUDIO_BAR
+#ifdef ENABLE_MIC_BAR
         case MENU_MIC_BAR:
             gSubMenuSelection = gSetting_mic_bar;
             break;
