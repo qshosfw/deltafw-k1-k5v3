@@ -149,6 +149,10 @@ void FUNCTION_PowerSave() {
 
     BK4819_ToggleGpioOut(BK4819_GPIO0_PIN28_RX_ENABLE, false);
 
+    // Clear LEDs on Power Save
+    BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, false);
+    BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
+
     gUpdateStatus = true;
 
     if (gScreenToDisplay != DISPLAY_MENU)     // 1of11 .. don't close the menu
@@ -203,7 +207,8 @@ void FUNCTION_Transmit()
 
     RADIO_SetTxParameters();
 
-    // turn the RED LED on
+    // CUSTOM: Ensure Green is OFF and RED is ON for Transmit
+    BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
     BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, true);
 
     DTMF_Reply();
@@ -294,6 +299,9 @@ void FUNCTION_Select(FUNCTION_Type_t Function)
     */
 
     if (Function == FUNCTION_FOREGROUND) {
+        // Clear LEDs when returning to foreground/idle
+        BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, false);
+        BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
         FUNCTION_Foreground(PreviousFunction);
         return;
     }
@@ -305,8 +313,27 @@ void FUNCTION_Select(FUNCTION_Type_t Function)
 
     if (Function == FUNCTION_TRANSMIT) {
         FUNCTION_Transmit();
-    } else if (Function == FUNCTION_MONITOR) {
-        gMonitor = true;
+    } else if (Function == FUNCTION_MONITOR || Function == FUNCTION_RECEIVE || Function == FUNCTION_INCOMING) {
+        if (Function == FUNCTION_MONITOR) {
+            gMonitor = true;
+        }
+
+        // --- CUSTOM YELLOW/GREEN LED LOGIC ---
+        uint32_t frequency = gRxVfo->pRX->Frequency;
+
+        if (frequency >= 40000000 && frequency <= 47000000) {
+            // 70cm -> YELLOW (RED + GREEN)
+            BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, true);
+            BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, true);
+        } else {
+            // 2m/Other -> GREEN ONLY
+            BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, false);
+            BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, true);
+        }
+    } else {
+        // Fallback: Clear LEDs for any other state
+        BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, false);
+        BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
     }
 
     gBatterySaveCountdown_10ms = battery_save_count_10ms;
