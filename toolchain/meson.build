@@ -488,7 +488,7 @@ endif
 defines += '-DSQL_TONE=550'
 
 # Create Executable
-elf = executable('deltafw.elf',
+elf = executable('deltafw',
   sources,
   c_args : defines,
   link_args : link_args,

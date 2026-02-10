@@ -122,25 +122,21 @@ build_preset() {
     # Single build directory as requested
     BUILD_DIR="build"
 
-    # Logic: Always wipe and start fresh as requested
-    if [ -d "$BUILD_DIR" ]; then
-        # Use docker (root) to remove potentially root-owned files and fix parent dir permissions
-        # We wipe the CONTENTS of build to keep the dir itself if possible, or just nuke it.
-        docker run --rm -v "$PWD":/src -w /src "$IMAGE" sh -c "rm -rf '$BUILD_DIR' && mkdir -p build && chmod -R 777 build && chown -R $(id -u):$(id -g) build"
-    fi
-
+    # Logic: Meson needs a clean directory or explicit reconfigure for different options.
+    # We use a preset-specific subdirectory for the build system itself,
+    # but we will copy the artifacts to the root build/ dir.
+    local PRESET_BUILD_DIR="${BUILD_DIR}/${preset}"
+    
     log_build "Configuring ${preset}..."
-    # Source dir is toolchain/ relative to root
-    # We pipe stderr to stdout (2>&1) so the formatter catches everything
     docker run --rm -u $(id -u):$(id -g) -v "$PWD":/src -w /src "$IMAGE" \
-        meson setup "$BUILD_DIR" toolchain \
+        sh -c "rm -rf '${PRESET_BUILD_DIR}' && mkdir -p '${PRESET_BUILD_DIR}'"
+
+    docker run --rm -u $(id -u):$(id -g) -v "$PWD":/src -w /src "$IMAGE" \
+        meson setup "${PRESET_BUILD_DIR}" toolchain \
         --cross-file toolchain/cross_arm.ini \
         "${MESON_ARGS[@]}" \
         "${EXTRA_ARGS[@]}" 2>&1 | python3 toolchain/build_formatter.py
 
-    # Compile
-    log_build "Compiling ${preset}..."
-    
     # Calculate version info for filename
     # VERSION comes from config.toml (get_project_info)
     if command -v git &> /dev/null; then
@@ -156,24 +152,25 @@ build_preset() {
     FILENAME_PACKED="${BASENAME}.packed.bin"
     FILENAME_QSH="${BASENAME}.qsh"
 
-    # Run build with formatter
-    # We pipe stderr to stdout (2>&1) so the formatter catches everything
+    # Compile
+    log_build "Compiling ${preset}..."
+    
     if docker run --rm -u $(id -u):$(id -g) -v "$PWD":/src -w /src "$IMAGE" \
-        meson compile -C "$BUILD_DIR" 2>&1 | python3 toolchain/build_formatter.py; then
+        meson compile -C "${PRESET_BUILD_DIR}" 2>&1 | python3 toolchain/build_formatter.py; then
         
         # Copy artifacts to build folder
         log_build "Finalizing artifacts..."
-        if [ -f "$BUILD_DIR/deltafw.bin" ]; then
-            cp "$BUILD_DIR/deltafw.bin" "$BUILD_DIR/$FILENAME_BIN"
-            [ -f "$BUILD_DIR/deltafw.hex" ] && cp "$BUILD_DIR/deltafw.hex" "$BUILD_DIR/$FILENAME_HEX"
-            [ -f "$BUILD_DIR/deltafw_packed.bin" ] && cp "$BUILD_DIR/deltafw_packed.bin" "$BUILD_DIR/$FILENAME_PACKED"
+        if [ -f "${PRESET_BUILD_DIR}/deltafw.bin" ]; then
+            cp "${PRESET_BUILD_DIR}/deltafw.bin" "$BUILD_DIR/$FILENAME_BIN"
+            [ -f "${PRESET_BUILD_DIR}/deltafw.hex" ] && cp "${PRESET_BUILD_DIR}/deltafw.hex" "$BUILD_DIR/$FILENAME_HEX"
+            [ -f "${PRESET_BUILD_DIR}/deltafw_packed.bin" ] && cp "${PRESET_BUILD_DIR}/deltafw_packed.bin" "$BUILD_DIR/$FILENAME_PACKED"
             
             # Pack into QSH Container
             FULL_GIT_MSG=$(git log -1 --pretty="%B" 2>/dev/null | tr -d '"' | tr '\n' ' ' || echo "")
             python3 toolchain/qsh_packer.py pack \
                 "$BUILD_DIR/$FILENAME_QSH" \
                 --type firmware \
-                --fw-bin "$BUILD_DIR/deltafw.bin" \
+                --fw-bin "${PRESET_BUILD_DIR}/deltafw.bin" \
                 --title "deltafw" \
                 --author "qshosfw" \
                 --desc "Preset: $preset | $FULL_GIT_MSG" \
@@ -184,7 +181,7 @@ build_preset() {
                 --fw-license "GPL-3.0" \
                 --fw-page-size 256 \
                 --fw-base-addr 0x08000000 \
-                --aux-file "$BUILD_DIR/deltafw.elf.elf" \
+                --aux-file "${PRESET_BUILD_DIR}/deltafw.elf" \
                 --aux-type "elf"
 
             end_time=$(date +%s)
@@ -204,6 +201,10 @@ build_preset() {
 
 print_logo
 log_info "Target Preset: ${BOLD}${PRESET}${RESET}"
+
+BUILD_DIR="build"
+mkdir -p "$BUILD_DIR"
+chmod 777 "$BUILD_DIR"
 
 if [[ "$PRESET" == "All" ]]; then
     # Dynamic list from config

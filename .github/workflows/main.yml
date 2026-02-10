@@ -41,7 +41,7 @@ jobs:
         path: |
           build/deltafw.custom.*.bin
           build/deltafw.custom.*.hex
-          build/deltafw.custom.*.qshfw
+          build/deltafw.custom.*.qsh
 
     - name: Upload Fusion firmware
       uses: actions/upload-artifact@v4
@@ -50,7 +50,7 @@ jobs:
         path: |
           build/deltafw.fusion.*.bin
           build/deltafw.fusion.*.hex
-          build/deltafw.fusion.*.qshfw
+          build/deltafw.fusion.*.qsh
 
     - name: Check for Release Condition
       id: check_release
@@ -68,12 +68,12 @@ jobs:
           
           ### SHA256 Checksums
           ```
-          $(sha256sum build/deltafw.*.bin build/deltafw.*.hex build/deltafw.*.qshfw | sed 's|build/||')
+          $(sha256sum build/deltafw.*.bin build/deltafw.*.hex build/deltafw.*.qsh | sed 's|build/||')
           ```
         files: |
           build/deltafw.*.bin
           build/deltafw.*.hex
-          build/deltafw.*.qshfw
+          build/deltafw.*.qsh
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
