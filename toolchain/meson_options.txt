@@ -45,6 +45,7 @@ option('CW_MOD_KEYER', type: 'boolean', value: true, description: 'Enable CW Key
 option('DTMF_CALLING', type: 'boolean', value: false, description: 'Enable DTMF Calling')
 option('SPECTRUM', type: 'boolean', value: false, description: 'Enable Spectrum Analyzer')
 option('SPECTRUM_EXTENSIONS', type: 'boolean', value: true, description: 'Enable Spectrum Extensions')
+option('SPECTRUM_ADVANCED', type: 'boolean', value: false, description: 'Enable Advanced Spectrum Features')
 option('APP_BREAKOUT_GAME', type: 'boolean', value: false, description: 'Enable Breakout Game')
 option('REGA', type: 'boolean', value: false, description: 'Enable REGA')
 option('PMR446_FREQUENCY_BAND', type: 'boolean', value: false, description: 'Enable PMR446 Frequency Band')

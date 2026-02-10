@@ -421,7 +421,9 @@ endif
 if get_option('SPECTRUM_EXTENSIONS')
   defines += '-DENABLE_SPECTRUM_EXTENSIONS'
 endif
-
+if get_option('SPECTRUM_ADVANCED')
+  defines += '-DENABLE_SPECTRUM_ADVANCED'
+endif
 if get_option('APP_BREAKOUT_GAME')
   defines += '-DENABLE_APP_BREAKOUT_GAME'
   sources += files('../src/features/breakout.c')

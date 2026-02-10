@@ -108,11 +108,12 @@ RESET_CHANNEL_FUNCTION = false
 # 🧩 Apps & Features
 SPECTRUM = true
 SPECTRUM_EXTENSIONS = true
+SPECTRUM_ADVANCED = false
 
 AIRCOPY = false
 SERIAL_SCREENCAST = true
 APP_BREAKOUT_GAME = false
-CW_MOD_KEYER = false
+CW_MOD_KEYER = true
 DTMF_CALLING = false
 RESCUE_OPERATIONS = false
 REGA = false
