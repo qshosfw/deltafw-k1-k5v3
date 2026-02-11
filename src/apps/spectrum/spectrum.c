@@ -1064,8 +1064,8 @@ static void DrawWaterfall(void)
         { 15,  7, 13,  5 }
     };
 
-    const uint8_t WATERFALL_START_Y = 41;
-    const uint8_t WATERFALL_HEIGHT = WATERFALL_HISTORY_DEPTH;
+    const uint8_t WATERFALL_START_Y = 44;
+    const uint8_t WATERFALL_HEIGHT = 16;
     const uint8_t WATERFALL_WIDTH = 128;
     const uint16_t SPEC_WIDTH = GetStepsCount();
     const float xScale = (float)SPEC_WIDTH / WATERFALL_WIDTH;
@@ -1599,6 +1599,7 @@ static void OnKeyDown(uint8_t key)
     case KEY_9:
         if (!gFKeyActive) {
             FreqInput();
+            freqInputTimer = 800; // ~2 seconds (Spectrum Tick is very fast)
             UpdateFreqInput(key);
         } else {
             gFKeyActive = false;
@@ -1662,6 +1663,7 @@ static void OnKeyDownFreqInput(uint8_t key)
     case KEY_9:
     case KEY_STAR:
         UpdateFreqInput(key);
+        freqInputTimer = 800; // Reset timeout
         break;
     case KEY_EXIT:
         if (freqInputIndex == 0)
@@ -1670,6 +1672,7 @@ static void OnKeyDownFreqInput(uint8_t key)
             break;
         }
         UpdateFreqInput(key);
+        freqInputTimer = 800; // Reset timeout
         break;
     case KEY_MENU:
         if (tempFreq < F_MIN || tempFreq > F_MAX)
@@ -1754,6 +1757,7 @@ void OnKeyDownStill(KEY_Code_t key)
     case KEY_9:
         if (!gFKeyActive) {
             FreqInput();
+            freqInputTimer = 800; // Reset timeout
             UpdateFreqInput(key);
         } else {
             gFKeyActive = false;

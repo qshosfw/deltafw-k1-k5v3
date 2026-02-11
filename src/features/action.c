@@ -285,7 +285,7 @@ void ACTION_SwitchDemodul(void)
 
 void ACTION_Handle(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 {
-#ifdef ENABLE_CW_MOD_KEYER
+#ifdef ENABLE_CW_KEYER
     // CW mode: SIDE1/SIDE2/PTT are reserved for CW keying, bypass normal actions
     if (gTxVfo->Modulation == MODULATION_CW && 
         (Key == KEY_SIDE1 || Key == KEY_SIDE2 || Key == KEY_PTT)) {

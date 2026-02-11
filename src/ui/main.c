@@ -42,7 +42,7 @@
     #include "drivers/bsp/system.h"
 #endif
 
-#ifdef ENABLE_CW_MOD_KEYER
+#ifdef ENABLE_CW_KEYER
     #include "features/cw.h"
 #endif
 
@@ -168,6 +168,7 @@ void UI_MAIN_TimeSlice500ms(void)
 
         if(FUNCTION_IsRx()) {
 #ifdef ENABLE_RSSI_BAR
+        if (gRxVfo->Modulation != MODULATION_CW)
             UI_DisplayRSSIBar(true);
 #endif
         }
@@ -225,12 +226,16 @@ void UI_MAIN_TimeSlice500ms(void)
 
 // ***************************************************************************
 
+#ifdef ENABLE_CW_KEYER
+// (Function moved to features/cw.c)
+#endif
+
 void UI_DisplayMain(void)
 {
     char               String[22];
 
     center_line = CENTER_LINE_NONE;
-#ifdef ENABLE_CW_MOD_KEYER
+#ifdef ENABLE_CW_KEYER
     if (gTxVfo->Modulation == MODULATION_CW || gRxVfo->Modulation == MODULATION_CW) {
         center_line = CENTER_LINE_CW;
     }
@@ -863,8 +868,10 @@ void UI_DisplayMain(void)
 
 #ifdef ENABLE_MIC_BAR
         if (gSetting_mic_bar && gCurrentFunction == FUNCTION_TRANSMIT) {
-            center_line = CENTER_LINE_MIC_BAR;
-            UI_DisplayAudioBar();
+            if (gRxVfo->Modulation != MODULATION_CW) {
+                center_line = CENTER_LINE_MIC_BAR;
+                UI_DisplayAudioBar();
+            }
         }
         else
 #endif
@@ -888,8 +895,10 @@ void UI_DisplayMain(void)
 
 #ifdef ENABLE_RSSI_BAR
         if (rx) {
-            center_line = CENTER_LINE_RSSI;
-            UI_DisplayRSSIBar(false);
+            if (gRxVfo->Modulation != MODULATION_CW) {
+                center_line = CENTER_LINE_RSSI;
+                UI_DisplayRSSIBar(false);
+            }
         }
         else
 #endif
@@ -962,10 +971,12 @@ void UI_DisplayMain(void)
 #endif
         }
     }
-#ifdef ENABLE_CW_MOD_KEYER
+#ifdef ENABLE_CW_KEYER
     else if (center_line == CENTER_LINE_CW)
     {
+#ifdef ENABLE_CW_KEYER
         UI_DisplayCW(isMainOnly() ? 5 : 3);
+#endif
     }
 #endif
 

@@ -404,8 +404,8 @@ if get_option('CUSTOM_MENU_LAYOUT')
   defines += '-DENABLE_CUSTOM_MENU_LAYOUT'
 endif
 
-if get_option('CW_MOD_KEYER')
-  defines += '-DENABLE_CW_MOD_KEYER'
+if get_option('CW_KEYER')
+  defines += '-DENABLE_CW_KEYER'
   sources += files('../src/features/cw.c')
 endif
 

@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef ENABLE_CW_MOD_KEYER
+#ifdef ENABLE_CW_KEYER
 
 // CW Timing Parameters (~15 WPM)
 #define CW_TONE_FREQ_HZ         600     // Standard CW sidetone frequency
@@ -83,6 +83,7 @@ typedef struct {
     
     // Adaptive WPM tracking
     uint16_t        avgDotMs;
+    uint16_t        avgDashMs;
     uint16_t        rxDotMs;
     
     // Decoder element buffer
@@ -101,8 +102,22 @@ typedef struct {
     bool            rxSignalOn;
     uint16_t        rxSignalTimer_10ms;
     uint16_t        rxGapTimer_10ms;
+    uint16_t        rxGlitchTimer_10ms;
     uint16_t        avgNoiseRSSI;
+    uint16_t        avgGlitch;
+    uint16_t        avgNoiseIndicator;
+    uint16_t        rxNoiseFloor;
+    uint16_t        rxSignalPeak;
+    bool            wasAgcEnabled;
+
+    // Debugging
+    bool            debug;
+    uint16_t        lastRSSI;
+    uint8_t         lastNoise;
+    uint8_t         lastAf;
 } CW_Context_t;
+
+extern CW_Context_t gCW;
 
 // Main API
 void CW_Init(void);
@@ -117,9 +132,11 @@ void CW_StraightKeyUp(void);
 // Query
 bool CW_IsBusy(void);           // Is there work to do?
 const char* CW_GetDecodedText(void);
-const char* CW_GetSymbolBuffer(void); // Get current symbol sequence
 void CW_ClearDecoded(void);
 
-#endif // ENABLE_CW_MOD_KEYER
+// UI
+void UI_DisplayCW(uint8_t line);
+
+#endif // ENABLE_CW_KEYER
 
 #endif // CW_H

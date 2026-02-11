@@ -875,7 +875,7 @@ static void HandleVox(void)
                     FUNCTION_Select(FUNCTION_FOREGROUND);
             }
             else {
-#ifdef ENABLE_CW_MOD_KEYER
+#ifdef ENABLE_CW_KEYER
                 // CW mode: TX managed by CW module, don't interfere
                 if (gTxVfo->Modulation == MODULATION_CW && CW_IsBusy()) {
                     return;  // Let CW module handle TX end
@@ -1414,7 +1414,7 @@ void APP_TimeSlice10ms(void)
     if (gCurrentFunction == FUNCTION_TRANSMIT)
     {   // transmitting
 #ifdef ENABLE_MIC_BAR
-        if (gSetting_mic_bar && (gFlashLightBlinkCounter % (150 / 10)) == 0) // once every 150ms
+        if (gSetting_mic_bar && (gFlashLightBlinkCounter % (150 / 10)) == 0 && gTxVfo->Modulation != MODULATION_CW) // once every 150ms
             UI_DisplayAudioBar();
 #endif
     }

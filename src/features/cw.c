@@ -15,7 +15,7 @@
 
 #include "cw.h"
 
-#ifdef ENABLE_CW_MOD_KEYER
+#ifdef ENABLE_CW_KEYER
 
 #include <string.h>
 #include "drivers/bsp/bk4819.h"
@@ -24,9 +24,16 @@
 #include "radio.h"
 #include "functions.h"
 #include "core/misc.h"
+#include "drivers/bsp/st7565.h"
+#include "external/printf/printf.h"
+#include "ui/helper.h"
+#include "ui/main.h"
+
+extern bool gUpdateDisplay;
+extern volatile uint16_t gFlashLightBlinkCounter;
 
 // Global CW context
-static CW_Context_t gCW;
+CW_Context_t gCW;
 static uint16_t gCW_HangTimer_10ms = 0;
 #define CW_HANG_TIME_MS 500
 
@@ -75,11 +82,9 @@ static void CW_AddDecodedChar(char c)
     gCW.symbolLen = 0;
     gCW.symbolBuf[0] = '\0';
     
-    // allow '?' to be stored and displayed
     if (c == 0) return;
     
     if (gCW.textLen >= CW_DECODE_BUF_SIZE) {
-        // Shift buffer
         memmove(gCW.textBuf, gCW.textBuf + 1, CW_DECODE_BUF_SIZE - 1);
         gCW.textLen--;
     }
@@ -91,74 +96,43 @@ static void CW_AddDecodedChar(char c)
 // Internal: Add symbol to live buffer (e.g. '.' or '-')
 static void CW_AddSymbol(char s)
 {
-    if (gCW.symbolLen >= 8) return; // Max 8 symbols
+    if (gCW.symbolLen >= 8) return; 
     gCW.symbolBuf[gCW.symbolLen++] = s;
     gCW.symbolBuf[gCW.symbolLen] = '\0';
     gUpdateDisplay = true;
 }
 
-// Internal: Start TX with proper setup (like BK4819_TransmitTone)
+// Internal: Start TX with proper setup
 static void CW_StartTX(void)
 {
-    // Set up TX like FUNCTION_Transmit does for other modes
     FUNCTION_Select(FUNCTION_TRANSMIT);
-    
-    // Now set up tone output using exact BK4819_TransmitTone pattern:
     BK4819_EnterTxMute();
-    
-    // Set up tone registers
     BK4819_WriteRegister(BK4819_REG_70, 
         BK4819_REG_70_MASK_ENABLE_TONE1 | (66u << BK4819_REG_70_SHIFT_TONE1_TUNING_GAIN));
     BK4819_WriteRegister(BK4819_REG_71, (uint16_t)(CW_TONE_FREQ_HZ * 10.32444f));
-    
-    // Enable sidetone
     BK4819_SetAF(BK4819_AF_BEEP);
-    
-    // Enable TX link (mic disabled, tone output enabled)
     BK4819_EnableTXLink();
-    
-    // Audio path for sidetone
     AUDIO_AudioPathOn();
     gEnableSpeaker = true;
     
-    // Wait for TX to stabilize (reduced for better responsiveness)
-    // SYSTEM_DelayMs(50); // Removed as it blocks 10ms tick and UI
-    
     gCW.state = CW_STATE_TX_STARTING;
-    gCW.timer_10ms = 2;  // 20ms startup delay instead of 50ms
+    gCW.timer_10ms = 2;  
 }
 
 // Internal: Stop TX
 static void CW_StopTX(void)
 {
-    // Mute everything first
     BK4819_EnterTxMute();
     BK4819_WriteRegister(BK4819_REG_70, 0);
     BK4819_SetAF(BK4819_AF_MUTE);
-    
-    // Explicitly disable TX Link (and usage of REG_30)
-    // This helps prevent noise when switching back to RX
     BK4819_WriteRegister(BK4819_REG_30, 0);
-    
-    // End transmission
     FUNCTION_Select(FUNCTION_FOREGROUND);
-    
     gCW.state = CW_STATE_IDLE;
 }
 
-// Internal: Start playing a tone
-static void CW_ToneOn(void)
-{
-    BK4819_ExitTxMute();
-}
+static void CW_ToneOn(void) { BK4819_ExitTxMute(); }
+static void CW_ToneOff(void) { BK4819_EnterTxMute(); }
 
-// Internal: Stop playing tone (stay in TX)
-static void CW_ToneOff(void)
-{
-    BK4819_EnterTxMute();
-}
-
-// Internal: Queue helper
 static bool CW_QueuePush(CW_Element_t elem)
 {
     if (gCW.queueCount >= CW_QUEUE_SIZE) return false;
@@ -177,142 +151,168 @@ static bool CW_QueuePop(CW_Element_t *elem)
     return true;
 }
 
-// Public API
-
 void CW_Init(void)
 {
     memset(&gCW, 0, sizeof(gCW));
     gCW.state = CW_STATE_IDLE;
-    gCW.avgDotMs = CW_DOT_MS; // Initialize with default speed
-    gCW.avgNoiseRSSI = 40; // Sensible default noise floor
+    gCW.avgDotMs = 60;  // Start at 20 WPM
+    gCW.avgDashMs = 180;
+    gCW.avgNoiseRSSI = 50; 
+    gCW.rxNoiseFloor = 10;
+    gCW.rxSignalPeak = 30;
+    gCW.avgNoiseIndicator = 40;
+    gCW.debug = true;
 }
 
-void CW_SetDitPaddle(bool pressed)
-{
-    gCW.paddle.dit = pressed;
-    // If queue is empty and idle, we can kickstart it immediately (optional)
-}
+void CW_SetDitPaddle(bool pressed) { gCW.paddle.dit = pressed; }
+void CW_SetDahPaddle(bool pressed) { gCW.paddle.dah = pressed; }
+void CW_StraightKeyDown(void) { CW_QueuePush(CW_ELEM_STRAIGHT_START); }
+void CW_StraightKeyUp(void) { CW_QueuePush(CW_ELEM_STRAIGHT_STOP); }
 
-void CW_SetDahPaddle(bool pressed)
-{
-    gCW.paddle.dah = pressed;
-}
-
-void CW_StraightKeyDown(void)
-{
-    // Straight key bypasses queue logic for start, but uses queue for stop scheduling?
-    // User requested "3 keys collect / add to queue".
-    // For PTT/Straight, we usually just want immediate TX.
-    // But let's stick to the queue API for consistency if possible, or just direct control.
-    // PTT straight key usually overrides everything.
-    CW_QueuePush(CW_ELEM_STRAIGHT_START);
-}
-
-void CW_StraightKeyUp(void)
-{
-    CW_QueuePush(CW_ELEM_STRAIGHT_STOP);
-}
-
-// Internal: Process paddles and fill queue
 static void CW_ProcessPaddles(void)
 {
-    // Latch any paddle press that isn't already latched
     if (gCW.paddle.dit) gCW.paddle.latchDit = true;
     if (gCW.paddle.dah) gCW.paddle.latchDah = true;
-    
-    // If we are in IDLE, the state machine in Tick10ms will kick off 
-    // the next element if either latch is set.
 }
 
 void CW_Tick10ms(void)
 {
     // -------------------------------------------------------------------------
-    // RX Processing (only when not transmitting and in CW mode)
+    // RX Processing
     // -------------------------------------------------------------------------
-    if (gCW.state == CW_STATE_IDLE && FUNCTION_IsRx() && gRxVfo->Modulation == MODULATION_CW) {
+    // AGC Management: Disable for CW to get sharp R/A drops, restore otherwise.
+    bool inCwMode = (gRxVfo->Modulation == MODULATION_CW);
+    bool isRxOrForeground = (FUNCTION_IsRx() || gCurrentFunction == FUNCTION_FOREGROUND);
+    
+    if (inCwMode && isRxOrForeground) {
+        if (!gCW.wasAgcEnabled) { // Borrowing this as "is AGC currently disabled by us"
+            BK4819_SetAGC(false);
+            gCW.wasAgcEnabled = true;
+        }
+    } else if (gCW.wasAgcEnabled) {
+        BK4819_SetAGC(true);
+        gCW.wasAgcEnabled = false;
+    }
+
+    if (gCW.state == CW_STATE_IDLE && isRxOrForeground && inCwMode) {
         uint16_t rssi = BK4819_GetRSSI();
+        uint8_t noise = BK4819_GetExNoiseIndicator();
+        uint8_t afTxRx = BK4819_GetAfTxRx();
         
-        // Dynamic threshold: Signal is present if it's significantly above the noise floor
-        // We use a small hysterisis by requiring a larger jump to start and a smaller gap to end.
-        uint16_t triggerThresh = gCW.avgNoiseRSSI + 8; // ~4dB jump (0.5dB per unit)
-        uint16_t holdThresh = gCW.avgNoiseRSSI + 4;    // ~2dB hold
+        gCW.lastRSSI = rssi;
+        gCW.lastNoise = noise;
+        gCW.lastAf = afTxRx;
+        gUpdateDisplay = true; 
         
-        bool signalPresent = gCW.rxSignalOn ? (rssi >= holdThresh) : (rssi >= triggerThresh);
+        bool startup = (gCW.rxSignalTimer_10ms == 0 && gCW.rxGapTimer_10ms < 200); 
         
-        // Floor-seeking noise floor tracker:
-        // Drop quickly to follow downward noise trends (fast adaptation)
-        // Rise very slowly to ignore the actual Morse signals (slow adaptation)
-        if (rssi < gCW.avgNoiseRSSI) {
-            gCW.avgNoiseRSSI = (gCW.avgNoiseRSSI * 3 + rssi) / 4;
-        } else if (!signalPresent) {
-            // Only rise if no signal is detected, and do it very slowly
-            gCW.avgNoiseRSSI = (gCW.avgNoiseRSSI * 127 + rssi) / 128;
+        bool rssiTrigger = (rssi >= gCW.avgNoiseRSSI + 12); 
+        bool rssiHold    = (rssi >= gCW.avgNoiseRSSI + 6);  
+        
+        // --- Envelope Follower for AF Level (A) ---
+        // noiseFloor: slowly tracks when signal is OFF
+        // signalPeak: fast attack, slow leak when signal is ON
+        if (!gCW.rxSignalOn) {
+            // Update noise floor slowly
+            gCW.rxNoiseFloor = (gCW.rxNoiseFloor * 63 + afTxRx) / 64;
+            if (gCW.rxNoiseFloor < 2) gCW.rxNoiseFloor = 2;
+        } else {
+            // Update peak: fast attack
+            if (afTxRx > gCW.rxSignalPeak) gCW.rxSignalPeak = afTxRx;
+            // Slow leak (decay) to follow fading
+            else gCW.rxSignalPeak = (gCW.rxSignalPeak * 511 + afTxRx) / 512;
+            
+            if (gCW.rxSignalPeak < gCW.rxNoiseFloor + 10) gCW.rxSignalPeak = gCW.rxNoiseFloor + 10;
         }
 
-        if (signalPresent) {
-            if (!gCW.rxSignalOn) {
-                // Signal started
-                gCW.rxSignalOn = true;
-                gCW.rxSignalTimer_10ms = 0;
-                gCW.rxGapTimer_10ms = 0;
+        // Schmitt Trigger Logic
+        uint16_t threshold = gCW.rxNoiseFloor + (gCW.rxSignalPeak - gCW.rxNoiseFloor) / 2;
+        bool afTrigger = (afTxRx > threshold + 2);
+        bool afHold    = (afTxRx > threshold - 2);
+
+        // 3. Noise Indicator (M) - Primary Carrier Release
+        bool mStartTrigger = (noise < gCW.avgNoiseIndicator - 16);
+        bool mHoldTrigger  = (noise < gCW.avgNoiseIndicator - 8);
+
+        bool signalDetected;
+        if (!gCW.rxSignalOn) {
+            // Signal START requires AF trigger AND M drop (AND RSSI jump for safety)
+            signalDetected = afTrigger && mStartTrigger && rssiTrigger;
+        } else {
+            // Signal HOLD: prioritize AF and M release
+            if (rssi > gCW.avgNoiseRSSI + 100) {
+                signalDetected = afHold && mHoldTrigger;
             } else {
-                gCW.rxSignalTimer_10ms++;
+                signalDetected = (rssiHold || afHold) && mHoldTrigger;
+            }
+        }
+
+        // Glitch Filter / Debouncer (30ms)
+        if (signalDetected != gCW.rxSignalOn) {
+            gCW.rxGlitchTimer_10ms++;
+            if (gCW.rxGlitchTimer_10ms >= 3 || startup) { 
+                gCW.rxSignalOn = signalDetected;
+                gCW.rxGlitchTimer_10ms = 0;
+                
+                if (gCW.rxSignalOn) {
+                    gCW.rxSignalTimer_10ms = 0;
+                    gCW.rxGapTimer_10ms = 0;
+                } else {
+                    // FALLING EDGE: Classify element
+                    uint16_t ms = gCW.rxSignalTimer_10ms * 10;
+                    if (ms > 20 && ms < 1000) {
+                        uint16_t distDot = (ms > gCW.avgDotMs) ? (ms - gCW.avgDotMs) : (gCW.avgDotMs - ms);
+                        uint16_t distDash = (ms > gCW.avgDashMs) ? (ms - gCW.avgDashMs) : (gCW.avgDashMs - ms);
+                        bool isDah = (distDash < distDot);
+
+                        if (!isDah) {
+                            gCW.avgDotMs = (gCW.avgDotMs * 7 + ms) / 8;
+                            if (gCW.avgDashMs < gCW.avgDotMs * 2) gCW.avgDashMs = gCW.avgDotMs * 3;
+                        } else {
+                            gCW.avgDashMs = (gCW.avgDashMs * 7 + ms) / 8;
+                            if (gCW.avgDotMs > gCW.avgDashMs / 2) gCW.avgDotMs = gCW.avgDashMs / 3;
+                        }
+                        if (gCW.avgDotMs < 20) gCW.avgDotMs = 20;
+                        if (gCW.avgDotMs > 250) gCW.avgDotMs = 250;
+                        if (gCW.avgDashMs < 60) gCW.avgDashMs = 60;
+                        if (gCW.avgDashMs > 750) gCW.avgDashMs = 750;
+
+                        if (gCW.decodeCount < CW_ELEMENT_BUF_SIZE) 
+                            gCW.decodeBuf[gCW.decodeCount++] = isDah ? 1 : 0;
+                        CW_AddSymbol(isDah ? '-' : '.');
+                    }
+                    gCW.rxGapTimer_10ms = 0;
+                }
             }
         } else {
-            if (gCW.rxSignalOn) {
-                // Signal stopped - classify element
-                gCW.rxSignalOn = false;
-                uint16_t ms = gCW.rxSignalTimer_10ms * 10;
-                
-                // Dynamic breakpoints based on current tracked speed
-                uint16_t dotLen = gCW.avgDotMs;
-                if (dotLen < 30) dotLen = 30; // Max ~40 WPM limit for stability
-                
-                uint16_t threshold = (dotLen * 3) / 2; // Breakpoint at 1.5x dot
-                bool isDah = ms >= threshold;
+            gCW.rxGlitchTimer_10ms = 0;
+        }
 
-                if (!isDah) {
-                    // Fast adaptation for dots (alpha = 0.5)
-                    gCW.avgDotMs = (gCW.avgDotMs + ms) / 2;
-                } else if (ms < dotLen * 5) {
-                    // Also adapt to dahs if reasonable (alpha = 0.5 for the 1/3 dash length)
-                    gCW.avgDotMs = (gCW.avgDotMs + (ms / 3)) / 2;
-                }
-                
-                // Clamp to reasonable WPM (5 to 50 WPM -> 240ms to 24ms)
-                if (gCW.avgDotMs < 20) gCW.avgDotMs = 20;
-                if (gCW.avgDotMs > 250) gCW.avgDotMs = 250;
-                
-                // Add to decoder
-                if (gCW.decodeCount < CW_ELEMENT_BUF_SIZE) {
-                    gCW.decodeBuf[gCW.decodeCount++] = isDah ? 1 : 0;
-                }
-                
-                // Add to live symbol buffer
-                CW_AddSymbol(isDah ? '-' : '.');
-                
-                gCW.rxGapTimer_10ms = 0;
-            } else {
-                gCW.rxGapTimer_10ms++;
-                uint16_t gapMs = gCW.rxGapTimer_10ms * 10;
-                uint16_t dotLen = gCW.avgDotMs;
+        if (gCW.rxSignalOn) {
+            gCW.rxSignalTimer_10ms++;
+        } else {
+            // Floor Tracking for RSSI and M
+            uint16_t alpha = startup ? 7 : 63; 
+            if (rssi > gCW.avgNoiseRSSI) alpha = 15; 
+            gCW.avgNoiseRSSI = (gCW.avgNoiseRSSI * alpha + rssi) / (alpha + 1);
+            gCW.avgNoiseIndicator = (gCW.avgNoiseIndicator * alpha + noise) / (alpha + 1);
+            if (gCW.avgNoiseRSSI < 10) gCW.avgNoiseRSSI = 10;
 
-                // Dynamic thresholds: 2.5x dot for char gap, 5x dot for word gap
-                // (Using slightly tighter tolerances than 3x/7x for better live feel)
-                if (gapMs >= (dotLen * 5) / 2) { 
-                    if (gCW.decodeCount > 0) {
-                        CW_AddDecodedChar(CW_DecodeElements());
-                        gCW.decodeCount = 0;
-                    }
+            // Gap Processing
+            gCW.rxGapTimer_10ms++;
+            uint16_t gapMs = gCW.rxGapTimer_10ms * 10;
+            uint16_t dotLen = gCW.avgDotMs;
+            if (gapMs >= (dotLen * 5) / 2) { 
+                if (gCW.decodeCount > 0) {
+                    CW_AddDecodedChar(CW_DecodeElements());
+                    gCW.decodeCount = 0;
                 }
-                if (gapMs >= (dotLen * 5)) {
-                    // Only add one space
-                    if (gCW.textLen > 0 && gCW.textBuf[gCW.textLen-1] != ' ') {
-                        CW_AddDecodedChar(' ');
-                    }
-                    // Reset gap timer so we don't spam spaces
-                    gCW.rxGapTimer_10ms = 0; 
+            }
+            if (gapMs >= (dotLen * 5)) {
+                if (gCW.textLen > 0 && gCW.textBuf[gCW.textLen-1] != ' ') {
+                    CW_AddDecodedChar(' ');
                 }
+                gCW.rxGapTimer_10ms = 0; 
             }
         }
     }
@@ -320,23 +320,18 @@ void CW_Tick10ms(void)
     // -------------------------------------------------------------------------
     // TX Processing
     // -------------------------------------------------------------------------
-
-    // Update paddle latches
     CW_ProcessPaddles();
 
-    // Check if we need to start TX
     if (gCW.state == CW_STATE_IDLE && (gCW.paddle.latchDit || gCW.paddle.latchDah || gCW.queueCount > 0)) {
         CW_StartTX();
         return;
     }
     
-    // Process TX state machine
     switch (gCW.state) {
         case CW_STATE_TX_STARTING:
-            if (gCW.timer_10ms > 0) {
-                gCW.timer_10ms--;
-            } else {
-                gCW.state = CW_STATE_GAP; // Jump to gap to pick up first element
+            if (gCW.timer_10ms > 0) gCW.timer_10ms--;
+            else {
+                gCW.state = CW_STATE_GAP; 
                 gCW.timer_10ms = 0;
                 gCW.duration_10ms = 0;
             }
@@ -355,23 +350,14 @@ void CW_Tick10ms(void)
         case CW_STATE_GAP:
             gCW.timer_10ms++;
             gCW.gapTimer_10ms++;
-            
-            // Gap logic moved to a shared block or IDLE below
-
             if (gCW.timer_10ms >= gCW.duration_10ms) {
-                // Gap complete, decide next element (Iambic priority)
-                bool playDit = false;
-                bool playDah = false;
+                bool playDit = false, playDah = false;
                 static bool lastWasDit = false;
 
-                if (gCW.paddle.latchDit && gCW.paddle.latchDah) {
-                    if (lastWasDit) playDah = true; else playDit = true;
-                } else if (gCW.paddle.latchDit) {
-                    playDit = true;
-                } else if (gCW.paddle.latchDah) {
-                    playDah = true;
-                } else {
-                    // Check queue for programmed/straight
+                if (gCW.paddle.latchDit && gCW.paddle.latchDah) { if (lastWasDit) playDah = true; else playDit = true; }
+                else if (gCW.paddle.latchDit) playDit = true;
+                else if (gCW.paddle.latchDah) playDah = true;
+                else {
                     CW_Element_t elem;
                     if (CW_QueuePop(&elem)) {
                         if (elem == CW_ELEM_DIT) playDit = true;
@@ -386,29 +372,18 @@ void CW_Tick10ms(void)
                 }
 
                 if (playDit) {
-                    gCW.paddle.latchDit = false;
-                    lastWasDit = true;
-                    CW_ToneOn();
-                    gCW.state = CW_STATE_PLAYING_TONE;
-                    gCW.duration_10ms = CW_DOT_MS / 10;
-                    gCW.timer_10ms = 0;
-                    gCW.gapTimer_10ms = 0;
-                    if (gCW.decodeCount < CW_ELEMENT_BUF_SIZE)
-                        gCW.decodeBuf[gCW.decodeCount++] = 0;
+                    gCW.paddle.latchDit = false; lastWasDit = true;
+                    CW_ToneOn(); gCW.state = CW_STATE_PLAYING_TONE;
+                    gCW.duration_10ms = CW_DOT_MS / 10; gCW.timer_10ms = 0; gCW.gapTimer_10ms = 0;
+                    if (gCW.decodeCount < CW_ELEMENT_BUF_SIZE) gCW.decodeBuf[gCW.decodeCount++] = 0;
                     CW_AddSymbol('.');
                 } else if (playDah) {
-                    gCW.paddle.latchDah = false;
-                    lastWasDit = false;
-                    CW_ToneOn();
-                    gCW.state = CW_STATE_PLAYING_TONE;
-                    gCW.duration_10ms = CW_DASH_MS / 10;
-                    gCW.timer_10ms = 0;
-                    gCW.gapTimer_10ms = 0;
-                    if (gCW.decodeCount < CW_ELEMENT_BUF_SIZE)
-                        gCW.decodeBuf[gCW.decodeCount++] = 1;
+                    gCW.paddle.latchDah = false; lastWasDit = false;
+                    CW_ToneOn(); gCW.state = CW_STATE_PLAYING_TONE;
+                    gCW.duration_10ms = CW_DASH_MS / 10; gCW.timer_10ms = 0; gCW.gapTimer_10ms = 0;
+                    if (gCW.decodeCount < CW_ELEMENT_BUF_SIZE) gCW.decodeBuf[gCW.decodeCount++] = 1;
                     CW_AddSymbol('-');
                 } else {
-                    // Nothing to play, wait for hang timer in IDLE
                     gCW_HangTimer_10ms = 0;
                     gCW.state = CW_STATE_IDLE;
                 }
@@ -419,22 +394,14 @@ void CW_Tick10ms(void)
             if (FUNCTION_IsTx()) {
                 gCW.gapTimer_10ms++;
                 uint16_t gapMs = gCW.gapTimer_10ms * 10;
-                // For TX, use the standard CW_DOT_MS as base
                 uint16_t dotLen = CW_DOT_MS;
-
-                if (gapMs >= (dotLen * 25) / 10) { // 2.5x dot
-                    if (gCW.decodeCount > 0) {
-                        CW_AddDecodedChar(CW_DecodeElements());
-                        gCW.decodeCount = 0;
-                    }
+                if (gapMs >= (dotLen * 25) / 10) { 
+                    if (gCW.decodeCount > 0) { CW_AddDecodedChar(CW_DecodeElements()); gCW.decodeCount = 0; }
                 }
-                if (gapMs >= (dotLen * 5)) { // 5x dot
-                    if (gCW.textLen > 0 && gCW.textBuf[gCW.textLen-1] != ' ') {
-                        CW_AddDecodedChar(' ');
-                    }
+                if (gapMs >= (dotLen * 5)) {
+                    if (gCW.textLen > 0 && gCW.textBuf[gCW.textLen-1] != ' ') CW_AddDecodedChar(' ');
                     gCW.gapTimer_10ms = 0;
                 }
-
                 gCW_HangTimer_10ms++;
                 if (gCW_HangTimer_10ms * 10 >= CW_HANG_TIME_MS && gCW.queueCount == 0 && !gCW.paddle.dit && !gCW.paddle.dah && !gCW.straightKeyDown) {
                     CW_StopTX();
@@ -444,59 +411,58 @@ void CW_Tick10ms(void)
             
         case CW_STATE_STRAIGHT_TONE:
             gCW.straightTimer_10ms++;
-            // Check for stop in queue
             if (gCW.queueCount > 0 && gCW.queue[gCW.queueHead] == CW_ELEM_STRAIGHT_STOP) {
-                // Ensure minimum duration (one dot length) for auditability
-                if (gCW.straightTimer_10ms * 10 < CW_DOT_MS) {
-                    // Don't pop yet, wait until timer reaches CW_DOT_MS
-                    if (gCW.straightTimer_10ms * 10 < CW_DOT_MS) {
-                        return; 
-                    }
-                }
-
-                CW_Element_t dummy;
-                CW_QueuePop(&dummy);
+                if (gCW.straightTimer_10ms * 10 < CW_DOT_MS) return; 
+                CW_Element_t dummy; CW_QueuePop(&dummy);
                 CW_ToneOff();
-                // Record element based on duration
                 uint16_t ms = gCW.straightTimer_10ms * 10;
                 bool isDah = ms >= 150;
-                if (gCW.decodeCount < CW_ELEMENT_BUF_SIZE)
-                    gCW.decodeBuf[gCW.decodeCount++] = isDah ? 1 : 0;
+                if (gCW.decodeCount < CW_ELEMENT_BUF_SIZE) gCW.decodeBuf[gCW.decodeCount++] = isDah ? 1 : 0;
                 CW_AddSymbol(isDah ? '-' : '.');
-                
-                gCW.state = CW_STATE_GAP;
-                gCW.timer_10ms = 0;
-                gCW.duration_10ms = CW_ELEMENT_GAP_MS / 10;
-                gCW.gapTimer_10ms = 0;
+                gCW.state = CW_STATE_GAP; gCW.timer_10ms = 0; gCW.duration_10ms = CW_ELEMENT_GAP_MS / 10; gCW.gapTimer_10ms = 0;
             }
             break;
-            
-        default:
-            break;
+        default: break;
     }
 }
 
-bool CW_IsBusy(void)
+bool CW_IsBusy(void) { return gCW.state != CW_STATE_IDLE || gCW.queueCount > 0; }
+const char* CW_GetDecodedText(void) { return gCW.textBuf; }
+const char* CW_GetSymbolBuffer(void) { return gCW.symbolBuf; }
+void CW_ClearDecoded(void) { gCW.textLen = 0; gCW.textBuf[0] = '\0'; gCW.symbolLen = 0; gCW.symbolBuf[0] = '\0'; }
+
+void UI_DisplayCW(uint8_t line)
 {
-    return gCW.state != CW_STATE_IDLE || gCW.queueCount > 0;
+    const char *decoded = CW_GetDecodedText();
+    const char *symbols = CW_GetSymbolBuffer();
+    bool showCursor = (gFlashLightBlinkCounter % 40) < 20;
+    memset(gFrameBuffer[line], 0, LCD_WIDTH);
+    int symLen = symbols[0] ? strlen(symbols) : 0;
+    int symWidth = symLen ? (symLen + 1) * 4 : 0;
+    int maxDecChars = (120 - symWidth - 8) / 6;
+    if (maxDecChars < 0) maxDecChars = 0;
+    int decLen = decoded ? strlen(decoded) : 0;
+    const char *decStart = (decLen > maxDecChars) ? (decoded + decLen - maxDecChars) : decoded;
+    UI_PrintStringSmallNormal(decStart, 4, 0, line);
+    if (showCursor) UI_PrintStringSmallNormal("\x7F", 4 + (strlen(decStart) * 6), 0, line);
+    if (symLen) {
+        char prompt[16]; prompt[0] = '>'; strcpy(prompt + 1, symbols);
+        UI_PrintStringSmallest(prompt, 128 - 4 - symWidth, line * 8 + 1, false, true);
+    }
+    if (gCW.debug) {
+        char debugStr[32];
+        uint16_t threshold = gCW.rxNoiseFloor + (gCW.rxSignalPeak - gCW.rxNoiseFloor) / 2;
+        sprintf(debugStr, "R:%u/%u T:%u P:%u F:%u M:%u/%u %u", 
+            gCW.lastRSSI, gCW.avgNoiseRSSI + 12,
+            threshold, gCW.rxSignalPeak, gCW.rxNoiseFloor,
+            gCW.lastNoise, gCW.avgNoiseIndicator + 12,
+            gFlashLightBlinkCounter % 10);
+        uint8_t debugLine = (line > 0) ? line - 1 : line + 1;
+        memset(gFrameBuffer[debugLine], 0, LCD_WIDTH);
+        UI_PrintStringSmallest(debugStr, 4, debugLine * 8 + 1, false, true);
+        ST7565_BlitLine(debugLine);
+    }
+    ST7565_BlitLine(line);
 }
 
-const char* CW_GetDecodedText(void)
-{
-    return gCW.textBuf;
-}
-
-const char* CW_GetSymbolBuffer(void)
-{
-    return gCW.symbolBuf;
-}
-
-void CW_ClearDecoded(void)
-{
-    gCW.textLen = 0;
-    gCW.textBuf[0] = '\0';
-    gCW.symbolLen = 0;
-    gCW.symbolBuf[0] = '\0';
-}
-
-#endif // ENABLE_CW_MOD_KEYER
+#endif // ENABLE_CW_KEYER

@@ -41,7 +41,7 @@ option('BLMIN_TMP_OFF', type: 'boolean', value: false, description: 'Enable BLMI
 option('KEEP_MEM_NAME', type: 'boolean', value: true, description: 'Enable Keep Memory Name')
 option('COPY_CHAN_TO_VFO', type: 'boolean', value: true, description: 'Enable Copy Channel to VFO')
 option('CUSTOM_MENU_LAYOUT', type: 'boolean', value: true, description: 'Enable Custom Menu Layout')
-option('CW_MOD_KEYER', type: 'boolean', value: true, description: 'Enable CW Keyer')
+option('CW_KEYER', type: 'boolean', value: true, description: 'Enable CW Keyer')
 option('DTMF_CALLING', type: 'boolean', value: false, description: 'Enable DTMF Calling')
 option('SPECTRUM', type: 'boolean', value: false, description: 'Enable Spectrum Analyzer')
 option('SPECTRUM_EXTENSIONS', type: 'boolean', value: true, description: 'Enable Spectrum Extensions')
