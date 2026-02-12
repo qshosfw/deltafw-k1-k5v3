@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.1.1"
+version = "1.1.2"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -107,8 +107,9 @@ RESET_CHANNEL_FUNCTION = false
 
 # 🧩 Apps & Features
 SPECTRUM = true
+SPECTRUM_WATERFALL = false
 SPECTRUM_EXTENSIONS = true
-SPECTRUM_ADVANCED = false
+SPECTRUM_EXTRA_VALUES = true
 
 AIRCOPY = false
 SERIAL_SCREENCAST = true

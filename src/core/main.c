@@ -35,13 +35,18 @@
         #include "ui/ui.h"
     #endif
     #ifdef ENABLE_SPECTRUM
-        #include "apps/spectrum/spectrum.h"
+        #ifdef ENABLE_SPECTRUM_WATERFALL
+            #include "apps/spectrum/spectrum_waterfall.h"
+        #else
+            #include "apps/spectrum/spectrum.h"
+        #endif
     #endif
     #include "apps/scanner/chFrScanner.h"
 #endif
 
 #include "features/app.h"
 #include "features/dtmf.h"
+#include "features/cw.h"
 
 #include "drivers/bsp/backlight.h"
 #include "drivers/bsp/bk4819.h"

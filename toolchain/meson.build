@@ -61,7 +61,9 @@ common_flags = [
   '-fno-common',
   '-ffunction-sections',
   '-fdata-sections',
-  '-Wno-type-limits'
+  '-Wno-type-limits',
+  '-fno-math-errno',
+  '-fno-trapping-math'
 ]
 
 add_project_arguments(common_flags, language : ['c', 'cpp'])
@@ -415,14 +417,20 @@ endif
 
 if get_option('SPECTRUM')
   defines += '-DENABLE_SPECTRUM'
-  sources += files('../src/apps/spectrum/spectrum.c')
-endif
-
-if get_option('SPECTRUM_EXTENSIONS')
-  defines += '-DENABLE_SPECTRUM_EXTENSIONS'
-endif
-if get_option('SPECTRUM_ADVANCED')
-  defines += '-DENABLE_SPECTRUM_ADVANCED'
+  if get_option('SPECTRUM_WATERFALL')
+    defines += '-DENABLE_SPECTRUM_WATERFALL'
+    defines += '-DENABLE_SPECTRUM_ADVANCED'
+    sources += files('../src/apps/spectrum/spectrum_waterfall.c')
+  else
+    sources += files('../src/apps/spectrum/spectrum.c')
+  endif
+ 
+  if get_option('SPECTRUM_EXTRA_VALUES')
+    defines += '-DENABLE_SPECTRUM_EXTRA_VALUES'
+  endif
+  if get_option('SPECTRUM_EXTENSIONS')
+    defines += '-DENABLE_SPECTRUM_EXTENSIONS'
+  endif
 endif
 if get_option('APP_BREAKOUT_GAME')
   defines += '-DENABLE_APP_BREAKOUT_GAME'
