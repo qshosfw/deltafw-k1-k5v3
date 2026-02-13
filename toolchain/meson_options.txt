@@ -66,4 +66,6 @@ option('AGC_SHOW_DATA', type: 'boolean', value: false, description: 'Enable AGC 
 option('UART_RW_BK_REGS', type: 'boolean', value: false, description: 'Enable UART RW BK Regs')
 option('SWD', type: 'boolean', value: false, description: 'Enable SWD')
 option('FASTER_CHANNEL_SCAN', type: 'boolean', value: true, description: 'Enable Faster Channel Scan')
+option('CRYPTO', type: 'boolean', value: true, description: 'Enable Advanced Crypto Library (ChaCha20, Poly1305, TRNG)')
+option('TRNG_SENSORS', type: 'boolean', value: true, description: 'Enable TRNG Sensors (Temp/VREF entropy)')
 option('EDITION_STRING', type: 'string', value: 'Custom', description: 'Edition String')

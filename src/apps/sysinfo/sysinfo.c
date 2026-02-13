@@ -13,6 +13,7 @@
 #include "apps/settings/settings.h"
 #include "external/printf/printf.h"
 #include "helper/identifier.h"
+#include "helper/crypto.h"
 #include "ui/hexdump.h"
 
 // Forward declarations
@@ -29,6 +30,7 @@ typedef enum {
 #endif
     INFO_BATTERY,
     INFO_CHARGING,
+    INFO_TEMP,
     INFO_RAM,
     INFO_LICENSE,
     INFO_COUNT
@@ -52,6 +54,7 @@ static const char* GetInfoLabel(InfoItem item) {
 #endif
         case INFO_BATTERY:  return "Battery";
         case INFO_CHARGING: return "Charging";
+        case INFO_TEMP:     return "Temp";
         case INFO_RAM:      return "RAM";
         case INFO_LICENSE:  return "License";
         default:            return "";
@@ -92,6 +95,21 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
         case INFO_CHARGING:
             snprintf(buf, buflen, "%s", gIsCharging ? "Yes" : "No");
             break;
+        case INFO_TEMP: {
+            // Temperature from internal sensor
+            float temp = TRNG_GetTemp();
+            int whole = (int)temp;
+            int frac = (int)((temp - whole) * 10);
+            if (frac < 0) frac = -frac;
+            
+            // Handle negative zero case (e.g. -0.5) where integer part is 0 but sign is needed
+            if (temp < 0 && whole == 0) {
+                snprintf(buf, buflen, "-%d.%d C", whole, frac);
+            } else {
+                snprintf(buf, buflen, "%d.%d C", whole, frac);
+            }
+            break;
+        }
         case INFO_RAM: {
             // Simple estimate: stack pointer region usage
             uint32_t used = 14016;  // From build output, or use runtime estimate

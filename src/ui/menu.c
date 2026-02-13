@@ -41,6 +41,7 @@
 #include "menu.h"
 #include "ag_menu.h"
 #include "ui.h"
+#include "helper/crypto.h"
 
 
 const t_menu_item MenuList[] =
@@ -1236,15 +1237,27 @@ void UI_DisplayMenu(void)
             // only for SysInf
             if(UI_MENU_GetCurrentMenuId() == MENU_VOL)
             {
+                // Battery Info
                 sprintf(edit, "%u.%02uV %u%%",
                     gBatteryVoltageAverage / 100, gBatteryVoltageAverage % 100,
                     BATTERY_VoltsToPercent(gBatteryVoltageAverage)
                 );
-
                 UI_PrintStringSmallNormal(edit, 54, 127, 1);
 
+                // Internal Sensors (Entropy Source Debug)
+                float t_val = TRNG_GetTemp(); // Currently returning VSense Voltage
+                float v_val = TRNG_GetVref(); // Currently returning Calculated VDDA
+                
+                // Temp Sensor Voltage
+                sprintf(String, "TS: %d.%03dV", (int)t_val, (int)((t_val - (int)t_val) * 1000));
+                UI_PrintStringSmallNormal(String, 54, 127, 3);
+                
+                // System VCC (from VREFINT)
+                sprintf(String, "VCC: %d.%03dV", (int)v_val, (int)((v_val - (int)v_val) * 1000));
+                UI_PrintStringSmallNormal(String, 54, 127, 4);
+
                 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-                    UI_PrintStringSmallNormal(Edition, 54, 127, 6);
+                    // UI_PrintStringSmallNormal(Edition, 54, 127, 6);
                 #endif
 
                 y = 2;

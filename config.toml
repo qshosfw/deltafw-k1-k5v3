@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.1.2"
+version = "1.2.1"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -138,3 +138,5 @@ BATTERY_CHARGING = true
 AGC_SHOW_DATA = false
 UART_RW_BK_REGS = false
 SWD = false
+CRYPTO = true
+TRNG_SENSORS = true

@@ -1,6 +1,7 @@
 #include "identifier.h"
 #include <string.h>
 #include "core/version.h"
+#include "crypto.h"
 
 #define CPU_ID_ADDR 0x1FFF3000
 
@@ -20,15 +21,7 @@ void GetDeviceInfo(DeviceInfo_t *info) {
     strncpy(info->BuildDate, BuildDate, sizeof(info->BuildDate) - 1);
 }
 
-// MurmurHash3 64-bit finalizer mix function
-static uint64_t fmix64(uint64_t k) {
-    k ^= k >> 33;
-    k *= 0xff51afd7ed558ccdULL;
-    k ^= k >> 33;
-    k *= 0xc4ceb9fe1a85ec53ULL;
-    k ^= k >> 33;
-    return k;
-}
+// fmix64 moved to crypto.c
 
 // Generates a deterministic 64-bit serial from the CPU ID
 // Uses 16 bytes of CPU ID mixed into a 64-bit value

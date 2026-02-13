@@ -492,6 +492,15 @@ if get_option('IDENTIFIER')
   sources += files('../src/helper/identifier.c')
 endif
 
+if get_option('CRYPTO')
+  defines += '-DENABLE_CRYPTO'
+  sources += files('../src/helper/crypto.c')
+endif
+
+if get_option('TRNG_SENSORS')
+  defines += '-DENABLE_TRNG_SENSORS'
+endif
+
 if get_option('AGC_SHOW_DATA')
   defines += '-DENABLE_AGC_SHOW_DATA'
 endif
