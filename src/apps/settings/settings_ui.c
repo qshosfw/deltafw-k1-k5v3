@@ -109,14 +109,67 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
         case MENU_ABR_ON_TX_RX:
              snprintf(buf, bufLen, "%s", gSubMenu_RX_TX[gSetting_backlight_on_tx_rx]);
              break;
-        #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+         #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         case MENU_SET_CTR:
              snprintf(buf, bufLen, "%d", gSetting_set_ctr);
              break;
         case MENU_SET_INV:
              snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_set_inv]);
              break;
+        case MENU_SET_LCK:
+             snprintf(buf, bufLen, "%s", gSubMenu_SET_LCK[gSetting_set_lck]);
+             break;
+        case MENU_SET_TMR:
+             snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_set_tmr]);
+             break;
+        #ifdef ENABLE_NARROWER_BW_FILTER
+        case MENU_SET_NFM:
+             snprintf(buf, bufLen, "%s", gSubMenu_SET_NFM[gSetting_set_nfm]);
+             break;
+        #endif
+        case MENU_SET_PWR:
+             snprintf(buf, bufLen, "%s", gSubMenu_SET_PWR[gSetting_set_pwr]);
+             break;
+        case MENU_SET_PTT:
+             snprintf(buf, bufLen, "%s", gSubMenu_SET_PTT[gSetting_set_ptt]);
+             break;
+        case MENU_SET_TOT:
+             snprintf(buf, bufLen, "%s", gSubMenu_SET_TOT[gSetting_set_tot]);
+             break;
+        case MENU_SET_EOT:
+             snprintf(buf, bufLen, "%s", gSubMenu_SET_TOT[gSetting_set_eot]);
+             break;
          #endif
+        #ifdef ENABLE_DEEP_SLEEP_MODE
+        case MENU_SET_OFF:
+             if (gSetting_set_off == 0) snprintf(buf, bufLen, "OFF");
+             else snprintf(buf, bufLen, "%d min", gSetting_set_off);
+             break;
+        #endif
+        case MENU_F1SHRT:
+        case MENU_F1LONG:
+        case MENU_F2SHRT:
+        case MENU_F2LONG:
+        case MENU_MLONG:
+             {
+                 uint8_t val = 0;
+                 if (settingId == MENU_F1SHRT)      val = gEeprom.KEY_1_SHORT_PRESS_ACTION;
+                 else if (settingId == MENU_F1LONG) val = gEeprom.KEY_1_LONG_PRESS_ACTION;
+                 else if (settingId == MENU_F2SHRT) val = gEeprom.KEY_2_SHORT_PRESS_ACTION;
+                 else if (settingId == MENU_F2LONG) val = gEeprom.KEY_2_LONG_PRESS_ACTION;
+                 else if (settingId == MENU_MLONG)  val = gEeprom.KEY_M_LONG_PRESS_ACTION;
+                 
+                 // Find name by ID in gSubMenu_SIDEFUNCTIONS
+                 const char* name = "NONE";
+                 for(int i=0; i<gSubMenu_SIDEFUNCTIONS_size; i++) {
+                     if(gSubMenu_SIDEFUNCTIONS[i].id == val) {
+                         name = gSubMenu_SIDEFUNCTIONS[i].name;
+                         break;
+                     }
+                 }
+                 snprintf(buf, bufLen, "%s", name);
+             }
+             break;
 
         // --- Radio ---
         case MENU_STEP:
@@ -366,7 +419,63 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
              gSetting_set_inv = !gSetting_set_inv;
              ST7565_ContrastAndInv();
              break;
+        case MENU_SET_LCK:
+             gSetting_set_lck = !gSetting_set_lck;
+             break;
+        case MENU_SET_TMR:
+             gSetting_set_tmr = !gSetting_set_tmr;
+             break;
+        #ifdef ENABLE_NARROWER_BW_FILTER
+        case MENU_SET_NFM:
+             gSetting_set_nfm = !gSetting_set_nfm;
+             break;
         #endif
+        case MENU_SET_PWR:
+             INC_DEC(gSetting_set_pwr, 0, ARRAY_SIZE(gSubMenu_SET_PWR) - 1, up);
+             break;
+        case MENU_SET_PTT:
+             INC_DEC(gSetting_set_ptt, 0, ARRAY_SIZE(gSubMenu_SET_PTT) - 1, up);
+             gSetting_set_ptt_session = gSetting_set_ptt;
+             break;
+        case MENU_SET_TOT:
+             INC_DEC(gSetting_set_tot, 0, ARRAY_SIZE(gSubMenu_SET_TOT) - 1, up);
+             break;
+        case MENU_SET_EOT:
+             INC_DEC(gSetting_set_eot, 0, ARRAY_SIZE(gSubMenu_SET_TOT) - 1, up);
+             break;
+        #endif
+        #ifdef ENABLE_DEEP_SLEEP_MODE
+        case MENU_SET_OFF:
+             INC_DEC(gSetting_set_off, 0, 120, up);
+             break;
+        #endif
+        case MENU_F1SHRT:
+        case MENU_F1LONG:
+        case MENU_F2SHRT:
+        case MENU_F2LONG:
+        case MENU_MLONG:
+             {
+                 uint8_t *val = NULL;
+                 if (settingId == MENU_F1SHRT)      val = &gEeprom.KEY_1_SHORT_PRESS_ACTION;
+                 else if (settingId == MENU_F1LONG) val = &gEeprom.KEY_1_LONG_PRESS_ACTION;
+                 else if (settingId == MENU_F2SHRT) val = &gEeprom.KEY_2_SHORT_PRESS_ACTION;
+                 else if (settingId == MENU_F2LONG) val = &gEeprom.KEY_2_LONG_PRESS_ACTION;
+                 else if (settingId == MENU_MLONG)  val = &gEeprom.KEY_M_LONG_PRESS_ACTION;
+                 
+                 if (val) {
+                     uint8_t currentId = *val;
+                     int idx = 0;
+                     for(int i=0; i<gSubMenu_SIDEFUNCTIONS_size; i++) {
+                         if(gSubMenu_SIDEFUNCTIONS[i].id == currentId) {
+                             idx = i;
+                             break;
+                         }
+                     }
+                     INC_DEC(idx, 0, gSubMenu_SIDEFUNCTIONS_size - 1, up);
+                     *val = gSubMenu_SIDEFUNCTIONS[idx].id;
+                 }
+             }
+             break;
 
         // --- Radio ---
         case MENU_STEP:
@@ -581,6 +690,10 @@ static const MenuItem soundItems[] = {
     #ifdef ENABLE_ALARM
     {"Alarm", MENU_AL_MOD, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #endif
+    #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+    {"Tail Alert",  MENU_SET_EOT, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Beep Timer",    MENU_SET_TMR, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    #endif
 };
 static Menu soundMenu = {
     .title = "Audio", .items = soundItems, .num_items = ARRAY_SIZE(soundItems),
@@ -625,6 +738,10 @@ static const MenuItem radioItems[] = {
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     {"Tx Lock", MENU_TX_LOCK, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"350 En", MENU_350EN, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Power Logic", MENU_SET_PWR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    #ifdef ENABLE_NARROWER_BW_FILTER
+    {"NFM Filter",  MENU_SET_NFM, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    #endif
     #endif
 };
 static Menu radioMenu = {
@@ -655,11 +772,19 @@ static Menu dtmfMenu = {
 // System
 static const MenuItem systemItems[] = {
     {"Tx Timeout", MENU_TOT, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+    {"Tx TO Alert", MENU_SET_TOT, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    #endif
     {"Auto Lock", MENU_AUTOLK, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+    {"Lock Mode",    MENU_SET_LCK, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    #endif
     {"Dual Watch", MENU_TDR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Bat Save", MENU_SAVE, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Bat Type", MENU_BATTYP, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
-    {"Nav Layout", MENU_SET_NAV, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    #ifdef ENABLE_DEEP_SLEEP_MODE
+    {"Deep Sleep",  MENU_SET_OFF, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    #endif
     #ifdef ENABLE_EEPROM_HEXDUMP
     {"Mem Hex Dump", MENU_MEMVIEW, NULL, NULL, NULL, Action_MemView, M_ITEM_ACTION},
     #endif
@@ -669,13 +794,31 @@ static Menu systemMenu = {
     .x = 0, .y = MENU_Y, .width = LCD_WIDTH, .height = LCD_HEIGHT - MENU_Y, .itemHeight = MENU_ITEM_H
 };
 
+// Buttons
+static const MenuItem buttonItems[] = {
+    #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+    {"Push to Talk", MENU_SET_PTT, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Nav Layout", MENU_SET_NAV, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    #endif
+    {"F1 Short",    MENU_F1SHRT, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"F1 Long",     MENU_F1LONG, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"F2 Short",    MENU_F2SHRT, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"F2 Long",     MENU_F2LONG, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"M Long",      MENU_MLONG,  getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+};
+static Menu buttonMenu = {
+    .title = "Buttons", .items = buttonItems, .num_items = ARRAY_SIZE(buttonItems),
+    .x = 0, .y = MENU_Y, .width = LCD_WIDTH, .height = LCD_HEIGHT - MENU_Y, .itemHeight = MENU_ITEM_H
+};
+
 // Main
 static const MenuItem rootItems[] = {
-    {"Sound", 0, NULL, NULL, &soundMenu, NULL, M_ITEM_ACTION},
-    {"Display", 0, NULL, NULL, &displayMenu, NULL, M_ITEM_ACTION},
     {"Radio", 0, NULL, NULL, &radioMenu, NULL, M_ITEM_ACTION},
-    {"DTMF", 0, NULL, NULL, &dtmfMenu, NULL, M_ITEM_ACTION},
+    {"Display", 0, NULL, NULL, &displayMenu, NULL, M_ITEM_ACTION},
+    {"Sound", 0, NULL, NULL, &soundMenu, NULL, M_ITEM_ACTION},
+    {"Buttons", 0, NULL, NULL, &buttonMenu, NULL, M_ITEM_ACTION},
     {"System", 0, NULL, NULL, &systemMenu, NULL, M_ITEM_ACTION},
+    {"DTMF", 0, NULL, NULL, &dtmfMenu, NULL, M_ITEM_ACTION},
 };
 
 static Menu rootMenu = {

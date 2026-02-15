@@ -325,7 +325,7 @@ void SETTINGS_InitEEPROM(void)
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         Storage_ReadRecord(REC_CUSTOM_SETTINGS, Data, 0, 8);
         gSetting_set_pwr = (((Data[7] & 0xF0) >> 4) < 7) ? ((Data[7] & 0xF0) >> 4) : 0;
-        gSetting_set_ptt = (((Data[7] & 0x0F)) < 2) ? ((Data[7] & 0x0F)) : 0;
+        gSetting_set_ptt = (((Data[7] & 0x0F)) < 3) ? ((Data[7] & 0x0F)) : 0;
         gSetting_set_tot = (((Data[6] & 0xF0) >> 4) < 4) ? ((Data[6] & 0xF0) >> 4) : 0;
         gSetting_set_eot = (((Data[6] & 0x0F)) < 4) ? ((Data[6] & 0x0F)) : 0;
         
@@ -336,8 +336,8 @@ void SETTINGS_InitEEPROM(void)
             gSetting_set_inv = 0;
         #endif
         gSetting_set_lck = (tmp >> 1) & 0x01;
-        gSetting_set_met = (tmp >> 2) & 0x01;
-        gSetting_set_gui = (tmp >> 3) & 0x01;
+        // gSetting_set_met = (tmp >> 2) & 0x01; // Removed
+        // gSetting_set_gui = (tmp >> 3) & 0x01; // Removed
 
         #ifdef ENABLE_LCD_CONTRAST_OPTION
             int ctr_value = Data[5] & 0x0F;
@@ -777,9 +777,7 @@ void SETTINGS_SaveSettings(void)
 #endif
 
     uint8_t flags = (gSetting_set_inv << 0) |
-                     (gSetting_set_lck << 1) |
-                     (gSetting_set_met << 2) |
-                     (gSetting_set_gui << 3);
+                     (gSetting_set_lck << 1);
 
     SecBuf[5] = ((flags << 4) | (gSetting_set_ctr & 0x0F));
     SecBuf[6] = ((gSetting_set_tot << 4) | (gSetting_set_eot & 0x0F));

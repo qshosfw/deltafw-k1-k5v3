@@ -117,19 +117,17 @@ enum BacklightOnRxTx_t gSetting_backlight_on_tx_rx;
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     uint8_t       gSetting_set_pwr = 1;
-    bool          gSetting_set_ptt = 0;
+    uint8_t       gSetting_set_ptt = 0;
     uint8_t       gSetting_set_tot = 0;
     uint8_t       gSetting_set_ctr = 10;
     bool          gSetting_set_inv = false;
     uint8_t       gSetting_set_eot = 0;
     bool          gSetting_set_lck = false;
-    bool          gSetting_set_met = 0;
-    bool          gSetting_set_gui = 0;
     #ifdef ENABLE_NARROWER_BW_FILTER
         bool          gSetting_set_nfm = 0;
     #endif
     bool          gSetting_set_tmr = 0;
-    bool          gSetting_set_ptt_session;
+    uint8_t       gSetting_set_ptt_session;
     #ifdef ENABLE_FIRMWARE_DEBUG_LOGGING
         uint8_t       gDebug;
     #endif

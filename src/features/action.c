@@ -108,6 +108,8 @@ void (*action_opt_table[])(void) = {
     [ACTION_OPT_RXMODE] = &ACTION_RxMode,
     [ACTION_OPT_MAINONLY] = &ACTION_MainOnly,
     [ACTION_OPT_PTT] = &ACTION_Ptt,
+    [ACTION_OPT_PTT_A] = &ACTION_PttA,
+    [ACTION_OPT_PTT_B] = &ACTION_PttB,
     [ACTION_OPT_WN] = &ACTION_Wn,
     [ACTION_OPT_BACKLIGHT] = &ACTION_BackLight,
     //#if !defined(ENABLE_SPECTRUM) || !defined(ENABLE_FMRADIO)
@@ -547,7 +549,25 @@ void ACTION_MainOnly(void)
 
 void ACTION_Ptt(void)
 {
-    gSetting_set_ptt_session = !gSetting_set_ptt_session;
+    gSetting_set_ptt_session = (gSetting_set_ptt_session + 1) % 3;
+    gRequestSaveSettings = true;
+    gUpdateStatus = true;
+}
+
+void ACTION_PttA(void)
+{
+    // Placeholder actions. Actual PTT logic handled in app.c interception.
+    // But if triggered, maybe switch VFO?
+    gEeprom.TX_VFO = 0;
+    SETTINGS_SaveVfoIndices();
+    gRequestDisplayScreen = DISPLAY_MAIN;
+}
+
+void ACTION_PttB(void)
+{
+    gEeprom.TX_VFO = 1;
+    SETTINGS_SaveVfoIndices();
+    gRequestDisplayScreen = DISPLAY_MAIN;
 }
 
 void ACTION_Wn(void)

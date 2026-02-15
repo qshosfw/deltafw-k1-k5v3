@@ -171,19 +171,17 @@ extern enum BacklightOnRxTx_t gSetting_backlight_on_tx_rx;
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     extern uint8_t            gSetting_set_pwr;
-    extern bool               gSetting_set_ptt;
+    extern uint8_t            gSetting_set_ptt;
     extern uint8_t            gSetting_set_tot;
     extern uint8_t            gSetting_set_ctr;
     extern bool               gSetting_set_inv;
     extern uint8_t            gSetting_set_eot;
     extern bool               gSetting_set_lck;
-    extern bool               gSetting_set_met;
-    extern bool               gSetting_set_gui;
     #ifdef ENABLE_NARROWER_BW_FILTER
         extern bool               gSetting_set_nfm;
     #endif
     extern bool               gSetting_set_tmr;
-    extern bool               gSetting_set_ptt_session;
+    extern uint8_t            gSetting_set_ptt_session;
     #ifdef ENABLE_FIRMWARE_DEBUG_LOGGING
         extern uint8_t            gDebug;
     #endif

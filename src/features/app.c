@@ -96,7 +96,14 @@ static bool flagSaveVfo;
 static bool flagSaveSettings;
 static bool flagSaveChannel;
 
+static volatile uint16_t gPttDoubleTapCountdown_10ms = 0;
+
+// PTT VFO Backup
+static uint8_t gPttRestoreVFO = 0;
+static bool    gPttVfoOverridden = false;
+
 static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld);
+static void CheckKeys(void);
 
 
 void (*ProcessKeysFunctions[])(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) = {
@@ -1007,11 +1014,16 @@ void APP_Update(void)
                 //if (gKeyReading1 != KEY_INVALID)
                 //  gPttWasReleased = true;
             }
+// ------------------
             #if defined(ENABLE_LCD_CONTRAST_OPTION) || defined(ENABLE_INVERTED_LCD_MODE)
             ST7565_ContrastAndInv();
             #endif
         }
 #endif
+        if (gPttVfoOverridden) {
+            gEeprom.TX_VFO = gPttRestoreVFO;
+            gPttVfoOverridden = false;
+        }
 
         APP_EndTransmission();
 
@@ -1191,7 +1203,6 @@ void APP_Update(void)
     }
 }
 
-// called every 10ms
 static void CheckKeys(void)
 {
 #ifdef ENABLE_DTMF_CALLING
@@ -1206,87 +1217,278 @@ static void CheckKeys(void)
     }
 #endif
 
+    // -------------------- KEYS ------------------------
+    // Scan hardware keys first to support Side Key PTT
+    KEY_Code_t Key = KEYBOARD_Poll();
+
 // -------------------- PTT ------------------------
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-    if (gSetting_set_ptt_session)
-    {
-        if (GPIO_IsPttPressed() && !SerialConfigInProgress() && gPttOnePushCounter == 0)
-        {   // PTT pressed
-            if (++gPttDebounceCounter >= 3)     // 30ms
-            {   // start transmitting
-                boot_counter_10ms   = 0;
-                gPttDebounceCounter = 0;
-                gPttIsPressed       = true;
-                gPttOnePushCounter = 1;
-                ProcessKey(KEY_PTT, true, false);
-            }
-        }
-        else if ((!GPIO_IsPttPressed() || SerialConfigInProgress()) && gPttOnePushCounter == 1)
-        {   
-            // PTT released or serial comms config in progress
-            if (++gPttDebounceCounter >= 3 || SerialConfigInProgress())     // 30ms
-            {   // stop transmitting
-                gPttOnePushCounter = 2;
-            }
-        }
-        else if (GPIO_IsPttPressed() && !SerialConfigInProgress() && gPttOnePushCounter == 2)
-        {   // PTT pressed again            
-            if (++gPttDebounceCounter >= 3 || SerialConfigInProgress())     // 30ms
-            {   // stop transmitting
-                gPttOnePushCounter = 3;
-            }
-        }
-        else if ((!GPIO_IsPttPressed() || SerialConfigInProgress()) && gPttOnePushCounter == 3)
-        {   // PTT released or serial comms config in progress
-            if (++gPttDebounceCounter >= 3 || SerialConfigInProgress())     // 30ms
-            {   // stop transmitting
-                ProcessKey(KEY_PTT, false, false);
-                gPttIsPressed = false;
-                if (gKeyReading1 != KEY_INVALID)
-                    gPttWasReleased = true;
-                gPttOnePushCounter = 0;
-                #if defined(ENABLE_LCD_CONTRAST_OPTION) || defined(ENABLE_INVERTED_LCD_MODE)
-                ST7565_ContrastAndInv();
-                #endif
-            }
-        }
-        else
-            gPttDebounceCounter = 0;
+    bool pttMain = GPIO_IsPttPressed() && !SerialConfigInProgress();
+    bool pttSide1 = (Key == KEY_SIDE1);
+    bool pttSide2 = (Key == KEY_SIDE2);
 
-        //gDebug = gPttOnePushCounter;
+    bool pttA = (gEeprom.KEY_1_SHORT_PRESS_ACTION == ACTION_OPT_PTT_A && pttSide1) || 
+                (gEeprom.KEY_2_SHORT_PRESS_ACTION == ACTION_OPT_PTT_A && pttSide2);
+    
+    bool pttB = (gEeprom.KEY_1_SHORT_PRESS_ACTION == ACTION_OPT_PTT_B && pttSide1) || 
+                (gEeprom.KEY_2_SHORT_PRESS_ACTION == ACTION_OPT_PTT_B && pttSide2);
+
+    bool pttPressed = pttMain || pttA || pttB;
+
+    // Suppress side keys if used as PTT
+    if (pttA || pttB)
+        Key = KEY_INVALID;
+    
+    // Mode 1: Latch, Mode 2: Both (Latch on Double Tap), Mode 0: Hold
+    uint8_t pttMode = gSetting_set_ptt_session;
+
+    if (pttMode == 2) { // BOTH
+        if (pttPressed) {
+             // If we are in state 3 (waiting for release after delatch), just debounce and wait.
+             if (gPttOnePushCounter == 3) {
+                 gPttDebounceCounter = 0;
+             }
+             else if (gPttIsPressed) {
+                 // Already TXing.
+                 if (gPttOnePushCounter == 2) {
+                     // We were latched (idle button), now pressed -> Stop Command
+                     if ((gPttDebounceCounter + 1) < 3) {
+                         gPttDebounceCounter++;
+                     } else {
+                         ProcessKey(KEY_PTT, false, false);
+                         gPttIsPressed = false;
+                         gPttOnePushCounter = 3; // Wait Release state
+                         gPttDebounceCounter = 0;
+                         if (gPttVfoOverridden) {
+                            gEeprom.TX_VFO = gPttRestoreVFO;
+                            gPttVfoOverridden = false;
+                            RADIO_SelectVfos();
+                         }
+                         #if defined(ENABLE_LCD_CONTRAST_OPTION) || defined(ENABLE_INVERTED_LCD_MODE)
+                         ST7565_ContrastAndInv();
+                         #endif
+                     }
+                 }
+                 // Else: Just holding (Counter=0 for normal hold, or 1 if we just started latching).
+                 // Do nothing, just clear debounce.
+                 else {
+                     gPttDebounceCounter = 0;
+                 }
+             }
+             else {
+                 // Not TXing. Start TX.
+                 if ((gPttDebounceCounter + 1) < 3) {
+                     gPttDebounceCounter++;
+                 } else {
+                     // Check if double tap timer is active
+                     bool isDoubleTap = (gPttDoubleTapCountdown_10ms > 0);
+                     
+                     // Start TX
+                     if (!gPttVfoOverridden) {
+                        if (pttA) {
+                            gPttRestoreVFO = gEeprom.TX_VFO;
+                            gEeprom.TX_VFO = 0;
+                            gPttVfoOverridden = true;
+                            RADIO_SelectVfos();
+                        } else if (pttB) {
+                            gPttRestoreVFO = gEeprom.TX_VFO;
+                            gEeprom.TX_VFO = 1;
+                            gPttVfoOverridden = true;
+                            RADIO_SelectVfos();
+                        }
+                     }
+                     ProcessKey(KEY_PTT, true, false);
+                     gPttIsPressed = true;
+                     gPttDebounceCounter = 0;
+                     
+                     if (isDoubleTap) {
+                         gPttOnePushCounter = 1; // Enter Latch Mode (Pressed)
+                     } else {
+                         gPttOnePushCounter = 0; // Standard Hold (Pressed)
+                     }
+                 }
+             }
+        } 
+        else { // Released
+             if (gPttOnePushCounter == 3) {
+                 // RELEASE after stop command
+                 if ((gPttDebounceCounter + 1) < 3) {
+                     gPttDebounceCounter++;
+                 } else {
+                     gPttOnePushCounter = 0; // Reset to standard idle
+                     gPttDebounceCounter = 0;
+                 }
+             }
+             else if (gPttIsPressed) {
+                 // Button released while TXing
+                 if (gPttOnePushCounter == 1) {
+                      // Was in Latch Mode (Pressed) -> Transition to Latched (Idle)
+                      if ((gPttDebounceCounter + 1) < 3) {
+                          gPttDebounceCounter++;
+                      } else {
+                          gPttOnePushCounter = 2; // Latched State
+                          gPttDebounceCounter = 0;
+                      }
+                 } 
+                 else if (gPttOnePushCounter == 2) {
+                      // Latched (Idle). Stay there. 
+                      gPttDebounceCounter = 0;
+                 }
+                 else {
+                      // Was in Hold Mode (0) -> Release -> Stop TX
+                      if ((gPttDebounceCounter + 1) < 3) {
+                          gPttDebounceCounter++;
+                      } else {
+                          ProcessKey(KEY_PTT, false, false);
+                          gPttIsPressed = false;
+                          gPttOnePushCounter = 0;
+                          
+                          // Start Double Tap Timer
+                          gPttDoubleTapCountdown_10ms = 40; // 400ms window
+                          
+                          gPttDebounceCounter = 0;
+                          
+                          if (gPttVfoOverridden) {
+                            gEeprom.TX_VFO = gPttRestoreVFO;
+                            gPttVfoOverridden = false;
+                            RADIO_SelectVfos();
+                          }
+                          #if defined(ENABLE_LCD_CONTRAST_OPTION) || defined(ENABLE_INVERTED_LCD_MODE)
+                          ST7565_ContrastAndInv();
+                          #endif
+                      }
+                 }
+             } 
+             else {
+                 // Button released and not TXing. Idle.
+                 gPttDebounceCounter = 0;
+             }
+        }
+    } 
+    else if (pttMode == 1) { // LATCH
+        if (pttPressed) {
+             if (gPttOnePushCounter == 3) { // Wait Release
+                 gPttDebounceCounter = 0;
+             } 
+             else if (gPttIsPressed) {
+                 if (gPttOnePushCounter == 2) { // Latched Idle -> Stop
+                     if ((gPttDebounceCounter + 1) < 3) {
+                         gPttDebounceCounter++;
+                     } else {
+                         ProcessKey(KEY_PTT, false, false);
+                         gPttIsPressed = false;
+                         gPttOnePushCounter = 3; // Wait Release
+                         gPttDebounceCounter = 0;
+                         if (gPttVfoOverridden) {
+                            gEeprom.TX_VFO = gPttRestoreVFO;
+                            gPttVfoOverridden = false;
+                            RADIO_SelectVfos();
+                         }
+                         #if defined(ENABLE_LCD_CONTRAST_OPTION) || defined(ENABLE_INVERTED_LCD_MODE)
+                         ST7565_ContrastAndInv();
+                         #endif
+                     }
+                 } else {
+                    // Holding press (Counter=1). Do nothing.
+                    gPttDebounceCounter = 0;
+                 }
+             }
+             else {
+                 // New Press -> Start Latch
+                 if ((gPttDebounceCounter + 1) < 3) {
+                     gPttDebounceCounter++;
+                 } else {
+                     if (!gPttVfoOverridden) {
+                        if (pttA) {
+                            gPttRestoreVFO = gEeprom.TX_VFO;
+                            gEeprom.TX_VFO = 0;
+                            gPttVfoOverridden = true;
+                            RADIO_SelectVfos();
+                        } else if (pttB) {
+                            gPttRestoreVFO = gEeprom.TX_VFO;
+                            gEeprom.TX_VFO = 1;
+                            gPttVfoOverridden = true;
+                            RADIO_SelectVfos();
+                        }
+                     }
+                     ProcessKey(KEY_PTT, true, false);
+                     gPttIsPressed = true;
+                     gPttOnePushCounter = 1; // Latched Pressed
+                     gPttDebounceCounter = 0;
+                 }
+             }
+        } else { // Released
+             if (gPttOnePushCounter == 3) {
+                 if ((gPttDebounceCounter + 1) < 3) {
+                     gPttDebounceCounter++;
+                 } else {
+                     gPttOnePushCounter = 0;
+                     gPttDebounceCounter = 0;
+                 }
+             } else if (gPttIsPressed) {
+                 if (gPttOnePushCounter == 1) {
+                     // Initial Release -> Go to Latched Idle
+                     if ((gPttDebounceCounter + 1) < 3) {
+                         gPttDebounceCounter++;
+                     } else {
+                         gPttOnePushCounter = 2;
+                         gPttDebounceCounter = 0;
+                     }
+                 } else {
+                    gPttDebounceCounter = 0;
+                 }
+             } else {
+                 gPttDebounceCounter = 0;
+             }
+        }
     }
-    else
-    {
-        if (gPttIsPressed)
-        {
-            if (!GPIO_IsPttPressed() || SerialConfigInProgress())
-            {   // PTT released or serial comms config in progress
-                if (++gPttDebounceCounter >= 3 || SerialConfigInProgress())     // 30ms
-                {   // stop transmitting
+    else { // HOLD (Mode 0)
+        if (pttPressed) {
+            if (!gPttIsPressed) {
+                if ((gPttDebounceCounter + 1) < 3) {
+                    gPttDebounceCounter++;
+                } else {
+                    if (!gPttVfoOverridden) {
+                        if (pttA) {
+                            gPttRestoreVFO = gEeprom.TX_VFO;
+                            gEeprom.TX_VFO = 0;
+                            gPttVfoOverridden = true;
+                            RADIO_SelectVfos();
+                        } else if (pttB) {
+                            gPttRestoreVFO = gEeprom.TX_VFO;
+                            gEeprom.TX_VFO = 1;
+                            gPttVfoOverridden = true;
+                            RADIO_SelectVfos();
+                        }
+                    }
+                    ProcessKey(KEY_PTT, true, false);
+                    gPttIsPressed = true;
+                    gPttDebounceCounter = 0;
+                }
+            } else {
+                gPttDebounceCounter = 0;
+            }
+        } else {
+            if (gPttIsPressed) {
+                if ((gPttDebounceCounter + 1) < 3) {
+                    gPttDebounceCounter++;
+                } else {
                     ProcessKey(KEY_PTT, false, false);
                     gPttIsPressed = false;
-                    if (gKeyReading1 != KEY_INVALID)
-                        gPttWasReleased = true;
+                    gPttDebounceCounter = 0;
+                    if (gPttVfoOverridden) {
+                        gEeprom.TX_VFO = gPttRestoreVFO;
+                        gPttVfoOverridden = false;
+                        RADIO_SelectVfos();
+                    }
                     #if defined(ENABLE_LCD_CONTRAST_OPTION) || defined(ENABLE_INVERTED_LCD_MODE)
                     ST7565_ContrastAndInv();
                     #endif
                 }
-            }
-            else
+            } else {
                 gPttDebounceCounter = 0;
-        }
-        else if (GPIO_IsPttPressed() && !SerialConfigInProgress())
-        {   // PTT pressed
-            if (++gPttDebounceCounter >= 3)     // 30ms
-            {   // start transmitting
-                boot_counter_10ms   = 0;
-                gPttDebounceCounter = 0;
-                gPttIsPressed       = true;
-                ProcessKey(KEY_PTT, true, false);
             }
         }
-        else
-            gPttDebounceCounter = 0;        
     }
 #else
     if (gPttIsPressed)
@@ -1321,7 +1523,7 @@ static void CheckKeys(void)
 // --------------------- OTHER KEYS ----------------------------
 
     // scan the hardware keys
-    KEY_Code_t Key = KEYBOARD_Poll();
+    // KEY_Code_t Key = KEYBOARD_Poll(); // Moved up
 
     if (Key != KEY_INVALID) // any key pressed
         boot_counter_10ms = 0;   // cancel boot screen/beeps if any key pressed
@@ -1386,10 +1588,17 @@ static void CheckKeys(void)
     }
 }
 
+
 void APP_TimeSlice10ms(void)
 {
     gNextTimeslice = false;
     gFlashLightBlinkCounter++;
+
+    if (gPttDoubleTapCountdown_10ms > 0)
+        gPttDoubleTapCountdown_10ms--;
+
+    if (gPttDoubleTapCountdown_10ms > 0)
+        gPttDoubleTapCountdown_10ms--;
 
 #ifdef ENABLE_AM_FIX
     if (gRxVfo->Modulation == MODULATION_AM) {
@@ -1887,7 +2096,8 @@ static void ALARM_Off(void)
 }
 #endif
 
-static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
+
+void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 {
     #ifdef ENABLE_DEEP_SLEEP_MODE
     if(gWakeUp)

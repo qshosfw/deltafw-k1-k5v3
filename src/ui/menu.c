@@ -80,11 +80,7 @@ const t_menu_item MenuList[] =
         {"NOAA-S",      MENU_NOAA_S    },
     #endif
 #endif
-    {"F1Shrt",      MENU_F1SHRT        },
-    {"F1Long",      MENU_F1LONG        },
-    {"F2Shrt",      MENU_F2SHRT        },
-    {"F2Long",      MENU_F2LONG        },
-    {"M Long",      MENU_MLONG         },
+
 
     {"KeyLck",      MENU_AUTOLK        }, // was "AUTOLk"
     {"TxTOut",      MENU_TOT           }, // was "TOT"
@@ -103,6 +99,14 @@ const t_menu_item MenuList[] =
     {"Voice",       MENU_VOICE         },
 #endif
     {"Roger",       MENU_ROGER         },
+    {"F1Shrt",      MENU_F1SHRT        },
+    {"F1Long",      MENU_F1LONG        },
+    {"F2Shrt",      MENU_F2SHRT        },
+    {"F2Long",      MENU_F2LONG        },
+    {"M Long",      MENU_MLONG         },
+#ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+    {"SetNav",      MENU_SET_NAV       },
+#endif
     {"STE",         MENU_STE           },
     {"RP STE",      MENU_RP_STE        },
     {"1 Call",      MENU_1_CALL        },
@@ -112,20 +116,26 @@ const t_menu_item MenuList[] =
 #ifdef ENABLE_DTMF_CALLING
     {"ANI ID",      MENU_ANI_ID        },
 #endif
+#ifdef ENABLE_DTMF_CALLING
     {"UPCode",      MENU_UPCODE        },
     {"DWCode",      MENU_DWCODE        },
     {"PTT ID",      MENU_PTT_ID        },
     {"D ST",        MENU_D_ST          },
+#endif
 #ifdef ENABLE_DTMF_CALLING
     {"D Resp",      MENU_D_RSP         },
     {"D Hold",      MENU_D_HOLD        },
 #endif
+#ifdef ENABLE_DTMF_CALLING
     {"D Prel",      MENU_D_PRE         },
+#endif
 #ifdef ENABLE_DTMF_CALLING
     {"D Decd",      MENU_D_DCD         },
     {"D List",      MENU_D_LIST        },
 #endif
+#ifdef ENABLE_DTMF_CALLING
     {"D Live",      MENU_D_LIVE_DEC    }, // live DTMF decoder
+#endif
 #ifndef ENABLE_CUSTOM_FIRMWARE_MODS
     #ifdef ENABLE_AM_FIX
         {"AM Fix",      MENU_AM_FIX        },
@@ -147,8 +157,6 @@ const t_menu_item MenuList[] =
     {"SetCtr",      MENU_SET_CTR       },
     {"SetInv",      MENU_SET_INV       },
     {"SetLck",      MENU_SET_LCK       },
-    {"SetMet",      MENU_SET_MET       },
-    {"SetGUI",      MENU_SET_GUI       },
     {"SetTmr",      MENU_SET_TMR       },
 #ifdef ENABLE_DEEP_SLEEP_MODE
     {"SetOff",       MENU_SET_OFF      },
@@ -379,10 +387,11 @@ const char gSubMenu_SCRAMBLER[][7] =
         "5"
     };
 
-    const char gSubMenu_SET_PTT[][8] =
+    const char gSubMenu_SET_PTT[][7] =
     {
-        "CLASSIC",
-        "ONEPUSH"
+        "HOLD",
+        "LATCH",
+        "BOTH"
     };
 
     const char gSubMenu_SET_TOT[][7] =  // Use by SET_EOT too
@@ -399,11 +408,6 @@ const char gSubMenu_SCRAMBLER[][7] =
         "KEYS+PTT"
     };
 
-    const char gSubMenu_SET_MET[][8] =
-    {
-        "TINY",
-        "CLASSIC"
-    };
 
     #ifdef ENABLE_NARROWER_BW_FILTER
         const char gSubMenu_SET_NFM[][9] =
@@ -468,8 +472,10 @@ const t_sidefunction gSubMenu_SIDEFUNCTIONS[] =
 #endif
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     {"RX MODE",         ACTION_OPT_RXMODE},
-    {"MAIN ONLY",       ACTION_OPT_MAINONLY},
+    {"TX ON MAIN",       ACTION_OPT_MAINONLY},
     {"PTT",             ACTION_OPT_PTT},
+    {"PTT A",           ACTION_OPT_PTT_A},
+    {"PTT B",           ACTION_OPT_PTT_B},
     {"WIDE NARROW",    ACTION_OPT_WN},
     //#if !defined(ENABLE_SPECTRUM) || !defined(ENABLE_FMRADIO)
     {"MUTE",            ACTION_OPT_MUTE},
@@ -1145,10 +1151,10 @@ void UI_DisplayMenu(void)
             strcpy(String, gSubMenu_SET_LCK[gSubMenuSelection]);
             break;
 
-        case MENU_SET_MET:
-        case MENU_SET_GUI:
-            strcpy(String, gSubMenu_SET_MET[gSubMenuSelection]); // Same as SET_MET
+        case MENU_SET_NAV:
+            strcpy(String, gSubMenu_OFF_ON[gSubMenuSelection]);
             break;
+
 
         #ifdef ENABLE_NARROWER_BW_FILTER
             case MENU_SET_NFM:
