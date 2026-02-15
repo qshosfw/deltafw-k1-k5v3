@@ -23,6 +23,7 @@
 #ifdef ENABLE_SERIAL_SCREENCAST
 #include "screencast.h"
 #endif
+#include "features/storage.h"
 
 #ifdef ENABLE_SPECTRUM_EXTENSIONS
 #include "drivers/bsp/py25q16.h"
@@ -110,7 +111,7 @@ uint16_t statuslineUpdateTimer = 0;
 static void LoadSettings()
 {
     uint8_t Data[8] = {0};
-    PY25Q16_ReadBuffer(0x00c000, Data, sizeof(Data));
+    Storage_ReadRecord(REC_CUSTOM_SETTINGS, Data, 0, sizeof(Data));
     settings.scanStepIndex = ((Data[3] & 0xF0) >> 4);
     if (settings.scanStepIndex > 14) settings.scanStepIndex = S_STEP_25_0kHz;
     settings.stepsCount = ((Data[3] & 0x0F) & 0b1100) >> 2;
@@ -122,9 +123,9 @@ static void LoadSettings()
 static void SaveSettings()
 {
     uint8_t Data[8] = {0};
-    PY25Q16_ReadBuffer(0x00c000, Data, sizeof(Data));
+    Storage_ReadRecord(REC_CUSTOM_SETTINGS, Data, 0, sizeof(Data));
     Data[3] = (settings.scanStepIndex << 4) | (settings.stepsCount << 2) | settings.listenBw;
-    PY25Q16_WriteBuffer(0x00c000, Data, sizeof(Data), true);
+    Storage_WriteRecord(REC_CUSTOM_SETTINGS, Data, 0, sizeof(Data));
 }
 #endif
 

@@ -19,6 +19,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "features/storage.h"
 
 #ifndef ARRAY_SIZE
     #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -218,17 +219,7 @@ extern uint16_t              gEEPROM_RSSI_CALIB[7][4];
 extern uint16_t              gEEPROM_1F8A;
 extern uint16_t              gEEPROM_1F8C;
 
-typedef union {
-    struct {
-        uint8_t
-            band : 3,
-            compander : 2,
-            scanlist1 : 1,
-            scanlist2 : 1,
-            scanlist3 : 1;
-    };
-    uint8_t __val;
-} ChannelAttributes_t;
+// ChannelAttributes_t is now defined in storage.h
 
 extern ChannelAttributes_t   gMR_ChannelAttributes[207];
 extern bool                  gMR_ChannelExclude[207];

@@ -68,6 +68,7 @@ static void SetBandLed(uint32_t freq, bool isTx, bool hasSignal)
 #ifdef ENABLE_SERIAL_SCREENCAST
 #include "screencast.h"
 #endif
+#include "features/storage.h"
 
 #ifdef ENABLE_SPECTRUM_EXTENSIONS
 #include "drivers/bsp/py25q16.h"
@@ -183,7 +184,7 @@ uint16_t statuslineUpdateTimer = 0;
 static void LoadSettings(void)
 {
     uint8_t data[8] = {0};
-    PY25Q16_ReadBuffer(0x00c000, data, sizeof(data));
+    Storage_ReadRecord(REC_CUSTOM_SETTINGS, data, 0, sizeof(data));
 
     settings.scanStepIndex = ((data[3] & 0xF0) >> 4);
     if (settings.scanStepIndex > 14) settings.scanStepIndex = S_STEP_25_0kHz;
@@ -198,10 +199,10 @@ static void LoadSettings(void)
 static void SaveSettings(void)
 {
     uint8_t data[8] = {0};
-    PY25Q16_ReadBuffer(0x00c000, data, sizeof(data));
+    Storage_ReadRecord(REC_CUSTOM_SETTINGS, data, 0, sizeof(data));
 
     data[3] = (settings.scanStepIndex << 4) | (settings.stepsCount << 2) | settings.listenBw;
-    PY25Q16_WriteBuffer(0x00c000, data, sizeof(data), true);
+    Storage_WriteRecord(REC_CUSTOM_SETTINGS, data, 0, sizeof(data));
 }
 #endif
 

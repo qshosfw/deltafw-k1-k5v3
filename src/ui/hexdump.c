@@ -175,7 +175,7 @@ static bool HexDump_EepromRead(uint32_t offset, uint8_t *buffer, uint16_t size) 
     // Let's try to read via I2C_ReadBuffer.
     // Need to declare it if header doesn't.
     // wrapper:
-    extern void EEPROM_ReadBuffer(uint32_t Address, uint8_t *pBuffer, uint32_t Size);
+    extern void EEPROM_ReadBuffer(uint16_t Address, uint8_t *pBuffer, uint32_t Size);
     EEPROM_ReadBuffer(offset, buffer, size);
     return true;
 }

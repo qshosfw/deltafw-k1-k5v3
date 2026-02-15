@@ -24,6 +24,7 @@
 #include "core/misc.h"
 #include "ui/helper.h"
 #include "apps/boot/welcome.h"
+#include "features/storage.h"
 #include "ui/status.h"
 #include "core/version.h"
 #include "ui/bitmaps.h"
@@ -76,9 +77,9 @@ void UI_DisplayWelcome(void)
         memset(WelcomeString1, 0, sizeof(WelcomeString1));
 
         // 0x0EB0
-        PY25Q16_ReadBuffer(0x007020, WelcomeString0, 16);
+        Storage_ReadRecord(REC_SETTINGS_EXTRA, WelcomeString0, 0x20, 16);
         // 0x0EC0
-        PY25Q16_ReadBuffer(0x007030, WelcomeString1, 16);
+        Storage_ReadRecord(REC_SETTINGS_EXTRA, WelcomeString1, 0x30, 16);
 
         sprintf(WelcomeString2, "%u.%02uV %u%%",
                 gBatteryVoltageAverage / 100,

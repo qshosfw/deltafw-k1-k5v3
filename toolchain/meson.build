@@ -123,6 +123,7 @@ sources = files(
   '../src/features/generic.c',
   '../src/features/main_screen.c',
   '../src/features/menu.c',
+  '../src/features/storage.c',
   '../src/apps/scanner/scanner.c',
 
   # Drivers BSP

@@ -33,6 +33,7 @@
 #include "apps/battery/battery.h"
 #include "core/misc.h"
 #include "radio.h"
+#include "features/storage.h"
 #include "apps/settings/settings.h"
 #include "ui/menu.h"
 
@@ -244,11 +245,11 @@ void RADIO_ConfigureChannel(const unsigned int VFO, const unsigned int configure
     pVfo->SCANLIST3_PARTICIPATION = bParticipation3;
     pVfo->CHANNEL_SAVE            = channel;
 
-    uint32_t base;
+    uint16_t storage_idx;
     if (IS_MR_CHANNEL(channel))
-        base = channel * 16;
+        storage_idx = channel; // We'll use REC_CHANNEL_DATA for MR
     else
-        base = 0x001000 + ((channel - FREQ_CHANNEL_FIRST) * 32) + (VFO * 16);
+        storage_idx = ((channel - FREQ_CHANNEL_FIRST) << 8) | VFO; // We'll use REC_VFO_DATA for FREQ
 
     if (configure == VFO_CONFIGURE_RELOAD || IS_FREQ_CHANNEL(channel))
     {
@@ -257,7 +258,10 @@ void RADIO_ConfigureChannel(const unsigned int VFO, const unsigned int configure
         
         // ***************
 
-        PY25Q16_ReadBuffer(base + 8, data, sizeof(data));
+        if (IS_MR_CHANNEL(channel))
+            Storage_ReadRecordIndexed(REC_CHANNEL_DATA, storage_idx, data, 8, sizeof(data));
+        else
+            Storage_ReadRecordIndexed(REC_VFO_DATA, storage_idx, data, 8, sizeof(data));
 
         tmp = data[3] & 0x0F;
         if (tmp > TX_OFFSET_FREQUENCY_DIRECTION_SUB)
@@ -366,7 +370,12 @@ void RADIO_ConfigureChannel(const unsigned int VFO, const unsigned int configure
             uint32_t Frequency;
             uint32_t Offset;
         } __attribute__((packed)) info;
-        PY25Q16_ReadBuffer(base, &info, sizeof(info));
+        
+        if (IS_MR_CHANNEL(channel))
+            Storage_ReadRecordIndexed(REC_CHANNEL_DATA, storage_idx, &info, 0, sizeof(info));
+        else
+            Storage_ReadRecordIndexed(REC_VFO_DATA, storage_idx, &info, 0, sizeof(info));
+
         if(info.Frequency==0xFFFFFFFF)
             pVfo->freq_config_RX.Frequency = frequencyBandTable[band].lower;
         else
@@ -450,7 +459,6 @@ void RADIO_ConfigureSquelchAndOutputPower(VFO_Info_t *pInfo)
 
     FREQUENCY_Band_t Band = FREQUENCY_GetBand(pInfo->pRX->Frequency);
     // 0x1E60 : 0x1E00
-    uint32_t Base = (Band < BAND4_174MHz) ? 0x010060 : 0x010000;
 
     if (gEeprom.SQUELCH_LEVEL == 0)
     {   // squelch == 0 (off)
@@ -464,16 +472,14 @@ void RADIO_ConfigureSquelchAndOutputPower(VFO_Info_t *pInfo)
     }
     else
     {   // squelch >= 1
-        Base += gEeprom.SQUELCH_LEVEL;                                        // my eeprom squelch-1
-                                                                              // VHF   UHF
-        PY25Q16_ReadBuffer(Base + 0x00, &pInfo->SquelchOpenRSSIThresh,    1);  //  50    10
-        PY25Q16_ReadBuffer(Base + 0x10, &pInfo->SquelchCloseRSSIThresh,   1);  //  40     5
+        uint16_t idx = ((Band < BAND4_174MHz) ? 1 : 0) << 8 | gEeprom.SQUELCH_LEVEL;
 
-        PY25Q16_ReadBuffer(Base + 0x20, &pInfo->SquelchOpenNoiseThresh,   1);  //  65    90
-        PY25Q16_ReadBuffer(Base + 0x30, &pInfo->SquelchCloseNoiseThresh,  1);  //  70   100
-
-        PY25Q16_ReadBuffer(Base + 0x40, &pInfo->SquelchCloseGlitchThresh, 1);  //  90    90
-        PY25Q16_ReadBuffer(Base + 0x50, &pInfo->SquelchOpenGlitchThresh,  1);  // 100   100
+        Storage_ReadRecordIndexed(REC_CALIB_SQUELCH, idx, &pInfo->SquelchOpenRSSIThresh,    0x00, 1);
+        Storage_ReadRecordIndexed(REC_CALIB_SQUELCH, idx, &pInfo->SquelchCloseRSSIThresh,   0x10, 1);
+        Storage_ReadRecordIndexed(REC_CALIB_SQUELCH, idx, &pInfo->SquelchOpenNoiseThresh,   0x20, 1);
+        Storage_ReadRecordIndexed(REC_CALIB_SQUELCH, idx, &pInfo->SquelchCloseNoiseThresh,  0x30, 1);
+        Storage_ReadRecordIndexed(REC_CALIB_SQUELCH, idx, &pInfo->SquelchCloseGlitchThresh, 0x40, 1);
+        Storage_ReadRecordIndexed(REC_CALIB_SQUELCH, idx, &pInfo->SquelchOpenGlitchThresh,  0x50, 1);
 
 
         uint16_t noise_open   = pInfo->SquelchOpenNoiseThresh;
@@ -561,7 +567,7 @@ void RADIO_ConfigureSquelchAndOutputPower(VFO_Info_t *pInfo)
         currentPower--;
     }
 
-    PY25Q16_ReadBuffer(0x100D0 + (Band * 16) + (Op * 3), Txp, 3);
+    Storage_ReadRecordIndexed(REC_CALIB_TX_POWER, (Band << 8) | Op, Txp, 0, 3);
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     // make low and mid even lower

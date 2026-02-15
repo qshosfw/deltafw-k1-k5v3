@@ -32,6 +32,7 @@
 #include "core/misc.h"
 #include "apps/settings/settings.h"
 #include "ui/ui.h"
+#include "features/storage.h"
 
 
 BEEP_Type_t gBeepToPlay = BEEP_NONE;
@@ -251,7 +252,7 @@ static const uint16_t VOICE_SAMPLES[256] =
 
 static struct
 {
-    uint32_t Addr;
+    uint32_t Addr; // This is now interpreted as offset for REC_VOICE_CLIP_DATA
     uint32_t Size;
 } VoiceClipState = {0};
 
@@ -262,20 +263,19 @@ static bool LoadVoiceClip(uint8_t VoiceID)
         return false;
     }
 
-    uint32_t Addr = gEeprom.VOICE_PROMPT == VOICE_PROMPT_CHINESE ? 0x14c000 : 0x14c800;
     struct
     {
         uint32_t Offset;
         uint32_t Size;
     } Info;
-    PY25Q16_ReadBuffer(Addr + 8 * VoiceID, &Info, 8);
+    Storage_ReadRecordIndexed(REC_VOICE_PROMPT_DATA, gEeprom.VOICE_PROMPT == VOICE_PROMPT_CHINESE ? 0 : 1, &Info, 8 * VoiceID, 8);
 
     if (Info.Offset > 0x0b0000 || Info.Size > 0x019000)
     {
         return false;
     }
 
-    VoiceClipState.Addr = 0x14d000 + Info.Offset;
+    VoiceClipState.Addr = Info.Offset;
     VoiceClipState.Size = Info.Size;
     return true;
 }
@@ -298,7 +298,7 @@ static void LoadVoiceSamples()
 
     extern uint8_t **gFrameBuffer;
     uint8_t *Buf = (uint8_t *)gFrameBuffer;
-    PY25Q16_ReadBuffer(VoiceClipState.Addr, Buf, VOICE_BUF_LEN);
+    Storage_ReadRecordIndexed(REC_VOICE_CLIP_DATA, VoiceClipState.Addr, Buf, 0, VOICE_BUF_LEN);
     VoiceClipState.Addr += VOICE_BUF_LEN;
     VoiceClipState.Size -= VOICE_BUF_LEN;
 

@@ -24,6 +24,7 @@
 #include "audio.h"
 #include "drivers/bsp/bk1080.h"
 #include "drivers/bsp/bk4819.h"
+#include "features/storage.h"
 #include "drivers/bsp/py25q16.h"
 #include "drivers/bsp/gpio.h"
 #include "functions.h"
@@ -124,7 +125,7 @@ void FM_TurnOff(void)
 
 void FM_EraseChannels(void)
 {
-    PY25Q16_SectorErase(0x003000);
+    Storage_SectorErase(REC_FM_CHANNELS);
     memset(gFM_Channels, 0xFF, sizeof(gFM_Channels));
 }
 
