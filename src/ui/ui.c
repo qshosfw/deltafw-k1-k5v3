@@ -73,7 +73,6 @@ void (*UI_DisplayFunctions[])(void) = {
 #endif
     [DISPLAY_LAUNCHER] = &UI_DisplayLauncher,
     [DISPLAY_MEMORIES] = &MEMORIES_Render,
-    [DISPLAY_MEMORIES] = &MEMORIES_Render,
     [DISPLAY_SYSINFO] = &SYSINFO_Render,
 #ifdef ENABLE_EEPROM_HEXDUMP
     [DISPLAY_HEXDUMP] = &UI_DisplayHexDump, // We'll implement this wrapper in hexdump.c
@@ -115,4 +114,18 @@ void GUI_SelectNextDisplay(GUI_DisplayType_t Display)
 
     gScreenToDisplay = Display;
     gUpdateDisplay   = true;
+}
+
+bool UI_IsMenuMode(void)
+{
+    switch (gScreenToDisplay)
+    {
+        case DISPLAY_MENU:
+        case DISPLAY_LAUNCHER:
+        case DISPLAY_MEMORIES:
+        case DISPLAY_SYSINFO:
+            return true;
+        default:
+            return false;
+    }
 }

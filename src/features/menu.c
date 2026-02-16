@@ -157,10 +157,12 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             *pMax = ARRAY_SIZE(gSubMenu_TXP) - 1;
             break;
 
+#ifdef ENABLE_TX_OFFSET
         case MENU_SFT_D:
             //*pMin = 0;
             *pMax = ARRAY_SIZE(gSubMenu_SFT_D) - 1;
             break;
+#endif
 
         case MENU_TDR:
             //*pMin = 0;
@@ -235,9 +237,11 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
         #endif
         case MENU_BCL:
         case MENU_BEEP:
+#ifdef ENABLE_SCAN_LIST_EDITING
         case MENU_S_ADD1:
         case MENU_S_ADD2:
         case MENU_S_ADD3:
+#endif
         case MENU_STE:
         case MENU_D_ST:
 #ifdef ENABLE_DTMF_CALLING
@@ -253,7 +257,9 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
         case MENU_500TX:
 #endif
         case MENU_350EN:
+#ifdef ENABLE_SCRAMBLER
         case MENU_SCREN:
+#endif
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         case MENU_SET_TMR:
 #endif
@@ -265,10 +271,12 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             *pMax = ARRAY_SIZE(gModulationStr) - 1;
             break;
 
+#ifdef ENABLE_SCRAMBLER
         case MENU_SCR:
             //*pMin = 0;
             *pMax = ARRAY_SIZE(gSubMenu_SCRAMBLER) - 1;
             break;
+#endif
 
         case MENU_AUTOLK:
             *pMax = 40;
@@ -288,20 +296,24 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             *pMax = 10;
             break;
 
+#ifdef ENABLE_ON_DEVICE_PROGRAMMING
         case MENU_MEM_CH:
-        case MENU_1_CALL:
         case MENU_DEL_CH:
         case MENU_MEM_NAME:
+#endif
+        case MENU_1_CALL:
             //*pMin = 0;
             *pMax = MR_CHANNEL_LAST;
             break;
 
+#ifdef ENABLE_SCAN_LIST_EDITING
         case MENU_SLIST1:
         case MENU_SLIST2:
         case MENU_SLIST3:
             *pMin = -1;
             *pMax = MR_CHANNEL_LAST;
             break;
+#endif
 
         case MENU_SAVE:
             //*pMin = 0;
@@ -313,10 +325,12 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             *pMax = 4;
             break;
 
+#ifdef ENABLE_SCAN_LIST_EDITING
         case MENU_S_LIST:
             //*pMin = 0;
             *pMax = 5;
             break;
+#endif
 
 #ifdef ENABLE_DTMF_CALLING
         case MENU_D_RSP:
@@ -520,21 +534,26 @@ void MENU_AcceptSetting(void)
             gRequestSaveChannel = 1;
             return;
         }
+#ifdef ENABLE_TX_OFFSET
         case MENU_SFT_D:
             gTxVfo->TX_OFFSET_FREQUENCY_DIRECTION = gSubMenuSelection;
             gRequestSaveChannel                   = 1;
             return;
+#endif
 
+#ifdef ENABLE_TX_OFFSET
         case MENU_OFFSET:
             gTxVfo->TX_OFFSET_FREQUENCY = gSubMenuSelection;
             gRequestSaveChannel         = 1;
             return;
+#endif
 
         case MENU_W_N:
             gTxVfo->CHANNEL_BANDWIDTH = gSubMenuSelection;
             gRequestSaveChannel       = 1;
             return;
 
+#ifdef ENABLE_SCRAMBLER
         case MENU_SCR:
             gTxVfo->SCRAMBLING_TYPE = gSubMenuSelection;
             if (gTxVfo->Modulation == MODULATION_FM) {
@@ -545,12 +564,14 @@ void MENU_AcceptSetting(void)
             }
             gRequestSaveChannel     = 1;
             return;
+#endif
 
         case MENU_BCL:
             gTxVfo->BUSY_CHANNEL_LOCK = gSubMenuSelection;
             gRequestSaveChannel       = 1;
             return;
 
+#ifdef ENABLE_ON_DEVICE_PROGRAMMING
         case MENU_MEM_CH:
             gTxVfo->CHANNEL_SAVE = gSubMenuSelection;
             #if 0
@@ -562,7 +583,9 @@ void MENU_AcceptSetting(void)
             gVfoConfigureMode   = VFO_CONFIGURE_RELOAD;
             gFlagResetVfos      = true;
             return;
+#endif
 
+#ifdef ENABLE_ON_DEVICE_PROGRAMMING
         case MENU_MEM_NAME:
             for (int i = 9; i >= 0; i--) {
                 if (edit[i] != ' ' && edit[i] != '_' && edit[i] != 0x00 && edit[i] != 0xff)
@@ -572,6 +595,7 @@ void MENU_AcceptSetting(void)
 
             SETTINGS_SaveChannelName(gSubMenuSelection, edit);
             return;
+#endif
 
         case MENU_SAVE:
             gEeprom.BATTERY_SAVE = gSubMenuSelection;
@@ -651,26 +675,32 @@ void MENU_AcceptSetting(void)
             gKeyLockCountdown        = gEeprom.AUTO_KEYPAD_LOCK * 30; // 15 seconds step
             break;
 
+#ifdef ENABLE_SCAN_LIST_EDITING
         case MENU_S_ADD1:
             gTxVfo->SCANLIST1_PARTICIPATION = gSubMenuSelection;
             SETTINGS_UpdateChannel(gTxVfo->CHANNEL_SAVE, gTxVfo, true, false, true);
             gVfoConfigureMode = VFO_CONFIGURE;
             gFlagResetVfos    = true;
             return;
+#endif
 
+#ifdef ENABLE_SCAN_LIST_EDITING
         case MENU_S_ADD2:
             gTxVfo->SCANLIST2_PARTICIPATION = gSubMenuSelection;
             SETTINGS_UpdateChannel(gTxVfo->CHANNEL_SAVE, gTxVfo, true, false, true);
             gVfoConfigureMode = VFO_CONFIGURE;
             gFlagResetVfos    = true;
             return;
+#endif
 
+#ifdef ENABLE_SCAN_LIST_EDITING
         case MENU_S_ADD3:
             gTxVfo->SCANLIST3_PARTICIPATION = gSubMenuSelection;
             SETTINGS_UpdateChannel(gTxVfo->CHANNEL_SAVE, gTxVfo, true, false, true);
             gVfoConfigureMode = VFO_CONFIGURE;
             gFlagResetVfos    = true;
             return;
+#endif
 
         case MENU_STE:
             gEeprom.TAIL_TONE_ELIMINATION = gSubMenuSelection;
@@ -704,9 +734,11 @@ void MENU_AcceptSetting(void)
             gEeprom.CHAN_1_CALL = gSubMenuSelection;
             break;
 
+#ifdef ENABLE_SCAN_LIST_EDITING
         case MENU_S_LIST:
             gEeprom.SCAN_LIST_DEFAULT = gSubMenuSelection;
             break;
+#endif
 
         #ifdef ENABLE_ALARM
             case MENU_AL_MOD:
@@ -1989,6 +2021,26 @@ void MENU_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
         case KEY_STAR:
             MENU_Key_STAR(bKeyPressed, bKeyHeld);
             break;
+        case KEY_SIDE1:
+            if (gEeprom.SET_NAV == 0) {
+                if(gIsInSubMenu)
+                    MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, -1);
+                else
+                    MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, 1);
+            } else {
+                MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, 1);
+            }
+            break;
+        case KEY_SIDE2:
+            if (gEeprom.SET_NAV == 0) {
+                if(gIsInSubMenu)
+                    MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, 1);
+                else
+                    MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, -1);
+            } else {
+                MENU_Key_UP_DOWN(bKeyPressed, bKeyHeld, -1);
+            }
+            break;
         case KEY_F:
             if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_index >= 0)
             {   // currently editing the channel name
@@ -2012,7 +2064,7 @@ void MENU_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             GENERIC_Key_F(bKeyPressed, bKeyHeld);
             break;
         case KEY_PTT:
-            GENERIC_Key_PTT(bKeyPressed);
+            MENU_Key_MENU(bKeyPressed, bKeyHeld);
             break;
         default:
             if (!bKeyHeld && bKeyPressed)

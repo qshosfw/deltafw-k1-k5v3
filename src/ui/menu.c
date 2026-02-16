@@ -53,27 +53,37 @@ const t_menu_item MenuList[] =
     {"RxCTCS",      MENU_R_CTCS        }, // was "R_CTCS"
     {"TxDCS",       MENU_T_DCS         }, // was "T_DCS"
     {"TxCTCS",      MENU_T_CTCS        }, // was "T_CTCS"
+    {"Mode",        MENU_AM            }, // was "AM"
+#ifdef ENABLE_TX_OFFSET
     {"TxODir",      MENU_SFT_D         }, // was "SFT_D"
     {"TxOffs",      MENU_OFFSET        }, // was "OFFSET"
+#endif
     {"W/N",         MENU_W_N           },
+#ifdef ENABLE_SCRAMBLER
     {"Scramb",      MENU_SCR           }, // was "SCR"
+#endif
     {"BusyCL",      MENU_BCL           }, // was "BCL"
     {"Compnd",      MENU_COMPAND       },
-    {"Mode",        MENU_AM            }, // was "AM"
+
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     {"TXLock",      MENU_TX_LOCK       }, 
 #endif
+#ifdef ENABLE_SCAN_LIST_EDITING
     {"ScAdd1",      MENU_S_ADD1        },
     {"ScAdd2",      MENU_S_ADD2        },
     {"ScAdd3",      MENU_S_ADD3        },
+#endif
+#ifdef ENABLE_ON_DEVICE_PROGRAMMING
     {"ChSave",      MENU_MEM_CH        }, // was "MEM-CH"
     {"ChDele",      MENU_DEL_CH        }, // was "DEL-CH"
     {"ChName",      MENU_MEM_NAME      },
-
+#endif
+#ifdef ENABLE_SCAN_LIST_EDITING
     {"SList",       MENU_S_LIST        },
     {"SList1",      MENU_SLIST1        },
     {"SList2",      MENU_SLIST2        },
     {"SList3",      MENU_SLIST3        },
+#endif
     {"ScnRev",      MENU_SC_REV        },
 #ifndef ENABLE_CUSTOM_FIRMWARE_MODS
     #ifdef ENABLE_NOAA
@@ -183,7 +193,9 @@ const t_menu_item MenuList[] =
     {"Tx 500",      MENU_500TX         }, // was "500TX"
 #endif
     {"350 En",      MENU_350EN         }, // was "350EN"
+#ifdef ENABLE_SCRAMBLER
     {"ScraEn",      MENU_SCREN         }, // was "SCREN"
+#endif
 #ifdef ENABLE_F_CAL_MENU
     {"FrCali",      MENU_F_CALI        }, // reference xtal calibration
 #endif
@@ -208,12 +220,14 @@ const char gSubMenu_TXP[][6] =
     "HIGH"
 };
 
+#ifdef ENABLE_TX_OFFSET
 const char gSubMenu_SFT_D[][4] =
 {
     "OFF",
     "+",
     "-"
 };
+#endif
 
 const char gSubMenu_W_N[][7] =
 {
@@ -360,6 +374,7 @@ const char gSubMenu_BATTYP[][12] =
     "2500mAh K1"
 };
 
+#ifdef ENABLE_SCRAMBLER
 const char gSubMenu_SCRAMBLER[][7] =
 {
     "OFF",
@@ -374,6 +389,7 @@ const char gSubMenu_SCRAMBLER[][7] =
     "3400Hz",
     "3500Hz"
 };
+#endif
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     const char gSubMenu_SET_PWR[][6] =

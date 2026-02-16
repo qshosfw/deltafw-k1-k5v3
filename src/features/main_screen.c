@@ -445,7 +445,6 @@ static void MAIN_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             return;
         }
 
-        const uint8_t Vfo = gEeprom.TX_VFO;
         INPUTBOX_Append(Key);
         gKeyInputCountdown = key_input_timeout_500ms;
 

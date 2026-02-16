@@ -880,6 +880,7 @@ void BK4819_PickRXFilterPathBasedOnFrequency(uint32_t Frequency)
     }
 }
 
+#ifdef ENABLE_SCRAMBLER
 void BK4819_DisableScramble(void)
 {
     const uint16_t Value = BK4819_ReadRegister(BK4819_REG_31);
@@ -893,6 +894,7 @@ void BK4819_EnableScramble(uint8_t Type)
 
     BK4819_WriteRegister(BK4819_REG_71, 0x68DC + (Type * 1032));   // 0110 1000 1101 1100
 }
+#endif
 
 bool BK4819_CompanderEnabled(void)
 {
@@ -1827,10 +1829,12 @@ void BK4819_GetVoxAmp(uint16_t *pResult)
     *pResult = BK4819_ReadRegister(BK4819_REG_64) & 0x7FFF;
 }
 
+#ifdef ENABLE_SCRAMBLER
 void BK4819_SetScrambleFrequencyControlWord(uint32_t Frequency)
 {
     BK4819_WriteRegister(BK4819_REG_71, scale_freq(Frequency));
 }
+#endif
 
 void BK4819_PlayDTMFEx(bool bLocalLoopback, char Code)
 {

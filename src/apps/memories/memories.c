@@ -19,6 +19,11 @@
 
 
 // =============================================================================
+// Include Storage for Channel Attributes
+// =============================================================================
+#include "features/storage.h"
+
+// =============================================================================
 // Mode State Machine
 // =============================================================================
 
@@ -34,7 +39,6 @@ static MemMode currentMode = MEM_MODE_LIST;
 static uint16_t detailChannelIndex = 0;
 static char detailTitle[20];
 static char editBuffer[17];
-static bool ignoreNextMenuRelease = true;
 
 // Numeric quick-jump state
 static char searchDigits[4] = {0};  // Up to 3 digits + null
@@ -45,6 +49,10 @@ static char listTitle[20] = "Memories";
 static uint16_t filteredChannels[MR_CHANNEL_LAST + 1];
 static uint16_t filteredCount = 0;
 static bool searchActive = false;
+#ifdef ENABLE_SCAN_LIST_EDITING
+static bool scanListFilterMode = false;
+#endif
+
 
 // Working copy of channel data
 static VFO_Info_t editChannel;
@@ -58,6 +66,7 @@ static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bo
 static void LoadChannelData(uint16_t index);
 static void SaveChannelData(void);
 static void EnterDetailMenu(uint16_t index);
+static void ClearSearch(void);
 
 // =============================================================================
 // String Arrays for Settings
@@ -373,25 +382,41 @@ static void ChangeBusyLock(const MenuItem *item, bool up) {
     SaveChannelData();
 }
 
-static void GetScanlist1(const MenuItem *item, char *buf, uint8_t sz) {
+static void GetScanlists(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", yesNoNames[editChannel.SCANLIST1_PARTICIPATION ? 1 : 0]);
+    uint8_t mask = 0;
+    if (editChannel.SCANLIST1_PARTICIPATION) mask |= 1;
+    if (editChannel.SCANLIST2_PARTICIPATION) mask |= 2;
+    if (editChannel.SCANLIST3_PARTICIPATION) mask |= 4;
+    
+    if (mask == 0) snprintf(buf, sz, "None");
+    else if (mask == 7) snprintf(buf, sz, "All");
+    else {
+        // e.g. "1+2", "1+3", "2+3", "1", "2", "3"
+        // Or simpler: "1 2 3"
+        int pos = 0;
+        if (mask & 1) pos += snprintf(buf + pos, sz - pos, "1");
+        if (mask & 2) pos += snprintf(buf + pos, sz - pos, "%s2", pos > 0 ? "+" : "");
+        if (mask & 4) pos += snprintf(buf + pos, sz - pos, "%s3", pos > 0 ? "+" : "");
+    }
 }
 
-static void ChangeScanlist1(const MenuItem *item, bool up) {
-    (void)item; (void)up;
-    editChannel.SCANLIST1_PARTICIPATION = !editChannel.SCANLIST1_PARTICIPATION;
-    SaveChannelData();
-}
-
-static void GetScanlist2(const MenuItem *item, char *buf, uint8_t sz) {
+static void ChangeScanlists(const MenuItem *item, bool up) {
     (void)item;
-    snprintf(buf, sz, "%s", yesNoNames[editChannel.SCANLIST2_PARTICIPATION ? 1 : 0]);
-}
+    uint8_t mask = 0;
+    if (editChannel.SCANLIST1_PARTICIPATION) mask |= 1;
+    if (editChannel.SCANLIST2_PARTICIPATION) mask |= 2;
+    if (editChannel.SCANLIST3_PARTICIPATION) mask |= 4;
+    
+    if (up) {
+        mask = (mask + 1) & 7;
+    } else {
+        mask = (mask + 7) & 7;
+    }
 
-static void ChangeScanlist2(const MenuItem *item, bool up) {
-    (void)item; (void)up;
-    editChannel.SCANLIST2_PARTICIPATION = !editChannel.SCANLIST2_PARTICIPATION;
+    editChannel.SCANLIST1_PARTICIPATION = (mask & 1) ? 1 : 0;
+    editChannel.SCANLIST2_PARTICIPATION = (mask & 2) ? 1 : 0;
+    editChannel.SCANLIST3_PARTICIPATION = (mask & 4) ? 1 : 0;
     SaveChannelData();
 }
 
@@ -401,7 +426,7 @@ static void ChangeScanlist2(const MenuItem *item, bool up) {
 
 static bool ActionSelect(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     (void)item; (void)key_held;
-    if (key == KEY_MENU && key_pressed) {
+    if ((key == KEY_MENU || key == KEY_PTT) && key_pressed) {
         DoSelect();
         return true;
     }
@@ -410,7 +435,7 @@ static bool ActionSelect(const MenuItem *item, KEY_Code_t key, bool key_pressed,
 
 static bool ActionRename(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     (void)item; (void)key_held;
-    if (key == KEY_MENU && key_pressed) {
+    if ((key == KEY_MENU || key == KEY_PTT) && key_pressed) {
         DoRename();
         return true;
     }
@@ -436,7 +461,7 @@ static void GetFreq(const MenuItem *item, char *buf, uint8_t sz) {
 
 static bool ActionFreq(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     (void)item; (void)key_held;
-    if (key == KEY_MENU && key_pressed) {
+    if ((key == KEY_MENU || key == KEY_PTT) && key_pressed) {
         DoEditFreq();
         return true;
     }
@@ -445,7 +470,7 @@ static bool ActionFreq(const MenuItem *item, KEY_Code_t key, bool key_pressed, b
 
 static bool ActionOffsetVal(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     (void)item; (void)key_held;
-    if (key == KEY_MENU && key_pressed) {
+    if ((key == KEY_MENU || key == KEY_PTT) && key_pressed) {
         DoEditOffset();
         return true;
     }
@@ -454,7 +479,7 @@ static bool ActionOffsetVal(const MenuItem *item, KEY_Code_t key, bool key_press
 
 static bool ActionDelete(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     (void)item; (void)key_held;
-    if (key == KEY_MENU && key_pressed) {
+    if ((key == KEY_MENU || key == KEY_PTT) && key_pressed) {
         DoDelete();
         return true;
     }
@@ -477,11 +502,14 @@ static const MenuItem channelDetailItems[] = {
     {"Offset Dir",   0, GetOffsetDir,  ChangeOffsetDir, NULL, NULL,            M_ITEM_SELECT},
     {"Offset Freq",  0, GetOffsetVal,  NULL,            NULL, ActionOffsetVal, M_ITEM_ACTION},
     {"Step",         0, GetStep,       ChangeStep,      NULL, NULL,            M_ITEM_SELECT},
+#ifdef ENABLE_SCRAMBLER
     {"Scrambler",    0, GetScramble,   ChangeScramble,  NULL, NULL,            M_ITEM_SELECT},
+#endif
     {"Compander",    0, GetCompander,  ChangeCompander, NULL, NULL,            M_ITEM_SELECT},
     {"Busy Lock",    0, GetBusyLock,   ChangeBusyLock,  NULL, NULL,            M_ITEM_SELECT},
-    {"Scanlist 1",   0, GetScanlist1,  ChangeScanlist1, NULL, NULL,            M_ITEM_SELECT},
-    {"Scanlist 2",   0, GetScanlist2,  ChangeScanlist2, NULL, NULL,            M_ITEM_SELECT},
+#ifdef ENABLE_SCAN_LIST_EDITING
+    {"Scanlists",    0, GetScanlists,  ChangeScanlists, NULL, NULL,            M_ITEM_SELECT},
+#endif
     {"Delete",       0, NULL,          NULL,            NULL, ActionDelete,    M_ITEM_ACTION},
 };
 
@@ -601,6 +629,34 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
     if (strlen(rightLabel) > 0) {
         AG_PrintSmallEx(LCD_WIDTH - 6, baseline_y, POS_R, C_FILL, "%s", rightLabel);
     }
+
+    // Scan List Indicators (Upper Right)
+    #ifdef ENABLE_SCAN_LIST_EDITING
+    ChannelAttributes_t att;
+    Storage_ReadRecordIndexed(REC_MR_ATTRIBUTES, realIndex, &att, 0, 1);
+    
+    // Draw indicators [1] [2] [3] right aligned above the frequency
+    // Use y + 5 as baseline for upper row (Top aligned with small gap)
+    // Start from right edge (LCD_WIDTH - 4) to avoid scrollbar (assuming it's at -3)
+    
+    uint8_t x_pos = LCD_WIDTH - 6; 
+    
+    // Reverse order for Right-to-Left drawing: 3, 2, 1
+    if (att.scanlist3) {
+        AG_FillRect(x_pos - 5, y, 6, 6, C_FILL);
+        AG_PrintSmallEx(x_pos, y + 4, POS_R, C_INVERT, "3");
+        x_pos -= 7;
+    }
+    if (att.scanlist2) {
+        AG_FillRect(x_pos - 5, y, 6, 6, C_FILL);
+        AG_PrintSmallEx(x_pos, y + 4, POS_R, C_INVERT, "2");
+        x_pos -= 7;
+    }
+    if (att.scanlist1) {
+        AG_FillRect(x_pos - 5, y, 6, 6, C_FILL);
+        AG_PrintSmallEx(x_pos, y + 4, POS_R, C_INVERT, "1");
+    }
+    #endif
 }
 
 // =============================================================================
@@ -630,39 +686,59 @@ static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bo
     uint16_t realIndex = searchActive ? filteredChannels[index] : index;
     (void)key_held;
     
+    // Handle STAR for search/filter mode toggle
+#ifdef ENABLE_SCAN_LIST_EDITING
+    if (key == KEY_STAR && key_pressed) {
+        if (!scanListFilterMode) {
+           scanListFilterMode = true;
+           ClearSearch(); // Clear purely numeric search to ready for filter
+        } else {
+           scanListFilterMode = false;
+           ClearSearch();
+        }
+        return true;
+    }
+#endif
+
+    // Handle keys 1, 2, 3 in filter mode? No, RebuildFilteredList handles input in searchDigits
+    // But scanListFilterMode changes how searchDigits are interpreted.
+    
     // Handle EXIT on press only
     if (key == KEY_EXIT && key_pressed) {
+#ifdef ENABLE_SCAN_LIST_EDITING
+        if (scanListFilterMode || searchActive) {
+            ClearSearch();
+            scanListFilterMode = false;
+            return true;
+        }
+#else
+        if (searchActive) {
+            ClearSearch();
+            return true;
+        }
+#endif
         AG_MENU_Back();
         return true;
     }
 
-    if (key == KEY_MENU) {
-        if (key_held) {
-            // If channel is valid, edit it
-            if (RADIO_CheckValidChannel(realIndex, false, 0)) {
-                EnterDetailMenu(realIndex);
-                AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
-            } else {
-                // If channel is empty, create it then edit it
-                CreateNewChannel(realIndex);
-                EnterDetailMenu(realIndex);
-                AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+    if (key == KEY_MENU || key == KEY_PTT) {
+        if (key_pressed) {
+            if (key_held) {
+                // Long Press -> Edit Channel
+                if (RADIO_CheckValidChannel(realIndex, false, 0)) {
+                    EnterDetailMenu(realIndex);
+                    AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+                } else {
+                    // If channel is empty, create it then edit it
+                    CreateNewChannel(realIndex);
+                    EnterDetailMenu(realIndex);
+                    AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+                }
             }
+            // Consuming press (Short press action happens on release)
             return true;
-        } else if (!key_pressed) { // Released
-            if (ignoreNextMenuRelease) {
-                ignoreNextMenuRelease = false;
-                return true;
-            }
-
-            // If we are still in LIST mode (which we are, otherwise this fn wouldn't be called),
-            // and we received a Release event without a prior active Hold that changed the mode,
-            // then it's a Short Press -> Select.
-            
-            // Note: If EnterDetailMenu was called on Hold, currentMode changed to MEM_MODE_DETAIL.
-            // The subsequent Release event would undergo ProcessKeys -> switch(currentMode) -> MEM_MODE_DETAIL case.
-            // It would NOT reach here.
-            
+        } else {
+            // Released (Short Press) -> Select
             if (RADIO_CheckValidChannel(realIndex, false, 0)) {
                 detailChannelIndex = realIndex;
                 DoSelect();
@@ -670,7 +746,6 @@ static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bo
             }
             return true;
         }
-        return true; 
     }
 
     return false;
@@ -685,46 +760,49 @@ static bool Memories_Action(uint16_t index, KEY_Code_t key, bool key_pressed, bo
 static bool ChannelMatchesSearch(uint16_t channelNum1Indexed) {
     if (searchDigitCount == 0) return true;
     
-    // Convert channel to string (1-indexed, 3 digits)
-    char chanStr[4];
-    snprintf(chanStr, sizeof(chanStr), "%03u", channelNum1Indexed);
-    
-    // Count leading zeros in search pattern
-    uint8_t leadingZeros = 0;
-    for (uint8_t i = 0; i < searchDigitCount; i++) {
-        if (searchDigits[i] == '0') leadingZeros++;
-        else break;
-    }
-    
-    // Match from the end (rightmost digits must match)
-    // With leading zeros as wildcards, we match the non-zero suffix
-    uint8_t significantDigits = searchDigitCount - leadingZeros;
-    if (significantDigits == 0) {
-        // All zeros - match channels ending in zeros
-        // "0" matches X0, "00" matches X00
-        uint8_t chanLen = 3;
-        for (uint8_t i = 0; i < searchDigitCount; i++) {
-            if (chanStr[chanLen - 1 - i] != '0') return false;
-        }
-        return true;
-    }
-    
-    // Match the rightmost 'searchDigitCount' digits
-    uint8_t chanLen = 3;
+    uint16_t val = channelNum1Indexed;
     for (int8_t i = searchDigitCount - 1; i >= 0; i--) {
-        int8_t chanIdx = chanLen - (searchDigitCount - i);
-        if (chanIdx < 0) return false;
-        // Skip leading zero positions
-        if (i < leadingZeros) continue;
-        if (chanStr[chanIdx] != searchDigits[i]) return false;
+        uint8_t digit = val % 10;
+        val /= 10;
+        
+        if (searchDigits[i] != '0' && (searchDigits[i] - '0') != digit) {
+            return false;
+        }
     }
     return true;
 }
 
 static void RebuildFilteredList(void) {
     filteredCount = 0;
+    
+#ifdef ENABLE_SCAN_LIST_EDITING
+    uint8_t filterMask = 0;
+    if (scanListFilterMode) {
+        for (uint8_t i = 0; i < searchDigitCount; i++) {
+            filterMask |= (1 << (searchDigits[i] - '1' + 5)); // scanlist1 at bit 5
+        }
+    }
+#endif
+
     for (uint16_t ch = 0; ch <= MR_CHANNEL_LAST; ch++) {
-        if (ChannelMatchesSearch(ch + 1)) {  // 1-indexed for display
+        bool match = false;
+#ifdef ENABLE_SCAN_LIST_EDITING
+        if (scanListFilterMode) {
+            uint8_t att = 0;
+            Storage_ReadRecordIndexed(REC_MR_ATTRIBUTES, ch, &att, 0, 1);
+            if (filterMask == 0) {
+                match = (att & 0xE0) != 0; // Any list (bits 5,6,7)
+            } else {
+                match = (att & filterMask) == filterMask;
+            }
+        } else {
+             match = ChannelMatchesSearch(ch + 1);
+        }
+#else
+        match = ChannelMatchesSearch(ch + 1);
+#endif
+        
+        if (match) {
             filteredChannels[filteredCount++] = ch;
         }
     }
@@ -733,11 +811,39 @@ static void RebuildFilteredList(void) {
 }
 
 static void UpdateSearchTitle(void) {
+#ifdef ENABLE_SCAN_LIST_EDITING
+    if (scanListFilterMode) {
+        if (searchDigitCount == 0) {
+            snprintf(listTitle, sizeof(listTitle), "Scanlist");
+        } else {
+            char buf[16] = {0};
+            int pos = 0;
+            // Ordered check: 1, 2, 3
+            for (char d = '1'; d <= '3'; d++) {
+                for (uint8_t i = 0; i < searchDigitCount; i++) {
+                    if (searchDigits[i] == d) {
+                        if (pos > 0) buf[pos++] = '+';
+                        buf[pos++] = d;
+                        break;
+                    }
+                }
+            }
+            snprintf(listTitle, sizeof(listTitle), "Scanlist %s?", buf);
+        }
+    } else {
+        if (searchDigitCount == 0) {
+            snprintf(listTitle, sizeof(listTitle), "Memories");
+        } else {
+            snprintf(listTitle, sizeof(listTitle), "Memories %s?", searchDigits);
+        }
+    }
+#else
     if (searchDigitCount == 0) {
         snprintf(listTitle, sizeof(listTitle), "Memories");
     } else {
         snprintf(listTitle, sizeof(listTitle), "Memories %s?", searchDigits);
     }
+#endif
     memoriesMenu.title = listTitle;
 }
 
@@ -750,7 +856,21 @@ static void ClearSearch(void) {
 }
 
 static void AddSearchDigit(uint8_t digit) {
+#ifdef ENABLE_SCAN_LIST_EDITING
+    if (scanListFilterMode) {
+        // Only allow 1, 2, 3
+        if (digit < 1 || digit > 3) return;
+        
+        // Prevent duplicates
+        for (uint8_t i = 0; i < searchDigitCount; i++) {
+            if (searchDigits[i] == '0' + digit) return;
+        }
+    }
+#endif
+
     if (searchDigitCount >= 3) {
+        if (scanListFilterMode) return; // Don't shift in filter mode, just max out
+
         // Shift left and add new digit
         searchDigits[0] = searchDigits[1];
         searchDigits[1] = searchDigits[2];
@@ -784,8 +904,6 @@ void MEMORIES_Init(void) {
     } else {
         memoriesMenu.i = 0;
     }
-    
-    ignoreNextMenuRelease = true;
     
     AG_MENU_Init(&memoriesMenu);
 }
@@ -821,7 +939,7 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
                 currentMode = MEM_MODE_DETAIL;
                 return;
             }
-            if (Key == KEY_MENU && bKeyPressed && !bKeyHeld) {
+            if ((Key == KEY_MENU || Key == KEY_PTT) && bKeyPressed && !bKeyHeld) {
                 // Save rename
                 SETTINGS_SaveChannelName(detailChannelIndex, editBuffer);
                 currentMode = MEM_MODE_DETAIL;
@@ -832,7 +950,7 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
             return;
             
         case MEM_MODE_RX_FREQ:
-            if (Key == KEY_MENU && bKeyPressed && !bKeyHeld) {
+            if ((Key == KEY_MENU || Key == KEY_PTT) && bKeyPressed && !bKeyHeld) {
                 // Save RX frequency
                 uint32_t f = FreqInput_GetFrequency();
                 editChannel.freq_config_RX.Frequency = f;
@@ -852,7 +970,7 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
             return;
             
         case MEM_MODE_TX_OFFSET:
-            if (Key == KEY_MENU && bKeyPressed && !bKeyHeld) {
+            if ((Key == KEY_MENU || Key == KEY_PTT) && bKeyPressed && !bKeyHeld) {
                 // Save TX Offset
                 editChannel.TX_OFFSET_FREQUENCY = FreqInput_GetFrequency();
                 SaveChannelData();
@@ -895,9 +1013,13 @@ void MEMORIES_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
             }
             
             // Standard Navigation
-            if (Key == KEY_UP || Key == KEY_DOWN) {
-                // Clear search when navigating
+            if (Key == KEY_UP || Key == KEY_DOWN || Key == KEY_SIDE1 || Key == KEY_SIDE2) {
+                // Clear search when navigating, UNLESS in scanlist filter mode
+#ifdef ENABLE_SCAN_LIST_EDITING
+                if (searchDigitCount > 0 && !scanListFilterMode) {
+#else
                 if (searchDigitCount > 0) {
+#endif
                     ClearSearch();
                 }
                 // Key repeat handling provided by APP infrastructure

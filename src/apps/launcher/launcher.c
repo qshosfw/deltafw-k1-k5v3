@@ -30,7 +30,8 @@
 #include "../ui/ag_menu.h"
 
 static bool LA_Memories(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
+    if (key != KEY_MENU && key != KEY_PTT) return false;
+    if (!key_pressed || key_held) return true;
     MEMORIES_Init();
     gRequestDisplayScreen = DISPLAY_MEMORIES;
     return true;
@@ -38,14 +39,16 @@ static bool LA_Memories(const MenuItem *item, KEY_Code_t key, bool key_pressed, 
 
 // Actions Wrappers
 static bool LA_Settings(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
+    if (key != KEY_MENU && key != KEY_PTT) return false;
+    if (!key_pressed || key_held) return true;
     SETTINGS_UI_Init();
     gRequestDisplayScreen = DISPLAY_MENU;
     return true;
 }
 
 static bool LA_EditScanlist(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-     if (key != KEY_MENU) return false;
+     if (key != KEY_MENU && key != KEY_PTT) return false;
+     if (!key_pressed || key_held) return true;
      gEeprom.SCAN_LIST_DEFAULT = (gEeprom.SCAN_LIST_DEFAULT + 1) % 6;
     #ifdef ENABLE_BOOT_RESUME_STATE
         SETTINGS_WriteCurrentState();
@@ -55,7 +58,8 @@ static bool LA_EditScanlist(const MenuItem *item, KEY_Code_t key, bool key_press
 }
 
 static bool LA_Spectrum(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
+    if (key != KEY_MENU && key != KEY_PTT) return false;
+    if (!key_pressed || key_held) return true;
     #if defined(ENABLE_SPECTRUM_EXTENSIONS) && defined(ENABLE_SPECTRUM)
     APP_RunSpectrum();
     #endif
@@ -64,7 +68,8 @@ static bool LA_Spectrum(const MenuItem *item, KEY_Code_t key, bool key_pressed, 
 }
 
 static bool LA_FM(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
+    if (key != KEY_MENU && key != KEY_PTT) return false;
+    if (!key_pressed || key_held) return true;
     #ifdef ENABLE_FMRADIO
     if (!gFmRadioMode) {
         ACTION_FM();
@@ -76,7 +81,8 @@ static bool LA_FM(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool k
 }
 
 static bool LA_Scanner(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-     if (key != KEY_MENU) return false;
+     if (key != KEY_MENU && key != KEY_PTT) return false;
+     if (!key_pressed || key_held) return true;
      gBackup_CROSS_BAND_RX_TX = gEeprom.CROSS_BAND_RX_TX;
      gEeprom.CROSS_BAND_RX_TX = CROSS_BAND_OFF;
      gUpdateStatus = true;
@@ -86,7 +92,8 @@ static bool LA_Scanner(const MenuItem *item, KEY_Code_t key, bool key_pressed, b
 }
 
 static bool LA_AirCopy(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
+    if (key != KEY_MENU && key != KEY_PTT) return false;
+    if (!key_pressed || key_held) return true;
     #ifdef ENABLE_AIRCOPY
     gRequestDisplayScreen = DISPLAY_AIRCOPY;
     #endif
@@ -94,7 +101,8 @@ static bool LA_AirCopy(const MenuItem *item, KEY_Code_t key, bool key_pressed, b
 }
 
 static bool LA_Info(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-    if (key != KEY_MENU) return false;
+    if (key != KEY_MENU && key != KEY_PTT) return false;
+    if (!key_pressed || key_held) return true;
     SYSINFO_Init();
     gRequestDisplayScreen = DISPLAY_SYSINFO;
     return true;

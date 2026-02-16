@@ -830,10 +830,14 @@ void RADIO_SetupRegisters(bool switchToForeground)
                     break;
             }
 
-            if (gRxVfo->SCRAMBLING_TYPE > 0 && gSetting_ScrambleEnable)
+#ifdef ENABLE_SCRAMBLER
+            if (gSetting_ScrambleEnable && gRxVfo->SCRAMBLING_TYPE > 0 && gRxVfo->Modulation == MODULATION_FM)
                 BK4819_EnableScramble(gRxVfo->SCRAMBLING_TYPE - 1);
             else
                 BK4819_DisableScramble();
+#else
+            BK4819_DisableScramble();
+#endif
         }
     }
     #ifdef ENABLE_NOAA

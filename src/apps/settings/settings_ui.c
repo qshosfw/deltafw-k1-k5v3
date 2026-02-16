@@ -510,6 +510,7 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
         case MENU_COMPAND:
              INC_DEC(gTxVfo->Compander, 0, 3, up);
              break;
+#ifdef ENABLE_SCRAMBLER
         case MENU_SCR:
              INC_DEC(gTxVfo->SCRAMBLING_TYPE, 0, 10, up);
              gSetting_ScrambleEnable = (gTxVfo->SCRAMBLING_TYPE > 0);
@@ -520,6 +521,7 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
                      BK4819_DisableScramble();
              }
              break;
+#endif
 
         case MENU_R_DCS:
         case MENU_T_DCS:
@@ -728,13 +730,17 @@ static const MenuItem radioItems[] = {
     {"Rx CTCS", MENU_R_CTCS, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Tx DCS", MENU_T_DCS, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Tx CTCS", MENU_T_CTCS, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+#ifdef ENABLE_TX_OFFSET
     {"Offset Dir", MENU_SFT_D, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Offset Freq", MENU_OFFSET, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+#endif
     {"Busy Channel Lock", MENU_BCL, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Modulation", MENU_AM, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Scan Resume", MENU_SC_REV, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"Compander", MENU_COMPAND, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+#ifdef ENABLE_SCRAMBLER
     {"Scrambler", MENU_SCR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+#endif
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     {"Tx Lock", MENU_TX_LOCK, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"350 En", MENU_350EN, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},

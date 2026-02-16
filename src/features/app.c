@@ -120,7 +120,6 @@ void (*ProcessKeysFunctions[])(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) 
 #endif
     [DISPLAY_LAUNCHER] = &LAUNCHER_ProcessKeys,
     [DISPLAY_MEMORIES] = &MEMORIES_ProcessKeys,
-    [DISPLAY_MEMORIES] = &MEMORIES_ProcessKeys,
     [DISPLAY_SYSINFO] = &SYSINFO_ProcessKeys,
 #ifdef ENABLE_EEPROM_HEXDUMP
     [DISPLAY_HEXDUMP] = &UI_HexDump_ProcessKeys,
@@ -1233,6 +1232,13 @@ static void CheckKeys(void)
     bool pttB = (gEeprom.KEY_1_SHORT_PRESS_ACTION == ACTION_OPT_PTT_B && pttSide1) || 
                 (gEeprom.KEY_2_SHORT_PRESS_ACTION == ACTION_OPT_PTT_B && pttSide2);
 
+    // If we are in any menu, we want Side Keys to act as Up/Down (Navigation),
+    // NOT PTT, even if they are assigned as PTT in settings.
+    if (UI_IsMenuMode()) {
+        pttA = false;
+        pttB = false;
+    }
+
     bool pttPressed = pttMain || pttA || pttB;
 
     // Suppress side keys if used as PTT
@@ -1242,7 +1248,35 @@ static void CheckKeys(void)
     // Mode 1: Latch, Mode 2: Both (Latch on Double Tap), Mode 0: Hold
     uint8_t pttMode = gSetting_set_ptt_session;
 
-    if (pttMode == 2) { // BOTH
+    if (UI_IsMenuMode()) {
+        if (pttMain) {
+            if (!gPttIsPressed) { // New Press
+                if (++gPttDebounceCounter >= 3) {
+                    ProcessKey(KEY_PTT, true, false);
+                    gPttIsPressed = true;
+                    gPttDebounceCounter = 0;
+                }
+            } else { // Holding
+                if (gPttDebounceCounter < 0xFFFF) {
+                    gPttDebounceCounter++;
+                    if (gPttDebounceCounter == key_repeat_delay_10ms) {
+                        ProcessKey(KEY_PTT, true, true);
+                    }
+                }
+            }
+        } else { // Released
+            if (gPttIsPressed) {
+                if (++gPttDebounceCounter >= 3) {
+                    ProcessKey(KEY_PTT, false, false);
+                    gPttIsPressed = false;
+                    gPttDebounceCounter = 0;
+                }
+            } else {
+                gPttDebounceCounter = 0;
+            }
+        }
+    }
+    else if (pttMode == 2) { // BOTH
         if (pttPressed) {
              // If we are in state 3 (waiting for release after delatch), just debounce and wait.
              if (gPttOnePushCounter == 3) {
@@ -1574,7 +1608,7 @@ static void CheckKeys(void)
     }
     else //subsequent fast key repeats
     {
-        if (Key == KEY_UP || Key == KEY_DOWN) // fast key repeats for up/down buttons
+        if (Key == KEY_UP || Key == KEY_DOWN || Key == KEY_SIDE1 || Key == KEY_SIDE2) // fast key repeats for up/down/side buttons
         {
             gKeyBeingHeld = true;
             if ((gDebounceCounter % key_repeat_10ms) == 0)
@@ -2353,10 +2387,14 @@ void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 
                     BK4819_ExitDTMF_TX(false);
 
+#ifdef ENABLE_SCRAMBLER
                     if (gCurrentVfo->SCRAMBLING_TYPE == 0 || !gSetting_ScrambleEnable)
                         BK4819_DisableScramble();
                     else
                         BK4819_EnableScramble(gCurrentVfo->SCRAMBLING_TYPE - 1);
+#else
+                    BK4819_DisableScramble();
+#endif
                 }
             }
             else {
@@ -2365,7 +2403,11 @@ void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                     gEnableSpeaker = true;
                 }
 
+#ifdef ENABLE_SCRAMBLER
                 BK4819_DisableScramble();
+#else
+                BK4819_DisableScramble();
+#endif
 
                 if (Code == 0xFE)
                     BK4819_TransmitTone(gEeprom.DTMF_SIDE_TONE, 1750);
@@ -2389,18 +2431,12 @@ void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
         }
 #endif
     }
-#ifdef ENABLE_CUSTOM_FIRMWARE_MODS // For F + SIDE1 or F + SIDE2
-    else if (gWasFKeyPressed && (Key == KEY_SIDE1 || Key == KEY_SIDE2)) {
+    else if ((Key == KEY_SIDE1 || Key == KEY_SIDE2) && UI_IsMenuMode()) {
         ProcessKeysFunctions[gScreenToDisplay](Key, bKeyPressed, bKeyHeld);
     }
     else if (Key != KEY_SIDE1 && Key != KEY_SIDE2 && gScreenToDisplay != DISPLAY_INVALID) {
         ProcessKeysFunctions[gScreenToDisplay](Key, bKeyPressed, bKeyHeld);
     }
-#else
-    else if (Key != KEY_SIDE1 && Key != KEY_SIDE2 && gScreenToDisplay != DISPLAY_INVALID) {
-        ProcessKeysFunctions[gScreenToDisplay](Key, bKeyPressed, bKeyHeld);
-    }
-#endif
     else if (!SCANNER_IsScanning()
 #ifdef ENABLE_AIRCOPY
             && gScreenToDisplay != DISPLAY_AIRCOPY

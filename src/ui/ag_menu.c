@@ -175,11 +175,11 @@ void AG_MENU_EnterMenu(Menu *submenu) {
 bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held);
 
 static bool handleUpDownNavigation(KEY_Code_t key, bool hasItems, bool key_held) {
-  if (key != KEY_UP && key != KEY_DOWN) {
+  if (key != KEY_UP && key != KEY_DOWN && key != KEY_SIDE1 && key != KEY_SIDE2) {
     return false;
   }
 
-  active_menu->i = IncDecU(active_menu->i, 0, active_menu->num_items, key == KEY_DOWN);
+  active_menu->i = IncDecU(active_menu->i, 0, active_menu->num_items, (key == KEY_DOWN || key == KEY_SIDE2));
   
   if (!key_held) {
     AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
@@ -205,11 +205,15 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
   if (!key_pressed && !key_held) {
       if (is_pressed) {
           is_pressed = false;
-          return true;
+          // Fall through to let action/switch handle the release if needed
+      } else {
+          // Consume release if we didn't see the press, to prevent passthrough
+          if (key == KEY_PTT || key == KEY_MENU || key == KEY_EXIT) return true;
+          return false;
       }
   }
 
-  if (is_pressed && key != KEY_MENU && (key_pressed || key_held)) {
+  if (is_pressed && key != KEY_MENU && key != KEY_PTT && (key_pressed || key_held)) {
       is_pressed = false;
   }
 
@@ -218,15 +222,15 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
       
       if (is_editing) {
           if (key_pressed || key_held) {
-              if (key == KEY_UP || key == KEY_DOWN || key == KEY_STAR || key == KEY_F) {
+              if (key == KEY_UP || key == KEY_DOWN || key == KEY_STAR || key == KEY_F || key == KEY_SIDE1 || key == KEY_SIDE2) {
                   if (item->change_value) {
-                      bool up = (key == KEY_UP || key == KEY_F);
+                      bool up = (key == KEY_UP || key == KEY_F || key == KEY_SIDE1);
                       item->change_value(item, up);
                       if (!key_held) AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
                       return true;
                   }
               }
-              if (key == KEY_MENU || key == KEY_EXIT) {
+              if (key == KEY_MENU || key == KEY_EXIT || key == KEY_PTT) {
                   is_editing = false;
                   AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
                   return true;
@@ -255,28 +259,36 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
 
   if (key_pressed) {
     switch (key) {
+    case KEY_PTT:
     case KEY_MENU: // Enter submenu or execute action
-      if (item->type == M_ITEM_SELECT && item->change_value) {
-          is_editing = true;
+      if (!key_held) {
+        if (item->type == M_ITEM_SELECT && item->change_value) {
+            is_editing = true;
+            AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+            return true;
+        }
+        
+        is_pressed = true; // Visual state for buttons/folders
+        
+        if (item->submenu) {
+          AG_MENU_EnterMenu(item->submenu);
           AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
           return true;
-      }
-      
-      is_pressed = true; // Visual state for buttons/folders
-      
-      if (item->submenu) {
-        AG_MENU_EnterMenu(item->submenu);
-        AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
-        return true;
-      } else if (item->action) {
-         if (item->action(item, key, key_pressed, key_held)) {
-             AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
-             return true;
-         }
-      } else if (item->change_value) { // Toggle (M_ITEM_ACTION with change_value)
-          item->change_value(item, true);
-          AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
-          return true;
+        } else if (item->action) {
+           if (item->action(item, key, key_pressed, key_held)) {
+               AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+               return true;
+           }
+        } else if (item->change_value) { // Toggle (M_ITEM_ACTION with change_value)
+            item->change_value(item, true);
+            AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+            return true;
+        }
+      } else if (is_pressed) {
+        // Handle long press if needed (passed to action)
+        if (item->action && item->action(item, key, key_pressed, key_held)) {
+            return true;
+        }
       }
       break;
     case KEY_EXIT:
@@ -288,7 +300,8 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
     }
   }
   
-  if (item->action && item->action(item, key, key_pressed, key_held)) {
+  // Final fallthrough for other keys (UP/DOWN/F etc handled by action)
+  if (key_pressed && item->action && item->action(item, key, key_pressed, key_held)) {
     return true;
   }
 

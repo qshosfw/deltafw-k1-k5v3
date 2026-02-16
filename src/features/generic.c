@@ -98,6 +98,9 @@ void GENERIC_Key_F(bool bKeyPressed, bool bKeyHeld)
 
 void GENERIC_Key_PTT(bool bKeyPressed)
 {
+    if (UI_IsMenuMode())
+        return;
+
     gInputBoxIndex = 0;
 
     if (!bKeyPressed || SerialConfigInProgress())

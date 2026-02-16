@@ -816,7 +816,11 @@ void UI_DisplayMain(void)
         // 11. DCS/CTCSS
         const char *dcsNames[] = {"", "CT", "DCS", "DCS"};
         const FREQ_Config_t *pConfig = (gCurrentFunction == FUNCTION_TRANSMIT) ? vfoInfo->pTX : vfoInfo->pRX;
-        if (pConfig->CodeType < 4 && pConfig->CodeType > 0) labels[nLabels++] = dcsNames[pConfig->CodeType];
+        if (pConfig->CodeType != CODE_TYPE_OFF) {
+            labels[nLabels++] = dcsNames[pConfig->CodeType];
+        } else if (vfoInfo->pTX->CodeType != CODE_TYPE_OFF) {
+            labels[nLabels++] = dcsNames[vfoInfo->pTX->CodeType];
+        }
 
         // Rendering with dynamic spacing
         if (nLabels > 0) {

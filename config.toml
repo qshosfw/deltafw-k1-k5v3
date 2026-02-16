@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.2.2"
+version = "1.3.0"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -59,8 +59,9 @@ options = { EDITION_STRING = "Game", SPECTRUM = false, APP_BREAKOUT_GAME = true 
 # 🎛️  Hardware / Drivers
 UART = true
 USB = true
-FMRADIO = true
 FLASHLIGHT = true
+BOOT_RESUME_STATE = true
+DEEP_SLEEP_MODE = true
 
 # 🔊 Audio & Voice
 VOICE = false
@@ -68,25 +69,26 @@ VOX = true
 ALARM = false
 TX1750 = true
 BOOT_BEEPS = false
+RSSI_BAR = true
+MIC_BAR = true
+RX_TX_TIMER_DISPLAY = true
 
 # 📟 Display & UI
 BIG_FREQ = true
 SMALL_BOLD = true
 INVERTED_LCD_MODE = true
 LCD_CONTRAST_OPTION = true
-RSSI_BAR = true
-MIC_BAR = true
 SHOW_CHARGE_LEVEL = false
 USBC_CHARGING_INDICATOR = true
 REVERSE_BAT_SYMBOL = false
-RX_TX_TIMER_DISPLAY = true
 BLMIN_TMP_OFF = false
 CUSTOM_MENU_LAYOUT = true
-EEPROM_HEXDUMP = true
 SYSTEM_INFO_MENU = false
 F_CAL_MENU = false
+BATTERY_CHARGING = true
 
-# 📡 Radio & Spectrum
+# 📡 Radio Features
+FMRADIO = true
 NOAA = false
 PMR446_FREQUENCY_BAND = true
 GMRS_FRS_MURS_BANDS = true
@@ -104,6 +106,15 @@ NO_CODE_SCAN_TIMEOUT = true
 KEEP_MEM_NAME = true
 COPY_CHAN_TO_VFO = true
 RESET_CHANNEL_FUNCTION = false
+AM_FIX = false
+AM_FIX_SHOW_DATA = false
+AGC_SHOW_DATA = false
+
+# 🛠️  New Feature Toggles
+SCRAMBLER = true
+ON_DEVICE_PROGRAMMING = true # Channel Edit (Save, Delete, Rename)
+SCAN_LIST_EDITING = true     # Scan List Membership Edit
+TX_OFFSET = true             # TX Offset Settings
 
 # 🧩 Apps & Features
 SPECTRUM = true
@@ -124,19 +135,14 @@ UART_CMD_RSSI = true
 UART_CMD_BATT = true
 UART_CMD_ID = true
 EXTRA_UART_CMD = true
+UART_RW_BK_REGS = false
 
-# 🛠️  System & Debug
+# ⚙️  System & Debug
 PWRON_PASSWORD = false
-BOOT_RESUME_STATE = true
-DEEP_SLEEP_MODE = true
 CUSTOM_FIRMWARE_MODS = true
 FIRMWARE_DEBUG_LOGGING = false
 IDENTIFIER = true
-AM_FIX = false
-AM_FIX_SHOW_DATA = false
-BATTERY_CHARGING = true
-AGC_SHOW_DATA = false
-UART_RW_BK_REGS = false
 SWD = false
 CRYPTO = true
 TRNG_SENSORS = true
+EEPROM_HEXDUMP = true

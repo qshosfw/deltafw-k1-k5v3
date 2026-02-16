@@ -518,6 +518,22 @@ if get_option('FASTER_CHANNEL_SCAN')
   defines += '-DENABLE_FASTER_CHANNEL_SCAN'
 endif
 
+if get_option('SCRAMBLER')
+  defines += '-DENABLE_SCRAMBLER'
+endif
+
+if get_option('ON_DEVICE_PROGRAMMING')
+  defines += '-DENABLE_ON_DEVICE_PROGRAMMING'
+endif
+
+if get_option('SCAN_LIST_EDITING')
+  defines += '-DENABLE_SCAN_LIST_EDITING'
+endif
+
+if get_option('TX_OFFSET')
+  defines += '-DENABLE_TX_OFFSET'
+endif
+
 # Other Defines
 defines += '-DSQL_TONE=550'
 
