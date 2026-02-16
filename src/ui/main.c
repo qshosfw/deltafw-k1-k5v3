@@ -852,7 +852,7 @@ void UI_DisplayMain(void)
         }
 
         // Modulation (Top Right - Keep separate as per Matoz style)
-        const char *modNames[] = {"FM", "AM", "USB", "BYP", "RAW", "DSB", "CW"};
+        const char *modNames[] = {" FM", " AM", "USB", "BYP", "RAW", "DSB", " CW"};
         if (vfoInfo->Modulation < 7) {
              UI_PrintStringSmallest(modNames[vfoInfo->Modulation], 116, 2 + vfo_num * 32, false, true);
         }
