@@ -41,6 +41,7 @@
 #include "menu.h"
 #include "ag_menu.h"
 #include "ui.h"
+#include "drivers/bsp/adc.h"
 #include "helper/crypto.h"
 
 
@@ -1267,8 +1268,9 @@ void UI_DisplayMenu(void)
                 UI_PrintStringSmallNormal(edit, 54, 127, 1);
 
                 // Internal Sensors (Entropy Source Debug)
-                float t_val = TRNG_GetTemp(); // Currently returning VSense Voltage
-                float v_val = TRNG_GetVref(); // Currently returning Calculated VDDA
+                // Temperature and Vref from ADC driver
+                float t_val = ADC_GetTemp(); 
+                float v_val = ADC_GetVref(); 
                 
                 // Temp Sensor Voltage
                 sprintf(String, "TS: %d.%03dV", (int)t_val, (int)((t_val - (int)t_val) * 1000));

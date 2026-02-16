@@ -31,6 +31,7 @@
     #include "drivers/bsp/bk1080.h"
 #endif
 
+#include "drivers/bsp/adc.h"
 #include "drivers/bsp/crc.h"
 #include "drivers/bsp/py25q16.h"
 #include "drivers/bsp/flash.h"
@@ -137,42 +138,12 @@ void BOARD_GPIO_Init(void)
 
 void BOARD_ADC_Init(void)
 {
-    LL_IOP_GRP1_EnableClock(LL_IOP_GRP1_PERIPH_GPIOB);
-    LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_0 | LL_GPIO_PIN_1, LL_GPIO_MODE_ANALOG);
-
-    LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_ADC1);
-    LL_RCC_SetADCClockSource(LL_RCC_ADC_CLKSOURCE_PCLK_DIV4);
-
-    LL_ADC_SetCommonPathInternalCh(ADC1_COMMON, LL_ADC_PATH_INTERNAL_NONE);
-    LL_ADC_SetResolution(ADC1, LL_ADC_RESOLUTION_12B);
-    LL_ADC_SetDataAlignment(ADC1, LL_ADC_DATA_ALIGN_RIGHT);
-    LL_ADC_SetSequencersScanMode(ADC1, LL_ADC_SEQ_SCAN_DISABLE);
-    LL_ADC_REG_SetTriggerSource(ADC1, LL_ADC_REG_TRIG_SOFTWARE);
-    LL_ADC_REG_SetContinuousMode(ADC1, LL_ADC_REG_CONV_SINGLE);
-    LL_ADC_REG_SetDMATransfer(ADC1, LL_ADC_REG_DMA_TRANSFER_NONE);
-    LL_ADC_REG_SetSequencerLength(ADC1, LL_ADC_REG_SEQ_SCAN_DISABLE);
-    LL_ADC_REG_SetSequencerDiscont(ADC1, LL_ADC_REG_SEQ_DISCONT_DISABLE);
-    LL_ADC_REG_SetSequencerDiscont(ADC1, LL_ADC_REG_SEQ_DISCONT_DISABLE);
-    LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_8);
-    LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_8, LL_ADC_SAMPLINGTIME_41CYCLES_5);
-    LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_9, LL_ADC_SAMPLINGTIME_41CYCLES_5);
-
-    LL_ADC_StartCalibration(ADC1);
-    while (LL_ADC_IsCalibrationOnGoing(ADC1))
-        ;
-
-    LL_ADC_Enable(ADC1);
+    ADC_Init();
 }
 
 void BOARD_ADC_GetBatteryInfo(uint16_t *pVoltage)
 {
-    // Read voltage from channel 8 (PB0)
-    LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_8);
-    LL_ADC_REG_StartConversionSWStart(ADC1);
-    while (!LL_ADC_IsActiveFlag_EOS(ADC1))
-        ;
-    LL_ADC_ClearFlag_EOS(ADC1);
-    *pVoltage = LL_ADC_REG_ReadConversionData12(ADC1);
+    *pVoltage = ADC_ReadChannel(LL_ADC_CHANNEL_8);
 }
 
 void BOARD_Init(void)

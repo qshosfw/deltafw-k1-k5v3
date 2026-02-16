@@ -127,6 +127,7 @@ sources = files(
   '../src/apps/scanner/scanner.c',
 
   # Drivers BSP
+  '../src/drivers/bsp/adc.c',
   '../src/drivers/bsp/backlight.c',
   '../src/drivers/bsp/bk4829.c',
   '../src/drivers/bsp/py25q16.c',

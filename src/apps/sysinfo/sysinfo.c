@@ -10,6 +10,7 @@
 #include "core/misc.h"
 #include "apps/battery/battery.h"
 #include "drivers/bsp/st7565.h"
+#include "drivers/bsp/adc.h"
 #include "apps/settings/settings.h"
 #include "external/printf/printf.h"
 #include "helper/identifier.h"
@@ -97,7 +98,7 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
             break;
         case INFO_TEMP: {
             // Temperature from internal sensor
-            float temp = TRNG_GetTemp();
+            float temp = ADC_GetTemp();
             int whole = (int)temp;
             int frac = (int)((temp - whole) * 10);
             if (frac < 0) frac = -frac;
