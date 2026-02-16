@@ -26,6 +26,7 @@
 #include "features/uart.h"
 #include "board.h"
 #include "py32f071_ll_dma.h"
+#include "py32f071_ll_adc.h"
 #include "drivers/bsp/backlight.h"
 #include "drivers/bsp/bk4819.h"
 #include "drivers/bsp/crc.h"
@@ -35,6 +36,8 @@
 #if defined(ENABLE_UART)
 #include "drivers/bsp/uart.h"
 #endif
+
+#include "drivers/bsp/adc.h"
 
 #if defined(ENABLE_USB)
 #include "drivers/bsp/vcp.h"
@@ -223,6 +226,8 @@ typedef struct {
         uint8_t  Percent;
         uint8_t  BatteryType;
         uint16_t Flags;
+        uint16_t Temperature;
+        uint16_t Vref;
     } Data;
 } REPLY_0529_t;
 #endif
@@ -642,10 +647,14 @@ static void CMD_0529(uint32_t Port)
     Reply.Data.Current = 0;
     Reply.Data.Percent     = BATTERY_VoltsToPercent(gBatteryVoltageAverage);
     Reply.Data.BatteryType = gEeprom.BATTERY_TYPE;
+    
+    // Internal Sensors (Raw ADC)
+    Reply.Data.Temperature = ADC_ReadChannel(LL_ADC_CHANNEL_TEMPSENSOR);
+    Reply.Data.Vref        = ADC_ReadChannel(LL_ADC_CHANNEL_VREFINT);
 
     // Flags
     if (gIsCharging) Reply.Data.Flags |= (1 << 0);
-    if (gLowBattery)        Reply.Data.Flags |= (1 << 1);
+    if (gLowBattery) Reply.Data.Flags |= (1 << 1);
 
     SendReply(Port, &Reply, sizeof(Reply));
 }
