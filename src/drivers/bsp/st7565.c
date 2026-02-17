@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 #include <stdio.h>     // NULL
+#include <string.h>
 
 #include "py32f071_ll_bus.h"
 #include "py32f071_ll_spi.h"
@@ -199,12 +200,8 @@ void ST7565_DrawLine(const unsigned int Column, const unsigned int Line, const u
 
 void ST7565_FillScreen(uint8_t value)
 {
-    CS_Assert();
-    for (unsigned i = 0; i < 8; i++) {
-        // TODO: This is wrong
-        DrawLine(0, i, NULL, value);
-    }
-    CS_Release();
+    memset(gFrameBuffer, value, sizeof(gFrameBuffer));
+    memset(gStatusLine, value, sizeof(gStatusLine));
 }
 
 // Software reset
@@ -357,6 +354,7 @@ void ST7565_Init(void)
     CS_Release();
 
     ST7565_FillScreen(0x00);
+    ST7565_BlitFullScreen();
 }
 
 #ifdef ENABLE_DEEP_SLEEP_MODE

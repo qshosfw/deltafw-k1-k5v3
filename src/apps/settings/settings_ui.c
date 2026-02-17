@@ -1,10 +1,13 @@
-
+#include <string.h>
+#include "features/storage.h"
 #include "settings_ui.h"
 #include "../../ui/ag_menu.h"
 #include "../../drivers/bsp/st7565.h"
 #include "../../external/printf/printf.h"
 #include "../../apps/settings/settings.h"
+#include "../../apps/security/passcode.h"
 #include "../../ui/menu.h"
+
 #include "../../ui/ui.h"
 #include "../../drivers/bsp/bk4819.h"
 #include "../../core/misc.h"
@@ -328,6 +331,24 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
              // `action` in menu struct is null for items.
              break;
         #endif
+#ifdef ENABLE_PASSCODE
+        case MENU_PASSCODE:
+             {
+                 uint8_t len = Passcode_GetLength();
+                 if (len == 0) {
+                     snprintf(buf, bufLen, "OFF");
+                 } else {
+                     // Safety cap
+                     if (len > 12) len = 12;
+                     memset(buf, '*', len);
+                     buf[len] = '\0';
+                 }
+             }
+             break;
+        case MENU_PASSCODE_MAX_TRIES:
+             snprintf(buf, bufLen, "%d", Passcode_GetMaxTries());
+             break;
+#endif
     }
 }
 
@@ -632,13 +653,23 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
                  gEeprom.DTMF_PRELOAD_TIME = val * 10;
               }
               break;
-         case MENU_D_DCD:
+        case MENU_D_DCD:
               gTxVfo->DTMF_DECODING_ENABLE = !gTxVfo->DTMF_DECODING_ENABLE;
               break;
          #endif
          case MENU_D_LIVE_DEC:
               gSetting_live_DTMF_decoder = !gSetting_live_DTMF_decoder;
               break;
+
+#ifdef ENABLE_PASSCODE
+         case MENU_PASSCODE_MAX_TRIES:
+               {
+                   uint8_t val = Passcode_GetMaxTries();
+                   INC_DEC(val, 3, 50, up);
+                   Passcode_SetMaxTries(val);
+               }
+               break;
+#endif
 
         default:
              break;
@@ -662,6 +693,16 @@ static void changeVal(const MenuItem *item, bool up) {
 static bool Action_MemView(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     if (key == KEY_MENU && key_pressed) {
         GUI_SelectNextDisplay(DISPLAY_HEXDUMP);
+        return true;
+    }
+    return false;
+}
+#endif
+
+#ifdef ENABLE_PASSCODE
+static bool Action_Passcode(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    if (key == KEY_MENU && key_pressed) {
+        Passcode_Change();
         return true;
     }
     return false;
@@ -791,6 +832,10 @@ static const MenuItem systemItems[] = {
     #ifdef ENABLE_DEEP_SLEEP_MODE
     {"Deep Sleep",  MENU_SET_OFF, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #endif
+#ifdef ENABLE_PASSCODE
+    {"Passcode", MENU_PASSCODE, getVal, NULL, NULL, Action_Passcode, M_ITEM_ACTION},
+    {"Max Tries", MENU_PASSCODE_MAX_TRIES, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+#endif
     #ifdef ENABLE_EEPROM_HEXDUMP
     {"Mem Hex Dump", MENU_MEMVIEW, NULL, NULL, NULL, Action_MemView, M_ITEM_ACTION},
     #endif

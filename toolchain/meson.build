@@ -123,6 +123,7 @@ sources = files(
   '../src/features/generic.c',
   '../src/features/main_screen.c',
   '../src/features/menu.c',
+  '../src/apps/security/passcode.c',
   '../src/features/storage.c',
   '../src/apps/scanner/scanner.c',
 
@@ -497,6 +498,14 @@ endif
 if get_option('CRYPTO')
   defines += '-DENABLE_CRYPTO'
   sources += files('../src/helper/crypto.c')
+endif
+
+if get_option('STORAGE_ENCRYPTION')
+  defines += '-DENABLE_STORAGE_ENCRYPTION'
+endif
+
+if get_option('PASSCODE')
+  defines += '-DENABLE_PASSCODE'
 endif
 
 if get_option('TRNG_SENSORS')

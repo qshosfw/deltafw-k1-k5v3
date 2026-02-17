@@ -128,7 +128,7 @@ static void Backspace(void) {
     blinkCounter = 0;
 }
 
-void TextInput_Init(char *buffer, uint8_t maxLen, void (*callback)(void)) {
+void TextInput_Init(char *buffer, uint8_t maxLen, bool ignoreFirstMenuReleaseArg, void (*callback)(void)) {
     gTextInputBuffer = buffer;
     gTextInputMaxLen = maxLen;
     gTextInputCallback = callback;
@@ -139,7 +139,7 @@ void TextInput_Init(char *buffer, uint8_t maxLen, void (*callback)(void)) {
     lastKey = 0xFF;
     keyPressCount = 0;
     cursorBlink = true;
-    ignoreFirstMenuRelease = true;
+    ignoreFirstMenuRelease = ignoreFirstMenuReleaseArg;
     lastLongPressedKey = KEY_INVALID;
     inputTick = 0;
     lastKeyTime = 0;
@@ -155,8 +155,26 @@ void TextInput_Deinit(void) {
     gTextInputCallback = NULL;
 }
 
+char* TextInput_GetBuffer(void) {
+    return gTextInputBuffer;
+}
+
 bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
     if (!gTextInputActive) return false;
+
+    // Determine Up/Down keys based on SET_NAV
+    KEY_Code_t keyUp   = KEY_UP;
+    KEY_Code_t keyDown = KEY_DOWN;
+    
+    // Check if SET_NAV (gEeprom.SET_NAV) swaps them?
+    // Usually SET_NAV allows swapping up/down or left/right semantics.
+    // Assuming SET_NAV = true means "Inverted" or "K1 Style" where keys might be swapped visually.
+    // If user says "in k1 right button moves right cursor", and usually "Right" button is physically mapped to UP or DOWN depending on model.
+    // Let's assume standard behavior: SET_NAV swaps them.
+    if (gEeprom.SET_NAV) { // Swapped
+        keyUp   = KEY_DOWN;
+        keyDown = KEY_UP;
+    }
 
     // Long press handlers
     if (bKeyHeld && bKeyPressed) {
@@ -177,10 +195,6 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
             case KEY_8:
             case KEY_9: {
                 // Long press number: insert digit directly
-                // Only execute once per press (using lastLongPressedKey check could help if repeats are an issue, 
-                // but bKeyPressed is usually true on repeats. Let's rely on user releasing key or just allow repeat?)
-                // Better: if this key wasn't already processed as long press.
-                
                 if (lastLongPressedKey != key) {
                     ConfirmCurrentChar();
                     char c = '0' + (key - KEY_0);
@@ -207,6 +221,21 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
         // Also reset if it was some other key (just in case)
         if (lastLongPressedKey != KEY_INVALID) {
              lastLongPressedKey = KEY_INVALID;
+        }
+
+        // Check Up/Down first since they are dynamic
+        if (key == keyUp) {
+            if (inputIndex < strlen(gTextInputBuffer)) {
+                ConfirmCurrentChar();
+                inputIndex++;
+            }
+            return true;
+        } else if (key == keyDown) {
+            if (inputIndex > 0) {
+                ConfirmCurrentChar();
+                inputIndex--;
+            }
+            return true;
         }
 
         uint8_t keyNum = 0xFF;
@@ -285,19 +314,7 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
                 UpdateCharset();
                 return true;
 
-            case KEY_UP:
-                if (inputIndex < strlen(gTextInputBuffer)) {
-                    ConfirmCurrentChar();
-                    inputIndex++;
-                }
-                return true;
-
-            case KEY_DOWN:
-                if (inputIndex > 0) {
-                    ConfirmCurrentChar();
-                    inputIndex--;
-                }
-                return true;
+            // KEY_UP and KEY_DOWN are handled dynamically above
 
             case KEY_EXIT:
                 // Short press EXIT = backspace (including cancel pending char)

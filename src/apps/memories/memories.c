@@ -196,7 +196,7 @@ static void DoSelect(void) {
 static void DoRename(void) {
     SETTINGS_FetchChannelName(editBuffer, detailChannelIndex);
     currentMode = MEM_MODE_RENAME;
-    TextInput_Init(editBuffer, 10, NULL);
+    TextInput_Init(editBuffer, 10, true, NULL);
     TextInput_Render();
     ST7565_BlitFullScreen();
 }

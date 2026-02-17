@@ -71,5 +71,7 @@ option('UART_RW_BK_REGS', type: 'boolean', value: false, description: 'Enable UA
 option('SWD', type: 'boolean', value: false, description: 'Enable SWD')
 option('FASTER_CHANNEL_SCAN', type: 'boolean', value: true, description: 'Enable Faster Channel Scan')
 option('CRYPTO', type: 'boolean', value: true, description: 'Enable Advanced Crypto Library (ChaCha20, Poly1305, TRNG)')
+option('STORAGE_ENCRYPTION', type: 'boolean', value: true, description: 'Enable Storage Encryption layer')
+option('PASSCODE', type: 'boolean', value: true, description: 'Enable Device Passcode protection')
 option('TRNG_SENSORS', type: 'boolean', value: true, description: 'Enable TRNG Sensors (Temp/VREF entropy)')
 option('EDITION_STRING', type: 'string', value: 'Custom', description: 'Edition String')

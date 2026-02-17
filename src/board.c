@@ -146,6 +146,45 @@ void BOARD_ADC_GetBatteryInfo(uint16_t *pVoltage)
     *pVoltage = ADC_ReadChannel(LL_ADC_CHANNEL_8);
 }
 
+void BOARD_SWD_Enable(bool enable)
+{
+    LL_GPIO_InitTypeDef InitStruct;
+    LL_GPIO_StructInit(&InitStruct);
+
+    // PA13: SWDIO / PA14: SWCLK
+    // On PY32F071, AF0 is usually SWD (or default after reset)
+    // To disable, set as Input/Output/Analog.
+    // To enable, set as Alternate Function (AF0) or whatever default is.
+    
+    // Check datasheets or existing examples?
+    // PY32 usually has SWD on PA13/PA14 by default.
+    // If we re-init as GPIO, we lose SWD.
+    
+    // Assuming AF0 is SWD. Or just Reset State.
+    // Let's use clean approach.
+    
+    InitStruct.Pin = LL_GPIO_PIN_13 | LL_GPIO_PIN_14;
+
+    if (enable) {
+        // Enable SWD: Set to AF0 (SWD)
+        // Wait, does LL_GPIO_Init handle AF?
+        // Need to check if there is specific AF for SWD.
+        // Usually SWD pins are dedicated but can be remapped.
+        // On Cortex-M0+, SWD pins are often default.
+        // Let's try setting Mode to ALTERNATE and AF to 0.
+        InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
+        InitStruct.Alternate = LL_GPIO_AF_0; 
+        InitStruct.Pull = LL_GPIO_PULL_UP;
+        InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+    } else {
+        // Disable SWD: Set as Input Floating or Analog to save power and prevent access
+        InitStruct.Mode = LL_GPIO_MODE_ANALOG;
+        InitStruct.Pull = LL_GPIO_PULL_NO;
+    }
+    
+    LL_GPIO_Init(GPIOA, &InitStruct);
+}
+
 void BOARD_Init(void)
 {
     BOARD_GPIO_Init();

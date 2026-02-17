@@ -87,6 +87,7 @@
 #endif
 
 #include "ui/textinput.h"
+#include "apps/security/passcode.h"
 
 #ifdef ENABLE_CW_KEYER
     #include "features/cw.h"
@@ -1910,6 +1911,9 @@ void APP_TimeSlice500ms(void)
         BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, false);
         gPowerSave_10ms = gEeprom.BATTERY_SAVE * 10;
         gWakeUp = false;
+#ifdef ENABLE_PASSCODE
+        Passcode_Prompt(); // Require passcode on wake-up
+#endif
     }
 
     #ifdef ENABLE_AIRCOPY
@@ -1926,6 +1930,9 @@ void APP_TimeSlice500ms(void)
             // PWM_PLUS0_CH0_COMP = 0;
             BACKLIGHT_SetBrightness(0);
             ST7565_ShutDown();
+#ifdef ENABLE_PASSCODE
+            Passcode_Lock();   // Lock and wipe keys when entering sleep
+#endif
         }
         else if(gSleepModeCountdown_500ms != 0 && gSleepModeCountdown_500ms < 21 && gSetting_set_off != 0)
         {

@@ -16,6 +16,7 @@
 #include "helper/identifier.h"
 #include "helper/crypto.h"
 #include "ui/hexdump.h"
+#include "apps/security/passcode.h"
 
 // Forward declarations
 static void SysInfo_RenderItem(uint16_t index, uint8_t visIndex);
@@ -33,6 +34,10 @@ typedef enum {
     INFO_CHARGING,
     INFO_TEMP,
     INFO_RAM,
+#ifdef ENABLE_PASSCODE
+    INFO_MK_HASH,
+    INFO_MIGRATED,
+#endif
     INFO_LICENSE,
     INFO_COUNT
 } InfoItem;
@@ -57,6 +62,10 @@ static const char* GetInfoLabel(InfoItem item) {
         case INFO_CHARGING: return "Charging";
         case INFO_TEMP:     return "Temp";
         case INFO_RAM:      return "RAM";
+#ifdef ENABLE_PASSCODE
+        case INFO_MK_HASH:  return "MK Hash";
+        case INFO_MIGRATED: return "Migrated";
+#endif
         case INFO_LICENSE:  return "License";
         default:            return "";
     }
@@ -118,6 +127,17 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
             snprintf(buf, buflen, "%lu/%luK", (unsigned long)(used / 1024), (unsigned long)(total / 1024));
             break;
         }
+#ifdef ENABLE_PASSCODE
+        case INFO_MK_HASH:
+            snprintf(buf, buflen, "%08lX", (unsigned long)Passcode_GetMasterKeyHash());
+            break;
+        case INFO_MIGRATED: {
+            int count = 0;
+            for(int i=0; i<REC_MAX; i++) if (Passcode_IsMigrated(i)) count++;
+            snprintf(buf, buflen, "%d/%d", count, REC_MAX);
+            break;
+        }
+#endif
         case INFO_LICENSE:
             snprintf(buf, buflen, "GNU GPL v3");
             break;

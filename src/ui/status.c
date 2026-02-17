@@ -34,6 +34,13 @@
 #include "ui/ui.h"
 #include "ui/status.h"
 #include "ui/ag_menu.h"
+#include "apps/security/passcode.h"
+
+static const char *gStatusTitleOverride = NULL;
+
+void UI_SetStatusTitle(const char *title) {
+    gStatusTitleOverride = title;
+}
 
 #ifdef ENABLE_RX_TX_TIMER_DISPLAY
 #ifndef ENABLE_FIRMWARE_DEBUG_LOGGING
@@ -63,8 +70,14 @@ void UI_DisplayStatus() {
     char str[42] = "";
     char *p = str;
 
-    if (AG_MENU_IsActive()) {
+    if (gStatusTitleOverride) {
+        strncpy(str, gStatusTitleOverride, sizeof(str)-1);
+    } else if (AG_MENU_IsActive()) {
         AG_MENU_GetPath(str, sizeof(str));
+#ifdef ENABLE_PASSCODE
+    } else if (Passcode_IsLocked()) {
+        strcpy(str, "Enter Passcode");
+#endif
     } else {
 #ifdef ENABLE_NOAA
     if (!(gScanStateDir != SCAN_OFF || SCANNER_IsScanning()) && gIsNoaaMode) { // NOAA SCAN indicator

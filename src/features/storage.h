@@ -4,36 +4,45 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef enum {
+    ENC_PLAIN,
+    ENC_CPUID,
+    ENC_PASSCODE
+} StorageEnc_t;
+
 #define STORAGE_RECORDS(X) \
-    /* NAME,           TYPE,    ADDR,     SZ,  C1,  S1,   C2, S2 */ \
-    X(SETTINGS_MAIN,    FIXED,  0x004000, 16,  1,   0,    0,  0) \
-    X(VFO_INDICES,      FIXED,  0x005000, 8,   1,   0,    0,  0) \
-    X(AUDIO_SETTINGS,   FIXED,  0x00A000, 8,   1,   0,    0,  0) \
-    X(FM_CONFIG,        FIXED,  0x006000, 8,   1,   0,    0,  0) \
-    X(FM_CHANNELS,      FIXED,  0x003000, 0x50,1,   0,    0,  0) \
-    X(SETTINGS_EXTRA,   FIXED,  0x007000, 80,  1,   0,    0,  0) \
-    X(ANI_DTMF_ID,      FIXED,  0x008000, 8,   1,   0,    0,  0) \
-    X(KILL_CODE,        FIXED,  0x008008, 8,   1,   0,    0,  0) \
-    X(REVIVE_CODE,      FIXED,  0x008010, 8,   1,   0,    0,  0) \
-    X(DTMF_UP_CODE,     FIXED,  0x008018, 16,  1,   0,    0,  0) \
-    X(DTMF_DOWN_CODE,   FIXED,  0x008028, 16,  1,   0,    0,  0) \
-    X(SCAN_LIST,        FIXED,  0x009000, 8,   1,   0,    0,  0) \
-    X(F_LOCK,           FIXED,  0x00b000, 8,   1,   0,    0,  0) \
-    X(MR_ATTRIBUTES,    LINEAR, 0x002000, 1,   200, 1,    0,  0) \
-    X(CUSTOM_SETTINGS,  FIXED,  0x00c000, 8,   1,   0,    0,  0) \
-    X(CHANNEL_DATA,     LINEAR, 0x000000, 16,  200, 16,   0,  0) \
-    X(CHANNEL_NAMES,    LINEAR, 0x00e000, 16,  200, 16,   0,  0) \
-    X(VFO_DATA,         DIM2,   0x001000, 16,  8,   32,   2,  16) \
-    X(CALIB_RSSI_3,     FIXED,  0x0100C0, 8,   1,   0,    0,  0) \
-    X(CALIB_RSSI_0,     FIXED,  0x0100C8, 8,   1,   0,    0,  0) \
-    X(CALIB_BATTERY,    FIXED,  0x010140, 12,  1,   0,    0,  0) \
-    X(CALIB_VOX1,       LINEAR, 0x010150, 2,   6,   2,    0,  0) \
-    X(CALIB_VOX0,       LINEAR, 0x010168, 2,   6,   2,    0,  0) \
-    X(CALIB_MISC,       FIXED,  0x010188, 8,   1,   0,    0,  0) \
-    X(CALIB_TX_POWER,   DIM2,   0x0100D0, 3,   7,   16,   3,  3) \
-    X(CALIB_SQUELCH,    DIM2,   0x010000, 1,   2,   0x60, 10, 1) \
-    X(VOICE_PROMPT_DATA,LINEAR, 0x14C000, 0,   2,   0x800,0,  0) \
-    X(VOICE_CLIP_DATA,  LINEAR, 0x14D000, 0,   0xFFFF, 1, 0,  0)
+    /* NAME,           ENC,       TYPE,    ADDR,     SZ,  C1,  S1,   C2, S2 */ \
+    X(SETTINGS_MAIN,   ENC_CPUID, FIXED,  0x004000, 16,  1,   0,    0,  0) \
+    X(VFO_INDICES,     ENC_CPUID, FIXED,  0x005000, 8,   1,   0,    0,  0) \
+    X(AUDIO_SETTINGS,  ENC_CPUID, FIXED,  0x00A000, 8,   1,   0,    0,  0) \
+    X(FM_CONFIG,       ENC_CPUID, FIXED,  0x006000, 8,   1,   0,    0,  0) \
+    X(FM_CHANNELS,     ENC_CPUID, FIXED,  0x003000, 0x50,1,   0,    0,  0) \
+    X(SETTINGS_EXTRA,  ENC_CPUID, FIXED,  0x007000, 80,  1,   0,    0,  0) \
+    X(ANI_DTMF_ID,     ENC_CPUID, FIXED,  0x008000, 8,   1,   0,    0,  0) \
+    X(KILL_CODE,       ENC_CPUID, FIXED,  0x008008, 8,   1,   0,    0,  0) \
+    X(REVIVE_CODE,     ENC_CPUID, FIXED,  0x008010, 8,   1,   0,    0,  0) \
+    X(DTMF_UP_CODE,    ENC_CPUID, FIXED,  0x008018, 16,  1,   0,    0,  0) \
+    X(DTMF_DOWN_CODE,  ENC_CPUID, FIXED,  0x008028, 16,  1,   0,    0,  0) \
+    X(SCAN_LIST,       ENC_CPUID, FIXED,  0x009000, 8,   1,   0,    0,  0) \
+    X(F_LOCK,          ENC_CPUID, FIXED,  0x00b000, 8,   1,   0,    0,  0) \
+    X(MR_ATTRIBUTES,   ENC_PASSCODE, LINEAR, 0x002000, 1,   200, 1,    0,  0) \
+    X(CUSTOM_SETTINGS, ENC_CPUID, FIXED,  0x00c000, 8,   1,   0,    0,  0) \
+    X(CHANNEL_DATA,    ENC_PASSCODE, LINEAR, 0x000000, 16,  200, 16,   0,  0) \
+    X(CHANNEL_NAMES,   ENC_PASSCODE, LINEAR, 0x00e000, 16,  200, 16,   0,  0) \
+    X(VFO_DATA,        ENC_PASSCODE, DIM2,   0x001000, 16,  8,   32,   2,  16) \
+    X(DTMF_CONTACTS,   ENC_CPUID, LINEAR, 0x00f000, 16,  16,  16,   0,  0) \
+    X(CALIB_RSSI_3,    ENC_PLAIN, FIXED,  0x0100C0, 8,   1,   0,    0,  0) \
+    X(CALIB_RSSI_0,    ENC_PLAIN, FIXED,  0x0100C8, 8,   1,   0,    0,  0) \
+    X(CALIB_BATTERY,   ENC_PLAIN, FIXED,  0x010140, 12,  1,   0,    0,  0) \
+    X(CALIB_VOX1,      ENC_PLAIN, LINEAR, 0x010150, 2,   6,   2,    0,  0) \
+    X(CALIB_VOX0,      ENC_PLAIN, LINEAR, 0x010168, 2,   6,   2,    0,  0) \
+    X(CALIB_MISC,      ENC_PLAIN, FIXED,  0x010188, 8,   1,   0,    0,  0) \
+    X(CALIB_TX_POWER,  ENC_PLAIN, DIM2,   0x0100D0, 3,   7,   16,   3,  3) \
+    X(CALIB_SQUELCH,   ENC_PLAIN, DIM2,   0x010000, 1,   2,   0x60, 10, 1) \
+    X(VOICE_PROMPT_DATA, ENC_PLAIN, LINEAR, 0x14C000, 0,   2,   0x800,0,  0) \
+    X(VOICE_CLIP_DATA, ENC_PLAIN, LINEAR, 0x14D000, 0,   0xFFFF, 1, 0,  0) \
+    X(PASSCODE,        ENC_PLAIN, FIXED,  0x007100, 128, 1,   0,    0,  0)
+
 
 typedef enum {
     ALLOC_FIXED,
@@ -43,6 +52,7 @@ typedef enum {
 
 typedef struct {
     uint8_t   type;     // AllocType_t
+    uint8_t   encryption; // StorageEnc_t
     uint16_t  size;     // Size of 1 record
     union {
         struct { uint32_t addr; } fixed;
@@ -52,7 +62,7 @@ typedef struct {
 } RecordDescriptor_t;
 
 typedef enum {
-#define X(name, type, addr, size, c1, s1, c2, s2) REC_##name,
+#define X(name, enc, type, addr, size, c1, s1, c2, s2) REC_##name,
     STORAGE_RECORDS(X)
 #undef X
     REC_MAX
@@ -249,6 +259,25 @@ typedef union {
     uint8_t raw[8];
 } __attribute__((packed)) CalibrationMisc_t;
 
+// Schema for REC_PASSCODE (64 bytes, 0x007100)
+typedef union {
+    struct {
+        uint32_t Magic;         // 0x47415350 "GSAP"
+        uint8_t  Verifier[16];  // Derived Verifier
+        uint8_t  Nonce[16];     // Random Salt
+        uint8_t  Tries;         // Failed attempts
+        uint8_t  Length;        // Passcode Length
+        uint8_t  MaxTriesConfig;// Configured Max Tries (0=Default 10)
+        uint8_t  Reserved0[2];
+        uint32_t Iterations;    // KDF Iterations
+        uint8_t  EncryptedMasterKey[32]; // MK encrypted with KEK
+        uint64_t MigratedMask;  // Bitmask of migrated records
+        uint8_t  Reserved[43]; // Fill to 128 bytes
+    } fields;
+    uint8_t raw[128];
+} __attribute__((packed)) PasscodeConfig_t;
+
+
 // Universal Accessors
 bool Storage_ReadRecord(RecordID_t id, void *pDest, uint16_t offset, uint16_t len);
 bool Storage_WriteRecord(RecordID_t id, const void *pSrc, uint16_t offset, uint16_t len);
@@ -266,5 +295,20 @@ void Storage_SectorErase(RecordID_t id);
 
 // Dynamic address resolution
 uint32_t Storage_GetAddress(RecordID_t id, uint16_t index);
+
+StorageEnc_t Storage_GetEncryptionType(RecordID_t id);
+// Migration (internal use)
+void Storage_MigrateRecord(RecordID_t id);
+
+#ifdef ENABLE_STORAGE_ENCRYPTION
+// Raw physical access (legacy/bridge) - Transparently handles encryption
+void Storage_ReadBufferRaw(uint32_t addr, void *pBuffer, uint32_t size);
+void Storage_WriteBufferRaw(uint32_t addr, const void *pBuffer, uint32_t size, bool AppendFlag);
+#else
+// Direct mapping to flash when disabled
+#include "drivers/bsp/py25q16.h"
+#define Storage_ReadBufferRaw(addr, pBuf, size) PY25Q16_ReadBuffer(addr, pBuf, size)
+#define Storage_WriteBufferRaw(addr, pBuf, size, append) PY25Q16_WriteBuffer(addr, (void*)pBuf, size, append)
+#endif
 
 #endif // STORAGE_H

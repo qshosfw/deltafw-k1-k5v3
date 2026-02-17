@@ -24,6 +24,7 @@
 
 #include "drivers/bsp/eeprom.h"
 #include "drivers/bsp/py25q16.h"
+#include "features/storage.h"
 #include <string.h>
 
 #define HOLE_ADDR 0x1000000
@@ -79,7 +80,7 @@ void EEPROM_ReadBuffer(uint16_t Address, void *pBuffer, uint8_t Size)
         }
         else
         {
-            PY25Q16_ReadBuffer(PY_Addr, pBuffer, PY_Size);
+            Storage_ReadBufferRaw(PY_Addr, pBuffer, PY_Size);
         }
         Address += PY_Size;
         pBuffer += PY_Size;
@@ -100,7 +101,7 @@ void EEPROM_WriteBuffer(uint16_t Address, const void *pBuffer)
         AddrTranslate(Address, Size, &PY_Addr, &PY_Size, &AppendFlag);
         if (PY_Addr < HOLE_ADDR)
         {
-            PY25Q16_WriteBuffer(PY_Addr, pBuffer, PY_Size, AppendFlag);
+            Storage_WriteBufferRaw(PY_Addr, pBuffer, PY_Size, AppendFlag);
         }
         Address += PY_Size;
         pBuffer += PY_Size;

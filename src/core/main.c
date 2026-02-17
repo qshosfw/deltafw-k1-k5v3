@@ -63,7 +63,9 @@
 #include "apps/battery/battery.h"
 #include "apps/boot/boot.h"
 
-#include "ui/lock.h"
+//#include "ui/lock.h"
+#include "apps/security/passcode.h"
+
 #include "apps/boot/welcome.h"
 #include "ui/menu.h"
 
@@ -93,14 +95,11 @@ void Main(void)
     BOARD_ADC_GetBatteryInfo(&gBatteryCurrentVoltage);
 
     SETTINGS_InitEEPROM();
+#ifdef ENABLE_PASSCODE
+    Passcode_Init();
+#endif
 
-#ifdef ENABLE_UART
-    UART_Init();
-    UART_Send(UART_Version, strlen(UART_Version));
-#endif
-#ifdef ENABLE_USB
-    VCP_Init();
-#endif
+
 
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         gDW = gEeprom.DUAL_WATCH;
@@ -221,9 +220,21 @@ void Main(void)
     }
     else
     {
-        UI_DisplayWelcome();
-
         BACKLIGHT_TurnOn();
+#ifdef ENABLE_PASSCODE
+        Passcode_Prompt();
+#endif
+        boot_counter_10ms = 250;
+
+#ifdef ENABLE_UART
+    UART_Init();
+    UART_Send(UART_Version, strlen(UART_Version));
+#endif
+#ifdef ENABLE_USB
+    VCP_Init();
+#endif
+
+        UI_DisplayWelcome();
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         if (gEeprom.POWER_ON_DISPLAY_MODE != POWER_ON_DISPLAY_MODE_NONE && gEeprom.POWER_ON_DISPLAY_MODE != POWER_ON_DISPLAY_MODE_SOUND)
@@ -239,27 +250,9 @@ void Main(void)
                     break;
                 }
             }
-            RADIO_SetupRegisters(true);
         }
-
-#ifdef ENABLE_PWRON_PASSWORD
-        if (gEeprom.POWER_ON_PASSWORD < 1000000)
-        {
-            bIsInLockScreen = true;
-            UI_DisplayLock();
-            bIsInLockScreen = false;
-
-            // 500ms
-            for (int i = 0; i < 50;)
-            {
-                i = (GPIO_CheckBit(&GPIOC->DATA, GPIOC_PIN_PTT) && KEYBOARD_Poll() == KEY_INVALID) ? i + 1 : 0;
-                SYSTEM_DelayMs(10);
-            }
-            gKeyReading0 = KEY_INVALID;
-            gKeyReading1 = KEY_INVALID;
-            gDebounceCounter = 0;
-        }
-#endif
+        
+        RADIO_SetupRegisters(true);
 
         BOOT_ProcessMode(BootMode);
 
