@@ -103,25 +103,32 @@ void UI_DisplayRSSIBar(const bool now) {
     }
   }
 
-  // sprintf(String, "%d dBm", dBm);
+  // dBm Label
   NUMBER_ToDecimal(String, abs(dBm), 3, false);
+  char *p = String;
+  while (*p == ' ') p++;
+  
+  char label[16];
   if (dBm < 0) {
-    memmove(String + 1, String, 4);
-    String[0] = '-';
+    label[0] = '-';
+    strcpy(label + 1, p);
+  } else {
+    strcpy(label, p);
   }
-  strcat(String, " dBm");
-  uint8_t labelX = 128 - (strlen(String) * 4);
-  UI_PrintStringSmallest(String, labelX, LINE * 8 + 1, false, true);
+  strcat(label, " dBm");
+  
+  uint8_t labelX = 128 - (strlen(label) * 4);
+  UI_PrintStringSmallest(label, labelX, LINE * 8 + 1, false, true);
+  
   if (s <= 9) {
-    // sprintf(String, "S%u", s);
     String[0] = 'S';
     String[1] = s + '0';
     String[2] = '\0';
   } else {
-    // sprintf(String, "S9+%u0", s - 9);
-    strcpy(String, "S9+  0");
-    NUMBER_ToDecimal(String + 3, s - 9, 2, false);
-    String[5] = '0'; // Ensure trailing zero as per format S9+x0
+    strcpy(String, "S9+");
+    String[3] = (s - 9) + '0';
+    String[4] = '0';
+    String[5] = '\0';
   }
   UI_PrintStringSmallest(String, 2, LINE * 8 + 1, false, true);
   
@@ -199,9 +206,13 @@ void UI_DisplayAudioBar(void) {
     }
   }
 
-  // sprintf(String, "%u dB", afDB);
+  // Audio dB Label
   NUMBER_ToDecimal(String, afDB, 3, false);
+  char *ap = String;
+  while (*ap == ' ') ap++;
+  strcpy(String, ap);
   strcat(String, " dB");
+  
   uint8_t labelX = 128 - (strlen(String) * 4);
   UI_PrintStringSmallest(String, labelX, LINE * 8 + 1, false, true);
   

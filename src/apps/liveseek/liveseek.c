@@ -11,6 +11,7 @@
 #include "ui/helper.h"
 #include "features/audio/audio.h"
 #include "ui/ag_graphics.h"
+#include "drivers/bsp/system.h"
 #include <string.h>
 
 #include "core/board.h"
@@ -172,9 +173,33 @@ void LiveSeek_DrawSpectrum(void)
     if (gEeprom.LIVESEEK_MODE < LIVESEEK_SPECTRUM || !s_IsActive || s_addRssiCount < 3)
         return;
 
-    // Proper Lower Half Space (Lines 4-7, y=32..63)
-    const int drawYPosition = 63;
-    const int maxBarHeight = 24; 
+    // Use opposite half of the seeking VFO
+    // gEeprom.TX_VFO 0 = A (top), 1 = B (bottom)
+    uint8_t seekingVfo = gEeprom.TX_VFO;
+    
+    int startLine, lineCount;
+    int startY, endY;
+    int drawYPosition;
+    int maxBarHeight;
+    
+    if (seekingVfo == 0) { 
+        // VFO A seeking -> Show on B (Lower Half: Lines 4-7)
+        startLine = 4;
+        lineCount = 4;
+        startY = 32;
+        endY = 63;
+        drawYPosition = 63;
+        maxBarHeight = 24;
+    } else { 
+        // VFO B seeking -> Show on A (Upper Half: Lines 0-2, avoid middle line 3)
+        startLine = 0;
+        lineCount = 3;
+        startY = 0;
+        endY = 23;
+        drawYPosition = 23;
+        maxBarHeight = 16;
+    }
+    
     int _lowValue = 255;
     int peakValue = 0;
     int peakIndex = 0;
@@ -191,13 +216,18 @@ void LiveSeek_DrawSpectrum(void)
     }
     if (_lowValue == 255) _lowValue = 0;
 
-    // Clear entire lower half (Lines 4-7)
-    for (int line = 4; line < 8; line++) {
+    // Clear designated space
+    for (int line = startLine; line < startLine + lineCount; line++) {
         memset(gFrameBuffer[line], 0, 128);
     }
 
-    // UX: Premium Checkerboard Dithering in lower space
-    for (int y = 32; y < 63; y++) {
+    // Solid Baseline Border
+    for (int x = 0; x < 128; x++) {
+        SafePixel((uint8_t)x, (uint8_t)drawYPosition, true);
+    }
+
+    // UX: Premium Checkerboard Dithering in working space
+    for (int y = startY; y <= endY; y++) {
         for (int x = 0; x < 128; x++) {
             if ((x + y) % 4 == 0) {
                 SafePixel((uint8_t)x, (uint8_t)y, true);
@@ -207,7 +237,8 @@ void LiveSeek_DrawSpectrum(void)
 
     // Squelch Line (Dashed)
     int sqY = drawYPosition - STOP_RSSI_LIMIT; 
-    if (sqY < 32) sqY = 32;
+    if (sqY < startY) sqY = startY;
+    if (sqY > endY)   sqY = endY;
     for (int x = 0; x < 128; x += 4) {
         SafePixel((uint8_t)x, (uint8_t)sqY, true);
         SafePixel((uint8_t)x + 1, (uint8_t)sqY, true);
@@ -228,20 +259,18 @@ void LiveSeek_DrawSpectrum(void)
         }
     }
 
-    // Proper Peak Marker (Triangle Arrow)
+    // Peak Marker (Vertical Dither Line)
     if (peakValue > _lowValue) {
         int peakX = (s_lastSeekDirection == 10 ? 127 - peakIndex : peakIndex);
-        int peakY = drawYPosition - (peakValue - _lowValue);
-        if (peakY < 35) peakY = 35;
         
-        SafePixel((uint8_t)peakX, (uint8_t)(peakY - 3), true);
-        if (peakX > 0) SafePixel((uint8_t)(peakX - 1), (uint8_t)(peakY - 2), true);
-        if (peakX < 127) SafePixel((uint8_t)(peakX + 1), (uint8_t)(peakY - 2), true);
-        if (peakX > 1) SafePixel((uint8_t)(peakX - 2), (uint8_t)(peakY - 1), true);
-        if (peakX < 126) SafePixel((uint8_t)(peakX + 2), (uint8_t)(peakY - 1), true);
+        for (int y = startY; y < drawYPosition; y++) {
+            if (y % 2 == 0) {
+                SafePixel((uint8_t)peakX, (uint8_t)y, true);
+            }
+        }
     }
 
-    // Frequency display at Line 4 top
+    // Frequency display at top line of working area
     uint32_t _drawFreq = s_rssiStartFreq;
     int _drawTextPosition = 0;
     if (s_lastSeekDirection == 12) _drawTextPosition = 127 - (int)s_addRssiCount;
@@ -252,7 +281,21 @@ void LiveSeek_DrawSpectrum(void)
 
     char str[16];
     FormatFreq(str, _drawFreq);
-    UI_PrintStringSmallNormal(str, (uint8_t)_drawTextPosition, 0, 4);
+
+    // Clear background for frequency label (1px padding) 
+    int labelX = _drawTextPosition;
+    int labelY = (int)startLine * 8;
+    int labelW = 50; // Total width for 1px padding each side (48px text + 2px padding)
+    int labelH = 8;
+    for (int fy = labelY - 1; fy < labelY + labelH; fy++) {
+        // Clamp vertical clearing to stay within the working area bounds
+        if (fy < startY || fy > endY) continue;
+        for (int fx = labelX; fx < labelX + labelW; fx++) {
+            SafePixel((uint8_t)fx, (uint8_t)fy, false);
+        }
+    }
+
+    UI_PrintStringSmallNormal(str, (uint8_t)_drawTextPosition, 0, (uint8_t)startLine);
 }
 
 bool LiveSeek_IsActive(void)
