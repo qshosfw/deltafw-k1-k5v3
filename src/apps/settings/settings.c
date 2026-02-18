@@ -834,7 +834,12 @@ void SETTINGS_SaveChannel(uint8_t Channel, uint8_t VFO, const VFO_Info_t *pVFO, 
         data.fields.step             = pVFO->STEP_SETTING;
         data.fields.scramble         = pVFO->SCRAMBLING_TYPE;
 
-        Storage_WriteRecordIndexed(REC_CHANNEL_DATA, Channel, data.raw, 0, sizeof(data.raw));
+        if (IS_MR_CHANNEL(Channel)) {
+            Storage_WriteRecordIndexed(REC_CHANNEL_DATA, Channel, data.raw, 0, sizeof(data.raw));
+        } else {
+            uint16_t storage_idx = ((Channel - FREQ_CHANNEL_FIRST) << 8) | VFO;
+            Storage_WriteRecordIndexed(REC_VFO_DATA, storage_idx, data.raw, 0, sizeof(data.raw));
+        }
 
         SETTINGS_UpdateChannel(Channel, pVFO, true, true, true);
 

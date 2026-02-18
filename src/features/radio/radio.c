@@ -173,8 +173,8 @@ bool RADIO_ValidateVfo(VFO_Info_t *pInfo)
     bool isValid = true;
 
     if (RX_freq_check(pInfo->freq_config_RX.Frequency) != 0) {
-        pInfo->freq_config_RX.Frequency = 14500000; // Safe default 145MHz
-        isValid = false;
+        RADIO_InitInfo(pInfo, pInfo->CHANNEL_SAVE, 14500000); // Reset everything to safe defaults
+        return false;
     }
 
     if (pInfo->Modulation >= MODULATION_UKNOWN) {
@@ -476,7 +476,8 @@ void RADIO_ConfigureChannel(const unsigned int VFO, const unsigned int configure
     uint32_t frequency = pVfo->freq_config_RX.Frequency;
 
     // fix previously set incorrect band
-    band = FREQUENCY_GetBand(frequency);
+    if (IS_MR_CHANNEL(channel))
+        band = FREQUENCY_GetBand(frequency);
 
     if (frequency < frequencyBandTable[band].lower)
         frequency = frequencyBandTable[band].lower;

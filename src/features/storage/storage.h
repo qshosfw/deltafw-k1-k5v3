@@ -25,7 +25,7 @@ typedef enum {
     X(DTMF_DOWN_CODE,  ENC_CPUID, FIXED,  0x008028, 16,  1,   0,    0,  0) \
     X(SCAN_LIST,       ENC_CPUID, FIXED,  0x009000, 8,   1,   0,    0,  0) \
     X(F_LOCK,          ENC_CPUID, FIXED,  0x00b000, 8,   1,   0,    0,  0) \
-    X(MR_ATTRIBUTES,   ENC_PASSCODE, LINEAR, 0x002000, 1,   200, 1,    0,  0) \
+    X(MR_ATTRIBUTES,   ENC_PASSCODE, LINEAR, 0x002000, 1,   207, 1,    0,  0) \
     X(CUSTOM_SETTINGS, ENC_CPUID, FIXED,  0x00c000, 8,   1,   0,    0,  0) \
     X(CHANNEL_DATA,    ENC_PASSCODE, LINEAR, 0x000000, 16,  200, 16,   0,  0) \
     X(CHANNEL_NAMES,   ENC_PASSCODE, LINEAR, 0x00e000, 16,  200, 16,   0,  0) \
