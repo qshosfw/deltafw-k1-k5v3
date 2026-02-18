@@ -268,7 +268,8 @@ typedef union {
         uint8_t  Tries;         // Failed attempts
         uint8_t  Length;        // Passcode Length
         uint8_t  MaxTriesConfig;// Configured Max Tries (0=Default 10)
-        uint8_t  Reserved0[2];
+        uint8_t  ExposeLength;  // 0=Hide length, require MENU; 1=Expose, auto-verify
+        uint8_t  StealthMode;   // 0=Normal; 1=No backlight/low contrast
         uint32_t Iterations;    // KDF Iterations
         uint8_t  EncryptedMasterKey[32]; // MK encrypted with KEK
         uint64_t MigratedMask;  // Bitmask of migrated records

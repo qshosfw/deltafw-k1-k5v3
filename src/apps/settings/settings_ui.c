@@ -217,6 +217,8 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
             break;
         }
         case MENU_PASSCODE_MAX_TRIES: NUMBER_ToDecimal(buf, Passcode_GetMaxTries(), 2, false); break;
+        case MENU_PASSCODE_EXPOSE: strcpy(buf, Passcode_GetExposeLength() ? "ON" : "OFF"); break;
+        case MENU_PASSCODE_STEALTH: strcpy(buf, Passcode_GetStealthMode() ? "ON" : "OFF"); break;
 #endif
         case MENU_BCL: strcpy(buf, gSubMenu_OFF_ON[gTxVfo->BUSY_CHANNEL_LOCK]); break;
         case MENU_TXP: strcpy(buf, gSubMenu_TXP[gTxVfo->OUTPUT_POWER]); break;
@@ -294,6 +296,8 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
 #endif
 #ifdef ENABLE_PASSCODE
             case MENU_PASSCODE_MAX_TRIES: { uint8_t v = Passcode_GetMaxTries(); INC_DEC(v, 3, 50, up); Passcode_SetMaxTries(v); break; }
+            case MENU_PASSCODE_EXPOSE: Passcode_SetExposeLength(!Passcode_GetExposeLength()); break;
+            case MENU_PASSCODE_STEALTH: Passcode_SetStealthMode(!Passcode_GetStealthMode()); break;
 #endif
             case MENU_BCL: gTxVfo->BUSY_CHANNEL_LOCK = !gTxVfo->BUSY_CHANNEL_LOCK; break;
             case MENU_TXP: INC_DEC(gTxVfo->OUTPUT_POWER, 0, 2, up); break;
@@ -469,6 +473,8 @@ static const MenuItem systemItems[] = {
 #ifdef ENABLE_PASSCODE
     {"Passcode", MENU_PASSCODE, getVal, NULL, NULL, Action_Passcode, M_ITEM_ACTION},
     {"Max Tries", MENU_PASSCODE_MAX_TRIES, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Show Length", MENU_PASSCODE_EXPOSE, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Stealth Unlock", MENU_PASSCODE_STEALTH, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
 #endif
     #ifdef ENABLE_EEPROM_HEXDUMP
     {"Mem Hex Dump", MENU_MEMVIEW, NULL, NULL, NULL, Action_MemView, M_ITEM_ACTION},

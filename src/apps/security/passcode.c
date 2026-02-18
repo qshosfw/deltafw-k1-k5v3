@@ -141,6 +141,28 @@ void Passcode_SetMaxTries(uint8_t maxTries) {
     Passcode_SaveConfig();
 }
 
+bool Passcode_GetExposeLength(void) {
+    LoadConfig();
+    return gPasscodeConfig.fields.ExposeLength == 1;
+}
+
+void Passcode_SetExposeLength(bool expose) {
+    LoadConfig();
+    gPasscodeConfig.fields.ExposeLength = expose ? 1 : 0;
+    Passcode_SaveConfig();
+}
+
+bool Passcode_GetStealthMode(void) {
+    LoadConfig();
+    return gPasscodeConfig.fields.StealthMode == 1;
+}
+
+void Passcode_SetStealthMode(bool stealth) {
+    LoadConfig();
+    gPasscodeConfig.fields.StealthMode = stealth ? 1 : 0;
+    Passcode_SaveConfig();
+}
+
 void Passcode_Lock(void) {
     if (Passcode_IsSet()) {
         memset(gMasterKey, 0, 32);
@@ -401,8 +423,29 @@ void Passcode_Prompt(void) {
     gDebounceCounter = 0;
 
     memset(gPasscodeInput, 0, sizeof(gPasscodeInput));
-    // Use stored length for validation input
-    TextInput_Init(gPasscodeInput, gPasscodeConfig.fields.Length, false, InputCallback); 
+    
+    bool expose = Passcode_GetExposeLength();
+    bool stealth = Passcode_GetStealthMode();
+    
+    // Stealth Mode: Save and Override
+    uint8_t old_abr_max = gEeprom.BACKLIGHT_MAX;
+    uint8_t old_abr_min = gEeprom.BACKLIGHT_MIN;
+    uint8_t old_ctr = gSetting_set_ctr;
+    
+    if (stealth) {
+        gEeprom.BACKLIGHT_MAX = 0;
+        gEeprom.BACKLIGHT_MIN = 0;
+        gSetting_set_ctr = 4; // Low contrast
+        BACKLIGHT_TurnOff();
+        ST7565_ContrastAndInv();
+    }
+
+    if (expose) {
+        TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, InputCallback); 
+    } else {
+        TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, InputCallback); 
+    }
+    
     UI_SetStatusTitle("Enter Passcode");
 
     while(1) {
@@ -473,10 +516,21 @@ void Passcode_Prompt(void) {
             UI_DisplayStatus(); // Updates status bar in RAM and blits line 0
             TextInput_Render(); // Updates input area in RAM and blits all lines (0-7)
             
-            // Check for Auto-Submit
-            if (strlen(gPasscodeInput) >= gPasscodeConfig.fields.Length) {
+            // Check for Auto-Submit (only if length is exposed)
+            if (expose && strlen(gPasscodeInput) >= gPasscodeConfig.fields.Length) {
                 gPasscodeDone = true;
             }
+        }
+        
+        // Restore Stealth Mode changes temporarily to show the verification message clearly? 
+        // Or keep it stealth? Usually stealth should be stealth until unlocked.
+        // The user said "enter passcode ui", so maybe once entered we can restore.
+        if (stealth) {
+            gEeprom.BACKLIGHT_MAX = old_abr_max;
+            gEeprom.BACKLIGHT_MIN = old_abr_min;
+            gSetting_set_ctr = old_ctr;
+            BACKLIGHT_TurnOn();
+            ST7565_ContrastAndInv();
         }
         
         // Validation
@@ -495,8 +549,21 @@ void Passcode_Prompt(void) {
             // Reset input
             memset(gPasscodeInput, 0, sizeof(gPasscodeInput));
             gPasscodeDone = false;
-            // Use stored length again
-            TextInput_Init(gPasscodeInput, gPasscodeConfig.fields.Length, false, InputCallback);
+            
+            // Re-stealth if we failed
+            if (stealth) {
+                gEeprom.BACKLIGHT_MAX = 0;
+                gEeprom.BACKLIGHT_MIN = 0;
+                gSetting_set_ctr = 4; 
+                BACKLIGHT_TurnOff();
+                ST7565_ContrastAndInv();
+            }
+
+            if (expose) {
+                TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, InputCallback); 
+            } else {
+                TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, InputCallback); 
+            }
         }
     }
 }
@@ -512,15 +579,24 @@ void Passcode_Change(void) {
     gKeyReading1 = KEY_INVALID;
     gDebounceCounter = 0;
 
+    bool expose = Passcode_GetExposeLength();
+
     // 1. If set, ask old
     if (Passcode_IsSet()) {
         memset(gPasscodeInput, 0, sizeof(gPasscodeInput));
         gPasscodeDone = false;
-        // Use stored length for old passcode
-        TextInput_Init(gPasscodeInput, gPasscodeConfig.fields.Length, false, InputCallback); 
+        
+        // If length is exposed, use the actual length and force full.
+        // If hidden, allow up to max and don't show length.
+        if (expose) {
+            TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, InputCallback); 
+        } else {
+            TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, InputCallback); 
+        }
+        
         UI_SetStatusTitle("Verify Passcode");
         
-        while(!gPasscodeDone) {
+        while(!gPasscodeDone && TextInput_IsActive()) {
              while (!gNextTimeslice) {}
              gNextTimeslice = false;
              
@@ -531,6 +607,9 @@ void Passcode_Change(void) {
                  if (++gDebounceCounter == key_debounce_10ms) {
                      if (key != KEY_INVALID) TextInput_HandleInput(key, true, false);
                  }
+                 if (gDebounceCounter == 40) { // Long press
+                     if (key != KEY_INVALID) TextInput_HandleInput(key, true, true);
+                 }
              } else {
                  gDebounceCounter = 0;
                  gKeyReading0 = key;
@@ -540,10 +619,19 @@ void Passcode_Change(void) {
                   gKeyReading1 = KEY_INVALID;
              } else if (key != KEY_INVALID) gKeyReading1 = key;
 
-             TextInput_Tick();
-             UI_DisplayStatus();
-             TextInput_Render();
+             if (TextInput_IsActive()) {
+                 TextInput_Tick();
+                 UI_DisplayStatus();
+                 TextInput_Render();
+             }
+             
+             // Auto-submit if exposed
+             if (expose && strlen(gPasscodeInput) >= gPasscodeConfig.fields.Length) {
+                 gPasscodeDone = true;
+             }
         }
+        
+        if (!gPasscodeDone) return; // Aborted
         
         if (!Passcode_Validate(gPasscodeInput)) {
              DrawDialogMessage("Wrong");
@@ -558,11 +646,11 @@ void Passcode_Change(void) {
     // 2. Ask New
     memset(gPasscodeInput, 0, sizeof(gPasscodeInput));
     gPasscodeDone = false;
-    // Use MAX length for new passcode
-    TextInput_Init(gPasscodeInput, PASSCODE_MAX_LEN, false, InputCallback);
+    // Always use MAX length for new passcode during setup, but hide indicator if requested.
+    TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, expose, false, InputCallback);
     UI_SetStatusTitle("Set Passcode");
     
-    while(!gPasscodeDone) {
+    while(!gPasscodeDone && TextInput_IsActive()) {
          while (!gNextTimeslice) {}
          gNextTimeslice = false;
          
@@ -573,6 +661,9 @@ void Passcode_Change(void) {
              if (++gDebounceCounter == key_debounce_10ms) {
                  if (key != KEY_INVALID) TextInput_HandleInput(key, true, false);
              }
+             if (gDebounceCounter == 40) { // Long press
+                 if (key != KEY_INVALID) TextInput_HandleInput(key, true, true);
+             }
          } else {
              gDebounceCounter = 0;
              gKeyReading0 = key;
@@ -582,10 +673,14 @@ void Passcode_Change(void) {
               gKeyReading1 = KEY_INVALID;
          } else if (key != KEY_INVALID) gKeyReading1 = key;
 
-         TextInput_Tick();
-         UI_DisplayStatus();
-         TextInput_Render();
+         if (TextInput_IsActive()) {
+             TextInput_Tick();
+             UI_DisplayStatus();
+             TextInput_Render();
+         }
     }
+    
+    if (!gPasscodeDone) return; // Aborted
     
     char newPass[PASSCODE_MAX_LEN + 1];
     strcpy(newPass, gPasscodeInput);
@@ -596,11 +691,12 @@ void Passcode_Change(void) {
     if (newLen > 0) {
         memset(gPasscodeInput, 0, sizeof(gPasscodeInput));
         gPasscodeDone = false;
-        // Use ACTUAL length of new passcode for confirmation
-        TextInput_Init(gPasscodeInput, newLen, false, InputCallback);
+        // Use ACTUAL length of new passcode for confirmation.
+        // Cap max length at newLen to ensure consistency.
+        TextInput_InitEx(gPasscodeInput, newLen, false, expose, expose, InputCallback);
         UI_SetStatusTitle("Confirm Passcode");
         
-        while(!gPasscodeDone) {
+        while(!gPasscodeDone && TextInput_IsActive()) {
              while (!gNextTimeslice) {}
              gNextTimeslice = false;
              
@@ -611,6 +707,9 @@ void Passcode_Change(void) {
                  if (++gDebounceCounter == key_debounce_10ms) {
                      if (key != KEY_INVALID) TextInput_HandleInput(key, true, false);
                  }
+                 if (gDebounceCounter == 40) { // Long press
+                     if (key != KEY_INVALID) TextInput_HandleInput(key, true, true);
+                 }
              } else {
                  gDebounceCounter = 0;
                  gKeyReading0 = key;
@@ -620,10 +719,19 @@ void Passcode_Change(void) {
                   gKeyReading1 = KEY_INVALID;
              } else if (key != KEY_INVALID) gKeyReading1 = key;
 
-             TextInput_Tick();
-             UI_DisplayStatus();
-             TextInput_Render();
+             if (TextInput_IsActive()) {
+                 TextInput_Tick();
+                 UI_DisplayStatus();
+                 TextInput_Render();
+             }
+             
+             // Auto-submit if exposed
+             if (expose && strlen(gPasscodeInput) >= newLen) {
+                 gPasscodeDone = true;
+             }
         }
+        
+        if (!gPasscodeDone) return; // Aborted
     } else {
         // For empty passcode, confirmation is identity
         strcpy(gPasscodeInput, "");

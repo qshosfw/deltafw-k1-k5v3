@@ -12,6 +12,10 @@ void Passcode_Set(const char *input);
 uint8_t Passcode_GetLength(void);
 uint8_t Passcode_GetMaxTries(void);
 void Passcode_SetMaxTries(uint8_t maxTries);
+bool Passcode_GetExposeLength(void);
+void Passcode_SetExposeLength(bool expose);
+bool Passcode_GetStealthMode(void);
+void Passcode_SetStealthMode(bool stealth);
 bool Passcode_IsLocked(void);
 void Passcode_Lock(void);
 

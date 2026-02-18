@@ -3,6 +3,7 @@
 #include "ui/ag_graphics.h"
 #include "drivers/bsp/st7565.h"
 #include "apps/settings/settings.h"
+#include "features/audio/audio.h"
 #include "helper.h"
 
 // State
@@ -10,6 +11,8 @@ static char *gTextInputBuffer = NULL;
 static uint8_t gTextInputMaxLen = 15;
 static bool gTextInputActive = false;
 static void (*gTextInputCallback)(void) = NULL;
+static bool gTextInputShowLength = true;
+static bool gTextInputForceFull = false;
 static uint16_t inputTick = 0;
 static uint16_t lastKeyTime = 0;
 
@@ -129,9 +132,15 @@ static void Backspace(void) {
 }
 
 void TextInput_Init(char *buffer, uint8_t maxLen, bool ignoreFirstMenuReleaseArg, void (*callback)(void)) {
+    TextInput_InitEx(buffer, maxLen, ignoreFirstMenuReleaseArg, true, false, callback);
+}
+
+void TextInput_InitEx(char *buffer, uint8_t maxLen, bool ignoreFirstMenuReleaseArg, bool showLength, bool forceFull, void (*callback)(void)) {
     gTextInputBuffer = buffer;
     gTextInputMaxLen = maxLen;
     gTextInputCallback = callback;
+    gTextInputShowLength = showLength;
+    gTextInputForceFull = forceFull;
     gTextInputActive = true;
     inputIndex = strlen(buffer);
     currentCharset = CHARSET_UPPER;
@@ -174,6 +183,12 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
     if (gEeprom.SET_NAV) { // Swapped
         keyUp   = KEY_DOWN;
         keyDown = KEY_UP;
+    }
+
+    // If any key is pressed (not held), we clear the "ignore first release" flag for MENU
+    // because this means we are now actively interacting with the UI.
+    if (bKeyPressed && !bKeyHeld) {
+        ignoreFirstMenuRelease = false;
     }
 
     // Long press handlers
@@ -334,6 +349,10 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
                     ignoreFirstMenuRelease = false;
                     return true;
                 }
+                if (gTextInputForceFull && strlen(gTextInputBuffer) < gTextInputMaxLen) {
+                    AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL);
+                    return true;
+                }
                 ConfirmCurrentChar();
                 if (gTextInputCallback) {
                     gTextInputCallback();
@@ -369,11 +388,20 @@ void TextInput_Render(void) {
         case CHARSET_SYMBOLS: charsetName = "#@$"; break;
     }
     AG_PrintSmall(2, HEADER_Y, charsetName);
-    char countBuf[10];
-    NUMBER_ToDecimal(countBuf, charCount, 1, false);
-    strcat(countBuf, "/");
-    NUMBER_ToDecimal(countBuf + strlen(countBuf), gTextInputMaxLen, 1, false);
-    AG_PrintSmallEx(LCD_WIDTH - 2, HEADER_Y, POS_R, C_FILL, countBuf);
+    if (gTextInputShowLength) {
+        char countBuf[12];
+        // Format as count/max (e.g. 0/32)
+        if (charCount < 10) {
+            countBuf[0] = charCount + '0';
+            countBuf[1] = '/';
+            NUMBER_ToDecimal(countBuf + 2, gTextInputMaxLen, 2, false);
+        } else {
+            NUMBER_ToDecimal(countBuf, charCount, 2, false);
+            countBuf[2] = '/';
+            NUMBER_ToDecimal(countBuf + 3, gTextInputMaxLen, 2, false);
+        }
+        AG_PrintSmallEx(LCD_WIDTH - 2, HEADER_Y, POS_R, C_FILL, countBuf);
+    }
 
 
 
