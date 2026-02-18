@@ -164,6 +164,7 @@ void     BK4819_SendFSKData(uint16_t *pData);
 void     BK4819_PrepareFSKReceive(void);
 
 void     BK4819_PlayRoger(void);
+void     BK4819_PlayRogerPreview(void);
 
 void     BK4819_Enable_AfDac_DiscMode_TxDsp(void);
 

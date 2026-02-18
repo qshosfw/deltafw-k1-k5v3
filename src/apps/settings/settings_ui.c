@@ -55,7 +55,15 @@ typedef struct {
 static const SettingConfig settingConfigs[] = {
     {MENU_SQL,      SET_TYPE_INT8,  &gEeprom.SQUELCH_LEVEL, 0, 9, NULL, 0},
     {MENU_BEEP,     SET_TYPE_BOOL,  &gEeprom.BEEP_CONTROL, 0, 1, gSubMenu_OFF_ON, 4},
-    {MENU_ROGER,    SET_TYPE_LIST,  &gEeprom.ROGER, 0, ROGER_MODE_MDC, gSubMenu_ROGER, 6},
+    {MENU_ROGER,    SET_TYPE_LIST,  &gEeprom.ROGER, 0,
+#ifdef ENABLE_CUSTOM_ROGER
+        ROGER_MODE_CUSTOM3,
+#elif defined(ENABLE_EXTRA_ROGER)
+        ROGER_MODE_UV5RC,
+#else
+        ROGER_MODE_MDC,
+#endif
+        gSubMenu_ROGER, 0},
     {MENU_STE,      SET_TYPE_BOOL,  &gEeprom.TAIL_TONE_ELIMINATION, 0, 1, gSubMenu_OFF_ON, 4},
     {MENU_RP_STE,   SET_TYPE_INT8,  &gEeprom.REPEATER_TAIL_TONE_ELIMINATION, 0, 10, NULL, 0},
     {MENU_MDF,      SET_TYPE_LIST,  &gEeprom.CHANNEL_DISPLAY_MODE, 0, 3, gSubMenu_MDF, 0},
@@ -242,6 +250,11 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
         if (settingId == MENU_ABR_MAX && gEeprom.BACKLIGHT_MIN >= gEeprom.BACKLIGHT_MAX) gEeprom.BACKLIGHT_MIN = gEeprom.BACKLIGHT_MAX - 1;
         if (settingId == MENU_ABR_MIN && gEeprom.BACKLIGHT_MAX <= gEeprom.BACKLIGHT_MIN) gEeprom.BACKLIGHT_MAX = gEeprom.BACKLIGHT_MIN + 1;
         if (settingId == MENU_SET_CTR || settingId == MENU_SET_INV) ST7565_ContrastAndInv();
+        if (settingId == MENU_ROGER) {
+            AG_MENU_Render();
+            ST7565_BlitFullScreen();
+            BK4819_PlayRogerPreview();
+        }
     } else {
         switch (settingId) {
             case MENU_VOX:

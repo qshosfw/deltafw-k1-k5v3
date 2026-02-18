@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "features/audio/audio.h"
+#include "menu.h"
 
 #define MENU_STACK_DEPTH 4
 
@@ -228,13 +229,13 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
                   if (item->change_value) {
                       bool up = (key == KEY_UP || key == KEY_F || key == KEY_SIDE1);
                       item->change_value(item, up);
-                      if (!key_held) AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+                      if (!key_held && item->setting != MENU_ROGER) AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
                       return true;
                   }
               }
               if (key == KEY_MENU || key == KEY_EXIT || key == KEY_PTT) {
                   is_editing = false;
-                  AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+                  if (item->setting != MENU_ROGER) AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
                   return true;
               }
           }
@@ -266,7 +267,7 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
       if (!key_held) {
         if (item->type == M_ITEM_SELECT && item->change_value) {
             is_editing = true;
-            AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
+            if (item->setting != MENU_ROGER) AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
             return true;
         }
         

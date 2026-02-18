@@ -200,7 +200,13 @@ void SETTINGS_InitEEPROM(void)
     #if defined(ENABLE_ALARM) || defined(ENABLE_TX1750)
         gEeprom.ALARM_MODE = LIMIT(extraConfig.fields.ALARM_MODE, 2, ALARM_MODE_SITE);
     #endif
-    gEeprom.ROGER = LIMIT(extraConfig.fields.ROGER, 3, ROGER_MODE_OFF);
+    #ifdef ENABLE_CUSTOM_ROGER
+        gEeprom.ROGER = LIMIT(extraConfig.fields.ROGER, ROGER_MODE_CUSTOM3, ROGER_MODE_OFF);
+    #elif defined(ENABLE_EXTRA_ROGER)
+        gEeprom.ROGER = LIMIT(extraConfig.fields.ROGER, ROGER_MODE_UV5RC, ROGER_MODE_OFF);
+    #else
+        gEeprom.ROGER = LIMIT(extraConfig.fields.ROGER, ROGER_MODE_MDC, ROGER_MODE_OFF);
+    #endif
     gEeprom.REPEATER_TAIL_TONE_ELIMINATION = LIMIT(extraConfig.fields.REPEATER_TAIL_TONE_ELIMINATION, 21, 0);
     gEeprom.TX_VFO = LIMIT(extraConfig.fields.TX_VFO, 2, 0);
     gEeprom.BATTERY_TYPE = LIMIT(extraConfig.fields.BATTERY_TYPE, BATTERY_TYPE_UNKNOWN, BATTERY_TYPE_1600_MAH);

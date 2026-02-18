@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.4.2"
+version = "1.5.0"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -115,6 +115,8 @@ SCRAMBLER = true
 ON_DEVICE_PROGRAMMING = true # Channel Edit (Save, Delete, Rename)
 SCAN_LIST_EDITING = true     # Scan List Membership Edit
 TX_OFFSET = true             # TX Offset Settings
+EXTRA_ROGER = true
+CUSTOM_ROGER = true
 
 # 🧩 Apps & Features
 SPECTRUM = true

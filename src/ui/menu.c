@@ -321,11 +321,25 @@ const char gSubMenu_PONMSG[][8] =
     "NONE"
 };
 
-const char gSubMenu_ROGER[][6] =
+const char* const gSubMenu_ROGER[ROGER_SUBMENU_SIZE] =
 {
     "OFF",
     "ROGER",
-    "MDC"
+    "MDC1200",
+#ifdef ENABLE_EXTRA_ROGER
+    "MOTOTRBO",
+    "APX6000 TPT",
+    "T40",
+    "TLKR T80",
+    "COBRA AM845",
+    "POLICE",
+    "UV-5RC",
+#endif
+#ifdef ENABLE_CUSTOM_ROGER
+    "CUSTOM 1",
+    "CUSTOM 2",
+    "CUSTOM 3",
+#endif
 };
 
 const char gSubMenu_RESET[][4] =

@@ -21,6 +21,8 @@
 #include "apps/settings/settings.h"
 
 #include "features/audio/audio.h"
+#include "features/storage/storage.h"
+#include "core/misc.h"
 
 #include "drivers/bsp/bk4819.h"
 #include "drivers/bsp/gpio.h"
@@ -1762,100 +1764,215 @@ void BK4819_PrepareFSKReceive(void)
     BK4819_WriteRegister(BK4819_REG_59, 0x3068);
 }
 
-static void BK4819_PlayRogerNormal(void)
+// TX/Preview beep: tone generator gating (assumes AF/TX path already setup)
+static void RogerBeep(uint16_t freq, uint16_t ms)
 {
-    #if 0
-        const uint32_t tone1_Hz = 500;
-        const uint32_t tone2_Hz = 700;
-    #else
-        // motorola type
-        const uint32_t tone1_Hz = 1540;
-        const uint32_t tone2_Hz = 1310;
-    #endif
-
-
-    BK4819_EnterTxMute();
-    BK4819_SetAF(BK4819_AF_MUTE);
-
-    BK4819_WriteRegister(BK4819_REG_70, // BK4819_REG_70_ENABLE_TONE1 | (66u << BK4819_REG_70_SHIFT_TONE1_TUNING_GAIN));
-                                        0xC300
-    );
-
-    BK4819_EnableTXLink();
-    SYSTEM_DelayMs(50);
-
-    BK4819_WriteRegister(BK4819_REG_71, scale_freq(tone1_Hz));
-
+    BK4819_WriteRegister(BK4819_REG_71, scale_freq(freq));
     BK4819_ExitTxMute();
-    SYSTEM_DelayMs(80);
+    SYSTEM_DelayMs(ms);
     BK4819_EnterTxMute();
-
-    BK4819_WriteRegister(BK4819_REG_71, scale_freq(tone2_Hz));
-
-    BK4819_ExitTxMute();
-    SYSTEM_DelayMs(80);
-    BK4819_EnterTxMute();
-
-    BK4819_WriteRegister(BK4819_REG_70, 0x0000);
-    BK4819_WriteRegister(BK4819_REG_30, 0xC1FE);   // 1 1 0000 0 1 1111 1 1 1 0
 }
 
-
-void BK4819_PlayRogerMDC(void)
+static void RogerTxSetup(void)
 {
-    struct reg_value {
-        BK4819_REGISTER_t reg;
-        uint16_t value;
-    };
+    BK4819_EnterTxMute();
+    BK4819_SetAF(BK4819_AF_MUTE);
+    BK4819_WriteRegister(BK4819_REG_70,
+        BK4819_REG_70_ENABLE_TONE1 | (28u << BK4819_REG_70_SHIFT_TONE1_TUNING_GAIN));
+    BK4819_EnableTXLink();
+    SYSTEM_DelayMs(50);
+}
 
-    struct reg_value RogerMDC_Configuration [] = {
-        { BK4819_REG_58, 0x37C3 },  // FSK Enable,
-                                        // RX Bandwidth FFSK 1200/1800
-                                        // 0xAA or 0x55 Preamble
-                                        // 11 RX Gain,
-                                        // 101 RX Mode
-                                        // TX FFSK 1200/1800
-        { BK4819_REG_72, 0x3065 },  // Set Tone-2 to 1200Hz
-        { BK4819_REG_70, 0x00C3 },  // Enable Tone-2 and Set Tone2 Gain
-        { BK4819_REG_5D, 0x0D00 },  // Set FSK data length to 13 bytes
-        { BK4819_REG_59, 0x8068 },  // 4 byte sync length, 6 byte preamble, clear TX FIFO
-        { BK4819_REG_59, 0x0068 },  // Same, but clear TX FIFO is now unset (clearing done)
-        { BK4819_REG_5A, 0x5555 },  // First two sync bytes
-        { BK4819_REG_5B, 0x5555 },  // End of sync bytes. Total 4 bytes: 555555aa
+static void RogerTxTeardown(void)
+{
+    BK4819_EnterTxMute();
+    BK4819_WriteRegister(BK4819_REG_70, 0x0000);
+    BK4819_WriteRegister(BK4819_REG_30, 0xC1FE);
+}
+
+typedef void (*roger_beep_fn)(uint16_t freq, uint16_t ms);
+
+#ifdef ENABLE_EXTRA_ROGER
+static void PlayRogerPreset(uint8_t preset, roger_beep_fn beep)
+{
+    switch (preset) {
+        case 0: // MOTOTRBO
+            beep(1540, 60);
+            beep(1310, 60);
+            break;
+        case 1: // APX6000 TPT
+            beep(910, 40);
+            SYSTEM_DelayMs(20);
+            beep(910, 40);
+            SYSTEM_DelayMs(20);
+            beep(910, 60);
+            break;
+        case 2: // T40
+            for (uint8_t i = 0; i < 3; i++) {
+                beep(2000, 60);
+                beep(2200, 60);
+            }
+            break;
+        case 3: // TLKRT80
+            for (uint8_t i = 0; i < 3; i++) {
+                beep(1190, 60);
+                beep(990, 60);
+                beep(510, i < 2 ? 60 : 80);
+            }
+            break;
+        case 4: // COBRA AM845
+            beep(430, 60);
+            beep(870, 60);
+            beep(1740, 60);
+            break;
+        case 5: // POLICE
+            beep(800, 60);
+            beep(2200, 60);
+            beep(890, 60);
+            beep(1540, 60);
+            beep(1300, 60);
+            beep(970, 60);
+            beep(1180, 60);
+            beep(1070, 60);
+            break;
+        case 6: // UV-5RC
+            beep(1120, 140);
+            beep(860, 200);
+            break;
+    }
+}
+#endif
+
+#ifdef ENABLE_CUSTOM_ROGER
+// Custom roger: 16-bit entries, upper 9 bits = freq index, lower 7 bits = duration
+// Freq index 0 = pause, else freq = 250 + index*10 Hz. Duration = unit * 20ms.
+static void PlayRogerCustom(uint8_t index, roger_beep_fn beep)
+{
+    CustomRoger_t roger;
+    if (!Storage_ReadRecordIndexed(REC_CUSTOM_ROGER, index, &roger, 0, sizeof(roger)))
+        return;
+    for (uint8_t i = 0; i < 16; i++) {
+        const uint16_t entry = roger.entries[i];
+        if (entry == 0 || entry == 0xFFFF) break;  // 0 = terminator, 0xFFFF = uninitialized
+        const uint16_t freqIdx = entry >> 7;
+        const uint16_t ms = (entry & 0x7F) * 20;
+        if (freqIdx == 0)
+            SYSTEM_DelayMs(ms);
+        else
+            beep(250 + freqIdx * 10, ms);
+    }
+}
+#endif
+
+static void BK4819_PlayRogerMDC(void)
+{
+    static const struct { BK4819_REGISTER_t reg; uint16_t value; } RogerMDC_Cfg[] = {
+        { BK4819_REG_58, 0x37C3 },  // FSK Enable, FFSK 1200/1800
+        { BK4819_REG_72, 0x3065 },  // Tone-2 1200Hz
+        { BK4819_REG_70, 0x00C3 },  // Enable Tone-2, gain
+        { BK4819_REG_5D, 0x0D00 },  // FSK data length 13 bytes
+        { BK4819_REG_59, 0x8068 },  // 4 sync, 6 preamble, clear TX FIFO
+        { BK4819_REG_59, 0x0068 },  // clear done
+        { BK4819_REG_5A, 0x5555 },  // sync bytes 1-2
+        { BK4819_REG_5B, 0x5555 },  // sync bytes 3-4
         { BK4819_REG_5C, 0xAA30 },  // Disable CRC
     };
 
     BK4819_SetAF(BK4819_AF_MUTE);
 
-    for (unsigned int i = 0; i < ARRAY_SIZE(RogerMDC_Configuration); i++) {
-        BK4819_WriteRegister(RogerMDC_Configuration[i].reg, RogerMDC_Configuration[i].value);
-    }
+    for (unsigned int i = 0; i < ARRAY_SIZE(RogerMDC_Cfg); i++)
+        BK4819_WriteRegister(RogerMDC_Cfg[i].reg, RogerMDC_Cfg[i].value);
 
-    // Send the data from the roger table
-    for (unsigned int i = 0; i < ARRAY_SIZE(FSK_RogerTable); i++) {
+    for (unsigned int i = 0; i < ARRAY_SIZE(FSK_RogerTable); i++)
         BK4819_WriteRegister(BK4819_REG_5F, FSK_RogerTable[i]);
-    }
 
     SYSTEM_DelayMs(20);
-
-    // 4 sync bytes, 6 byte preamble, Enable FSK TX
-    BK4819_WriteRegister(BK4819_REG_59, 0x0868);
-
+    BK4819_WriteRegister(BK4819_REG_59, 0x0868);  // Enable FSK TX
     SYSTEM_DelayMs(180);
 
-    // Stop FSK TX, reset Tone-2, disable FSK
     BK4819_WriteRegister(BK4819_REG_59, 0x0068);
     BK4819_WriteRegister(BK4819_REG_70, 0x0000);
     BK4819_WriteRegister(BK4819_REG_58, 0x0000);
 }
 
+// --- Play roger sequence using the appropriate beep function ---
+static void PlayRogerSequence(roger_beep_fn beep)
+{
+    switch (gEeprom.ROGER) {
+        case ROGER_MODE_ROGER: // Classic default: 500 + 700 Hz
+            beep(500, 60);
+            beep(700, 60);
+            break;
+#ifdef ENABLE_EXTRA_ROGER
+        case ROGER_MODE_MOTOTRBO ... ROGER_MODE_UV5RC:
+            PlayRogerPreset(gEeprom.ROGER - ROGER_MODE_MOTOTRBO, beep);
+            break;
+#endif
+#ifdef ENABLE_CUSTOM_ROGER
+        case ROGER_MODE_CUSTOM1 ... ROGER_MODE_CUSTOM3:
+            PlayRogerCustom(gEeprom.ROGER - ROGER_MODE_CUSTOM1, beep);
+            break;
+#endif
+        default:
+            break;
+    }
+}
+
 void BK4819_PlayRoger(void)
 {
-    if (gEeprom.ROGER == ROGER_MODE_ROGER) {
-        BK4819_PlayRogerNormal();
-    } else if (gEeprom.ROGER == ROGER_MODE_MDC) {
+    if (gEeprom.ROGER == ROGER_MODE_OFF)
+        return;
+
+    if (gEeprom.ROGER == ROGER_MODE_MDC) {
         BK4819_PlayRogerMDC();
+        return;
     }
+
+    RogerTxSetup();
+    PlayRogerSequence(RogerBeep);
+    RogerTxTeardown();
+}
+
+// Preview: mirrors AUDIO_PlayBeep pattern exactly — no PA, local speaker only
+void BK4819_PlayRogerPreview(void)
+{
+    if (gEeprom.ROGER == ROGER_MODE_OFF)
+        return;
+
+    // Save state (like AUDIO_PlayBeep does)
+    uint16_t savedToneReg = BK4819_ReadRegister(BK4819_REG_71);
+
+    AUDIO_AudioPathOff();
+    SYSTEM_DelayMs(20);
+
+    // For MDC, preview as a simple tone approximation
+    if (gEeprom.ROGER == ROGER_MODE_MDC) {
+        BK4819_PlayTone(1200, true);
+        SYSTEM_DelayMs(2);
+        AUDIO_AudioPathOn();
+        RogerBeep(1200, 100);
+    } else {
+        // AudioPathOn stays on for entire sequence (avoids pops between tones)
+        BK4819_PlayTone(500, true);   // init tone generator with dummy freq
+        SYSTEM_DelayMs(2);
+        AUDIO_AudioPathOn();
+        SYSTEM_DelayMs(20);
+
+        // Play sequence using RogerBeep (AF path already setup by PlayTone)
+        PlayRogerSequence(RogerBeep);
+    }
+
+    // Cleanup (exactly like AUDIO_PlayBeep)
+    BK4819_EnterTxMute();
+    SYSTEM_DelayMs(20);
+    AUDIO_AudioPathOff();
+    SYSTEM_DelayMs(5);
+    BK4819_TurnsOffTones_TurnsOnRX();
+    SYSTEM_DelayMs(5);
+    BK4819_WriteRegister(BK4819_REG_71, savedToneReg);
+
+    if (gEnableSpeaker)
+        AUDIO_AudioPathOn();
 }
 
 void BK4819_Enable_AfDac_DiscMode_TxDsp(void)

@@ -211,7 +211,21 @@ extern const char* const gSubMenu_PTT_ID[5];
 #else
     extern const char        gSubMenu_PONMSG[4][8];
 #endif
-extern const char        gSubMenu_ROGER[3][6];
+
+#define ROGER_BASE_ITEMS 3
+#ifdef ENABLE_EXTRA_ROGER
+    #define ROGER_EXTRA_ITEMS 7
+#else
+    #define ROGER_EXTRA_ITEMS 0
+#endif
+#ifdef ENABLE_CUSTOM_ROGER
+    #define ROGER_CUSTOM_ITEMS 3
+#else
+    #define ROGER_CUSTOM_ITEMS 0
+#endif
+#define ROGER_SUBMENU_SIZE (ROGER_BASE_ITEMS + ROGER_EXTRA_ITEMS + ROGER_CUSTOM_ITEMS)
+
+extern const char* const gSubMenu_ROGER[ROGER_SUBMENU_SIZE];
 extern const char        gSubMenu_RESET[2][4];
 extern const char* const gSubMenu_F_LOCK[F_LOCK_LEN];
 extern const char        gSubMenu_RX_TX[4][6];

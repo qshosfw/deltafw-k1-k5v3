@@ -75,4 +75,6 @@ option('CRYPTO', type: 'boolean', value: true, description: 'Enable Advanced Cry
 option('STORAGE_ENCRYPTION', type: 'boolean', value: true, description: 'Enable Storage Encryption layer')
 option('PASSCODE', type: 'boolean', value: true, description: 'Enable Device Passcode protection')
 option('TRNG_SENSORS', type: 'boolean', value: true, description: 'Enable TRNG Sensors (Temp/VREF entropy)')
+option('EXTRA_ROGER', type: 'boolean', value: true, description: 'Enable Extra Roger Beep presets')
+option('CUSTOM_ROGER', type: 'boolean', value: true, description: 'Enable Custom Roger Beep support via EEPROM')
 option('EDITION_STRING', type: 'string', value: 'Custom', description: 'Edition String')

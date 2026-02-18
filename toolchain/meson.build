@@ -550,6 +550,14 @@ if get_option('TX_OFFSET')
   defines += '-DENABLE_TX_OFFSET'
 endif
 
+if get_option('EXTRA_ROGER')
+  defines += '-DENABLE_EXTRA_ROGER'
+endif
+
+if get_option('CUSTOM_ROGER')
+  defines += '-DENABLE_CUSTOM_ROGER'
+endif
+
 # Other Defines
 defines += '-DSQL_TONE=550'
 

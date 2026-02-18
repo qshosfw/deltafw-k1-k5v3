@@ -41,6 +41,7 @@ typedef enum {
     X(CALIB_SQUELCH,   ENC_PLAIN, DIM2,   0x010000, 1,   2,   0x60, 10, 1) \
     X(VOICE_PROMPT_DATA, ENC_PLAIN, LINEAR, 0x14C000, 0,   2,   0x800,0,  0) \
     X(VOICE_CLIP_DATA, ENC_PLAIN, LINEAR, 0x14D000, 0,   0xFFFF, 1, 0,  0) \
+    X(CUSTOM_ROGER,    ENC_CPUID, FIXED,  0x007050, 96,  1,   0,    0,  0) \
     X(PASSCODE,        ENC_PLAIN, FIXED,  0x007100, 128, 1,   0,    0,  0)
 
 
@@ -277,6 +278,14 @@ typedef union {
     } fields;
     uint8_t raw[128];
 } __attribute__((packed)) PasscodeConfig_t;
+
+typedef struct {
+    uint16_t entries[16]; // 9 bits freq idx (0=pause, else 250+i*10), 7 bits duration (unit*20ms)
+} __attribute__((packed)) CustomRoger_t;
+
+typedef struct {
+    CustomRoger_t rogers[3];
+} __attribute__((packed)) CustomRogers_t;
 
 
 // Universal Accessors
