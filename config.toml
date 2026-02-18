@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.5.0"
+version = "1.5.2"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -22,7 +22,7 @@ compiler = "arm-none-eabi-gcc"
 
 [presets.Fusion]
 description = "🚀 Packed with features, memory intensive"
-options = { EDITION_STRING = "Fusion", FMRADIO = false, VOX = false, AIRCOPY = false}
+options = { EDITION_STRING = "Fusion", FMRADIO = true, VOX = true, AIRCOPY = false}
 
 [presets.Custom]
 description = "✨ Balanced build for daily use"

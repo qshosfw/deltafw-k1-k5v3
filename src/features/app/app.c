@@ -563,7 +563,7 @@ void APP_StartListening(FUNCTION_Type_t function)
         gRxVfo->pTX->Frequency      = NoaaFrequencyTable[gNoaaChannel];
         gEeprom.ScreenChannel[vfo] = gRxVfo->CHANNEL_SAVE;
 
-        gNOAA_Countdown_10ms        = 500;   // 5 sec
+    const uint16_t    vox_stop_count_down_10ms         =   400 / 10;   // 400ms
         gScheduleNOAA               = false;
     }
 #endif
@@ -2365,7 +2365,11 @@ void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
         goto Skip;
     }
 
-    if (gCurrentFunction == FUNCTION_TRANSMIT) {
+    if (gCurrentFunction == FUNCTION_TRANSMIT && (gPttIsPressed
+#ifdef ENABLE_DTMF_CALLING
+        || gDTMF_IsTx
+#endif
+    )) {
 #if defined(ENABLE_ALARM) || defined(ENABLE_TX1750)
         if (gAlarmState == ALARM_STATE_OFF)
 #endif

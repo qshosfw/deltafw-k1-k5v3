@@ -294,7 +294,8 @@ typedef struct {
 #ifdef ENABLE_NOAA
     bool              NOAA_AUTO_SCAN;
 #endif
-    uint8_t               VOLUME_GAIN;
+    bool              MIC_AGC;
+    uint8_t           VOLUME_GAIN;
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         uint8_t           VOLUME_GAIN_BACKUP;
     #endif

@@ -185,6 +185,8 @@ void SETTINGS_InitEEPROM(void)
     gEeprom.VOICE_PROMPT = LIMIT(extraConfig.fields.VOICE_PROMPT, 3, VOICE_PROMPT_ENGLISH);
     #endif
 
+    gEeprom.MIC_AGC = extraConfig.fields.MIC_AGC;
+
     #ifdef ENABLE_RSSI_BAR
         if((extraConfig.fields.S0_LEVEL < 200 && extraConfig.fields.S0_LEVEL > 90) && 
            (extraConfig.fields.S9_LEVEL < extraConfig.fields.S0_LEVEL - 9 && extraConfig.fields.S0_LEVEL < 160 && extraConfig.fields.S9_LEVEL > 50)) {
@@ -410,6 +412,8 @@ void SETTINGS_LoadCalibration(void)
         // 0x1F88
         Storage_ReadRecord(REC_CALIB_MISC, &Misc, 0, sizeof(Misc));
 
+        BK4819_SetMicAGC(gEeprom.MIC_AGC);
+
         gEeprom.BK4819_XTAL_FREQ_LOW = (Misc.fields.BK4819_XtalFreqLow >= -1000 && Misc.fields.BK4819_XtalFreqLow <= 1000) ? Misc.fields.BK4819_XtalFreqLow : 0;
         gEEPROM_1F8A                 = Misc.fields.LnaCalibration & 0x01FF;
         gEEPROM_1F8C                 = Misc.fields.MixCalibration & 0x01FF;
@@ -424,6 +428,7 @@ void SETTINGS_LoadCalibration(void)
 //      BK4819_WriteRegister(BK4819_REG_3C, gEeprom.BK4819_XTAL_FREQ_HIGH);
     }
 }
+
 
 uint32_t SETTINGS_FetchChannelFrequency(const int channel)
 {
@@ -468,9 +473,12 @@ void SETTINGS_FetchChannelName(char *s, const int channel)
 void SETTINGS_FactoryReset(bool bIsAll)
 {
     // 0000 - 0c80
-    Storage_SectorErase(REC_CHANNEL_DATA);
+    if (bIsAll)
+    {
+        Storage_SectorErase(REC_CHANNEL_DATA);
+    }
     // 0c80 - 0d60
-    Storage_SectorErase(REC_MR_ATTRIBUTES); // Assuming 0x1000 is part of or before REC_MR_ATTRIBUTES
+    // Storage_SectorErase(REC_MR_ATTRIBUTES); // Removed redundant unconditional erase
     // 0d60 - 0e30
     if (bIsAll)
     {
@@ -703,6 +711,7 @@ void SETTINGS_SaveSettings(void)
 #ifdef ENABLE_VOICE
     extraConfig.fields.VOICE_PROMPT = gEeprom.VOICE_PROMPT;
 #endif
+    extraConfig.fields.MIC_AGC = gEeprom.MIC_AGC;
 #ifdef ENABLE_RSSI_BAR
     extraConfig.fields.S0_LEVEL = gEeprom.S0_LEVEL;
     extraConfig.fields.S9_LEVEL = gEeprom.S9_LEVEL;

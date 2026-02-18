@@ -125,3 +125,36 @@ KEY_Code_t KEYBOARD_Poll(void)
 
     return Key;
 }
+
+bool KEYBOARD_IsShortcut(void)
+{
+    uint32_t reg;
+    
+    // Check for MENU + SIDE2 + F
+    // MENU: C1, R0
+    // SIDE2: C0, R1
+    // F: C4, R3
+    
+    // 1. Check SIDE2 (Col 0, Row 1)
+    GPIO_SetOutputPin(PIN_COLS);
+    SYSTICK_DelayUs(1);
+    reg = read_rows();
+    if (reg & PIN_MASK_ROW(1)) return false; 
+    
+    // 2. Check MENU (Col 1, Row 0)
+    GPIO_ResetOutputPin(PIN_COL(0));
+    SYSTICK_DelayUs(1);
+    reg = read_rows();
+    if (reg & PIN_MASK_ROW(0)) return false;
+    
+    // 3. Check F (Col 4, Row 3)
+    GPIO_SetOutputPin(PIN_COLS);
+    GPIO_ResetOutputPin(PIN_COL(3));
+    SYSTICK_DelayUs(1);
+    reg = read_rows();
+    if (reg & PIN_MASK_ROW(3)) return false;
+    
+    GPIO_SetOutputPin(PIN_COLS); // Cleanup
+    return true;
+}
+

@@ -338,6 +338,16 @@ void BK4819_SetAGC(bool enable)
     // }
 }
 
+void BK4819_SetMicAGC(bool enable)
+{
+    uint16_t val = BK4819_ReadRegister(BK4819_REG_19);
+    if (enable)
+        val &= ~(1u << 15);
+    else
+        val |= (1u << 15);
+    BK4819_WriteRegister(BK4819_REG_19, val);
+}
+
 void BK4819_InitAGC(bool amModulation)
 {
     // REG_10, REG_11, REG_12 REG_13, REG_14

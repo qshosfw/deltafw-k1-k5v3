@@ -28,8 +28,9 @@ enum BOOT_Mode_t
         BOOT_MODE_RESCUE_OPS,
     #endif
     #ifdef ENABLE_AIRCOPY
-        BOOT_MODE_AIRCOPY
+        BOOT_MODE_AIRCOPY,
     #endif
+    BOOT_MODE_FACTORY_RESET
 };
 
 typedef enum BOOT_Mode_t BOOT_Mode_t;

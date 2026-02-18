@@ -39,6 +39,8 @@ BOOT_Mode_t BOOT_GetMode(void)
     {
         if (!GPIO_IsPttPressed())
             return BOOT_MODE_NORMAL;   // PTT not pressed
+        
+
         Keys[i] = KEYBOARD_Poll();
         SYSTEM_DelayMs(20);
     }
@@ -71,7 +73,11 @@ BOOT_Mode_t BOOT_GetMode(void)
 
 void BOOT_ProcessMode(BOOT_Mode_t Mode)
 {
-    if (Mode == BOOT_MODE_F_LOCK)
+    if (Mode == BOOT_MODE_FACTORY_RESET)
+    {
+        SETTINGS_FactoryReset(true);
+    }
+    else if (Mode == BOOT_MODE_F_LOCK)
     {
         #ifdef ENABLE_BOOT_RESUME_STATE
             gEeprom.CURRENT_STATE = 0; // Don't resume is active...

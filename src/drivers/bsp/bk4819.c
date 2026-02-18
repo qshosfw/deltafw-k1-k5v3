@@ -308,6 +308,7 @@ void BK4819_SetAGC(bool enable)
     // }
 }
 
+
 void BK4819_InitAGC(bool amModulation)
 {
     // REG_10, REG_11, REG_12 REG_13, REG_14

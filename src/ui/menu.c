@@ -101,6 +101,8 @@ const t_menu_item MenuList[] =
     {"BatTxt",      MENU_BAT_TXT       },
     {"Mic",         MENU_MIC           },
     {"MicBar",      MENU_MIC_BAR       },
+    {"MicAGC",      MENU_MIC_AGC       },
+    {"VolGai",      MENU_VOL_GAIN      },
     {"ChDisp",      MENU_MDF           }, // was "MDF"
     {"POnMsg",      MENU_PONMSG        },
     {"BLTime",      MENU_ABR           }, // was "ABR"
@@ -708,6 +710,17 @@ void UI_DisplayMenu(void)
             }
             break;
 
+        case MENU_MIC_AGC:
+            strcpy(String, gSubMenu_OFF_ON[gSubMenuSelection]);
+            break;
+
+        case MENU_VOL_GAIN:
+            NUMBER_ToDecimal(String, gSubMenuSelection, 2, true);
+            gaugeLine = 6;
+            gaugeMin = 0;
+            gaugeMax = 63;
+            break;
+
         case MENU_MIC_BAR:
             #ifdef ENABLE_MIC_BAR
                 strcpy(String, gSubMenu_OFF_ON[gSubMenuSelection]);
@@ -823,6 +836,10 @@ void UI_DisplayMenu(void)
                     strcpy(String, gSubMenu_OFF_ON[0]);
                 else
                     NUMBER_ToDecimal(String, gSubMenuSelection, 2, false);
+                
+                gaugeLine = 6;
+                gaugeMin = 0;
+                gaugeMax = 10;
             #else
                 strcpy(String, gSubMenu_NA);
             #endif
@@ -1333,7 +1350,7 @@ void UI_DisplayMenu(void)
                     NUMBER_ToDecimal(String, gSubMenuSelection, 2, true);
                     //#if !defined(ENABLE_SPECTRUM) || !defined(ENABLE_FMRADIO)
                     //ST7565_Gauge(4, 1, 63, gSubMenuSelection);
-                    gaugeLine = 4;
+                    gaugeLine = 6;
                     gaugeMin = 1;
                     gaugeMax = 63;
                     //#endif

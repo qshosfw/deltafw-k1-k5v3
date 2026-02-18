@@ -51,6 +51,7 @@ extern uint16_t   gDebounceCounter;
 extern bool       gWasFKeyPressed;
 
 KEY_Code_t KEYBOARD_Poll(void);
+bool       KEYBOARD_IsShortcut(void);
 
 #endif
 

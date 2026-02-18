@@ -141,7 +141,8 @@ typedef union {
         uint8_t VOICE_PROMPT;
         uint8_t S0_LEVEL;
         uint8_t S9_LEVEL;
-        uint8_t UNUSED_0EA3[5];
+        uint8_t MIC_AGC;
+        uint8_t UNUSED_0EA3[4];
         
         // Offset 0x18 (0x0EA8)
         uint8_t ALARM_MODE;

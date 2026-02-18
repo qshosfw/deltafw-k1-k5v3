@@ -46,16 +46,6 @@ static bool LA_Settings(const MenuItem *item, KEY_Code_t key, bool key_pressed, 
     return true;
 }
 
-static bool LA_EditScanlist(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
-     if (key != KEY_MENU && key != KEY_PTT) return false;
-     if (!key_pressed || key_held) return true;
-     gEeprom.SCAN_LIST_DEFAULT = (gEeprom.SCAN_LIST_DEFAULT + 1) % 6;
-    #ifdef ENABLE_BOOT_RESUME_STATE
-        SETTINGS_WriteCurrentState();
-    #endif
-    gRequestDisplayScreen = DISPLAY_MAIN;
-    return true;
-}
 
 static bool LA_Spectrum(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     if (key != KEY_MENU && key != KEY_PTT) return false;
@@ -112,7 +102,6 @@ static bool LA_Info(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool
 static const MenuItem launcherItems[] = {
     {"Memories", 0, NULL, NULL, NULL, LA_Memories},
     {"Settings", 0, NULL, NULL, NULL, LA_Settings},
-    {"Edit Scanlist", 0, NULL, NULL, NULL, LA_EditScanlist},
     {"Spectrum", 0, NULL, NULL, NULL, LA_Spectrum},
     #ifdef ENABLE_FMRADIO
     {"FM Radio", 0, NULL, NULL, NULL, LA_FM},

@@ -325,6 +325,16 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             *pMax = 4;
             break;
 
+        case MENU_MIC_AGC:
+            //*pMin = 0;
+            *pMax = 1;
+            break;
+
+        case MENU_VOL_GAIN:
+            //*pMin = 0;
+            *pMax = 63;
+            break;
+
 #ifdef ENABLE_SCAN_LIST_EDITING
         case MENU_S_LIST:
             //*pMin = 0;
@@ -606,7 +616,6 @@ void MENU_AcceptSetting(void)
                 gEeprom.VOX_SWITCH = gSubMenuSelection != 0;
                 if (gEeprom.VOX_SWITCH)
                     gEeprom.VOX_LEVEL = gSubMenuSelection - 1;
-                SETTINGS_LoadCalibration();
                 gFlagReconfigureVfos = true;
                 gUpdateStatus        = true;
                 break;
@@ -713,6 +722,16 @@ void MENU_AcceptSetting(void)
         case MENU_MIC:
             gEeprom.MIC_SENSITIVITY = gSubMenuSelection;
             SETTINGS_LoadCalibration();
+            gFlagReconfigureVfos = true;
+            break;
+
+        case MENU_MIC_AGC:
+            gEeprom.MIC_AGC = gSubMenuSelection;
+            BK4819_SetMicAGC(gEeprom.MIC_AGC);
+            break;
+
+        case MENU_VOL_GAIN:
+            gEeprom.VOLUME_GAIN = gSubMenuSelection;
             gFlagReconfigureVfos = true;
             break;
 
@@ -840,7 +859,12 @@ void MENU_AcceptSetting(void)
             return;
 
         case MENU_RESET:
-            SETTINGS_FactoryReset(gSubMenuSelection);
+            if (GPIO_IsPttPressed() && gKeyReading1 == KEY_SIDE2 && gWasFKeyPressed) {
+                // Special wipe: force total reset
+                SETTINGS_FactoryReset(true);
+            } else {
+                SETTINGS_FactoryReset(gSubMenuSelection);
+            }
             return;
 
 #ifndef ENABLE_CUSTOM_FIRMWARE_MODS
@@ -1954,6 +1978,14 @@ static void MENU_Key_UP_DOWN(bool bKeyPressed, bool bKeyHeld, int8_t Direction)
 
         default:
             MENU_ClampSelection(Direction);
+            if (UI_MENU_GetCurrentMenuId() == MENU_VOL_GAIN) {
+                gEeprom.VOLUME_GAIN = gSubMenuSelection;
+                BK4819_WriteRegister(BK4819_REG_48,
+                    (11u << 12)                |     // ??? .. 0 ~ 15, doesn't seem to make any difference
+                    ( 0u << 10)                |     // AF Rx Gain-1
+                    (gEeprom.VOLUME_GAIN << 4) |     // AF Rx Gain-2
+                    (gEeprom.DAC_GAIN    << 0));     // AF DAC Gain (after Gain-1 and Gain-2)
+            }
             gRequestDisplayScreen = DISPLAY_MENU;
             return;
     }

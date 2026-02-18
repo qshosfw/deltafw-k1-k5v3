@@ -8,6 +8,10 @@
 #include "ui/menu.h"
 
 #include "../../ui/ui.h"
+#include "../../ui/textinput.h"
+#include "../../ui/ag_graphics.h"
+#include "../../drivers/bsp/keyboard.h"
+#include "../../drivers/bsp/system.h"
 #include "../../drivers/bsp/bk4819.h"
 #include "../../core/misc.h"
 #include "features/radio/frequencies.h"
@@ -81,6 +85,8 @@ static const SettingConfig settingConfigs[] = {
 #ifdef ENABLE_MIC_BAR
     {MENU_MIC_BAR,  SET_TYPE_BOOL,  &gSetting_mic_bar, 0, 1, gSubMenu_OFF_ON, 4},
 #endif
+    {MENU_MIC_AGC,  SET_TYPE_BOOL,  &gEeprom.MIC_AGC, 0, 1, gSubMenu_OFF_ON, 4},
+    {MENU_VOL_GAIN, SET_TYPE_INT8,  &gEeprom.VOLUME_GAIN, 0, 63, NULL, 0},
 #ifdef ENABLE_VOICE
     {MENU_VOICE,    SET_TYPE_LIST,  &gEeprom.VOICE_PROMPT, 0, 2, gSubMenu_VOICE, 4},
 #endif
@@ -121,7 +127,7 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
                 }
                 return;
             case SET_TYPE_INT8:
-                NUMBER_ToDecimal(buf, val, 1, false);
+                NUMBER_ToDecimal(buf, val, (conf->max > 9) ? 2 : 1, false);
                 return;
             default: break;
         }
@@ -255,6 +261,16 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
             ST7565_BlitFullScreen();
             BK4819_PlayRogerPreview();
         }
+        if (settingId == MENU_VOL_GAIN) {
+            BK4819_WriteRegister(BK4819_REG_48, 
+                (11u << 12)                |     // ??? .. 0 ~ 15, doesn't seem to make any difference
+                ( 0u << 10)                |     // AF Rx Gain-1
+                (gEeprom.VOLUME_GAIN << 4) |     // AF Rx Gain-2
+                (gEeprom.DAC_GAIN    << 0));     // AF DAC Gain (after Gain-1 and Gain-2)
+        }
+        if (settingId == MENU_MIC_AGC) {
+            BK4819_SetMicAGC(gEeprom.MIC_AGC);
+        }
     } else {
         switch (settingId) {
             case MENU_VOX:
@@ -357,6 +373,118 @@ static bool Action_Passcode(const MenuItem *item, KEY_Code_t key, bool key_press
 }
 #endif
 
+// --- Menu Item Callbacks ---
+
+static bool s_PasscodeDone = false;
+static void s_PasscodeCallback(void) { s_PasscodeDone = true; }
+
+static bool PromptPasscode(void) {
+#ifdef ENABLE_PASSCODE
+    if (!Passcode_IsSet()) return true;
+    
+    char buf[33] = {0};
+    s_PasscodeDone = false;
+    
+    bool expose = Passcode_GetExposeLength();
+    uint8_t len = Passcode_GetLength();
+    uint8_t deb = 0;
+    KEY_Code_t k0 = KEY_INVALID;
+    KEY_Code_t k1 = KEY_INVALID;
+    
+    TextInput_InitEx(buf, expose ? len : 32, false, expose, true, s_PasscodeCallback);
+    
+    while(!s_PasscodeDone) {
+         ST7565_FillScreen(0x00);
+         AG_PrintMediumBoldEx(64, 10, POS_C, C_FILL, "SECURITY CHECK");
+         
+         TextInput_Tick();
+         TextInput_Render();
+         
+         // Poll
+         KEY_Code_t key = KEYBOARD_Poll();
+         if (k0 == key) {
+             if (deb++ == 2) { // 20ms debounce
+                 if (key != KEY_INVALID) TextInput_HandleInput(key, true, false);
+             }
+         } else {
+             deb = 0;
+             k0 = key;
+         }
+         
+         if (key == KEY_INVALID && k1 != KEY_INVALID) {
+              TextInput_HandleInput(k1, false, false);
+              k1 = KEY_INVALID;
+         } else if (key != KEY_INVALID) {
+              k1 = key;
+         }
+         
+         if (key == KEY_EXIT) {
+             TextInput_Deinit();
+             return false;
+         }
+         
+         SYSTEM_DelayMs(10);
+    }
+    
+    TextInput_Deinit();
+    return Passcode_Validate(buf);
+#else
+    return true;
+#endif
+}
+
+static bool Action_FactoryReset(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
+    if (key == KEY_MENU && key_pressed) {
+        // 1. Passcode
+        if (!PromptPasscode()) {
+             // Failed or Cancelled
+             return true; 
+        }
+
+        // 2. Selection Loop
+        bool resetAll = false;
+        KEY_Code_t k0 = KEY_INVALID;
+        uint8_t deb = 0;
+        
+        while(1) {
+            ST7565_FillScreen(0x00);
+            AG_PrintMediumBoldEx(64, 10, POS_C, C_FILL, "FACTORY RESET");
+            
+            AG_PrintMediumEx(64, 30, POS_C, C_FILL, resetAll ? "< ALL >" : "< VFO >");
+            AG_PrintSmallEx(64, 45, POS_C, C_FILL, resetAll ? "Wipes EVERYTHING" : "Reset Settings Only");
+            
+            AG_PrintSmallEx(64, 58, POS_C, C_FILL, "MENU: Confirm  EXIT: Cancel");
+            
+            ST7565_BlitFullScreen();
+            
+            KEY_Code_t k = KEYBOARD_Poll();
+            // Simple debounce/repeat for nav
+            if (k0 == k) {
+                if (deb++ > 2) {
+                    // Holding
+                }
+            } else {
+                deb = 0;
+                k0 = k;
+                if (k == KEY_UP || k == KEY_DOWN) {
+                    resetAll = !resetAll;
+                }
+                if (k == KEY_MENU) {
+                     SETTINGS_FactoryReset(resetAll);
+                     NVIC_SystemReset();
+                     return true;
+                }
+                if (k == KEY_EXIT) {
+                     return true; 
+                }
+            }
+            SYSTEM_DelayMs(20);
+        }
+        return true; 
+    }
+    return false;
+}
+
 // --- Menu Definitions ---
 
 // Sound
@@ -369,6 +497,8 @@ static const MenuItem soundItems[] = {
     #ifdef ENABLE_MIC_BAR
     {"Mic Bar", MENU_MIC_BAR, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #endif
+    {"Mic AGC", MENU_MIC_AGC, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    {"Vol Gain", MENU_VOL_GAIN, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #ifdef ENABLE_VOICE
     {"Voice", MENU_VOICE, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #endif
@@ -376,7 +506,7 @@ static const MenuItem soundItems[] = {
     {"Repeater Tone", MENU_RP_STE, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     {"1 Call", MENU_1_CALL, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-    {"Rx FM Audio", MENU_SET_AUD, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    {"Audio Profile", MENU_SET_AUD, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
 #endif
     #ifdef ENABLE_ALARM
     {"Alarm", MENU_AL_MOD, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
@@ -492,6 +622,7 @@ static const MenuItem systemItems[] = {
     #ifdef ENABLE_EEPROM_HEXDUMP
     {"Mem Hex Dump", MENU_MEMVIEW, NULL, NULL, NULL, Action_MemView, M_ITEM_ACTION},
     #endif
+    {"Factory Reset", MENU_RESET, NULL, NULL, NULL, Action_FactoryReset, M_ITEM_ACTION},
 };
 static Menu systemMenu = {
     .title = "System", .items = systemItems, .num_items = ARRAY_SIZE(systemItems),

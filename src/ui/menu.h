@@ -70,6 +70,8 @@ enum
     MENU_RP_STE,
     MENU_MIC,
     MENU_MIC_BAR,
+    MENU_MIC_AGC,
+    MENU_VOL_GAIN,
     MENU_COMPAND,
     MENU_1_CALL,
     MENU_S_LIST,
