@@ -22,7 +22,7 @@ compiler = "arm-none-eabi-gcc"
 
 [presets.Fusion]
 description = "🚀 Packed with features, memory intensive"
-options = { EDITION_STRING = "Fusion", FMRADIO = false, VOX = false, AIRCOPY = false, LIVESEEK = true, SERIAL_SCREENCAST = false }
+options = { EDITION_STRING = "Fusion", FMRADIO = false, VOX = false, AIRCOPY = false}
 
 [presets.Custom]
 description = "✨ Balanced build for daily use"

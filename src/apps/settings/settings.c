@@ -302,11 +302,11 @@ void SETTINGS_InitEEPROM(void)
     for(uint16_t i = 0; i < ARRAY_SIZE(gMR_ChannelAttributes); i++) {
         ChannelAttributes_t *att = &gMR_ChannelAttributes[i];
         if(att->__val == 0xff){
-            att->__val = 0;
             if (IS_MR_CHANNEL(i))
-                att->band = BAND7_470MHz; // Default for empty MR
-            else
-                att->band = i - FREQ_CHANNEL_FIRST; // Each VFO slot gets its proper band
+                continue; // Keep 0xFF for empty MR channels
+            
+            att->__val = 0;
+            att->band = i - FREQ_CHANNEL_FIRST; // Each VFO slot gets its proper band
         }
         gMR_ChannelExclude[i] = false;
     }

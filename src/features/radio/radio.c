@@ -66,6 +66,9 @@ bool RADIO_CheckValidChannel(uint16_t channel, bool checkScanList, uint8_t scanL
 
     const ChannelAttributes_t att = gMR_ChannelAttributes[channel];
 
+    if (att.__val == 0xFF) // Explicit check for empty channel
+        return false;
+
     if (checkScanList && gMR_ChannelExclude[channel] == true)
         return false;
 
@@ -444,8 +447,17 @@ void RADIO_ConfigureChannel(const unsigned int VFO, const unsigned int configure
         else
             Storage_ReadRecordIndexed(REC_VFO_DATA, storage_idx, &info, 0, sizeof(info));
 
-        if(info.Frequency==0xFFFFFFFF)
+        if(info.Frequency==0xFFFFFFFF) {
+            if (IS_MR_CHANNEL(channel)) {
+                // If frequency is garbage/empty, mark attribute as invalid immediately
+                gMR_ChannelAttributes[channel].__val = 0xFF;
+                // Force fallback to VFO
+                gEeprom.ScreenChannel[VFO] = gEeprom.FreqChannel[VFO];
+                RADIO_ConfigureChannel(VFO, VFO_CONFIGURE_RELOAD);
+                return;
+            }
             pVfo->freq_config_RX.Frequency = frequencyBandTable[band].lower;
+        }
         else
             pVfo->freq_config_RX.Frequency = info.Frequency;
 
