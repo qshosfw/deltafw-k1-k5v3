@@ -168,7 +168,7 @@ static int audio_class_interface_request_handler(struct usb_setup_packet *setup,
 #endif
     if (current_entity_info->bDescriptorSubtype == AUDIO_CONTROL_FEATURE_UNIT) {
 #if CONFIG_USBDEV_AUDIO_VERSION < 0x0200
-        float volume2db = 0.0;
+        int16_t volume2mdb = 0;
 
         switch (control_selector) {
             case AUDIO_FU_CONTROL_MUTE:
@@ -195,13 +195,13 @@ static int audio_class_interface_request_handler(struct usb_setup_packet *setup,
                         current_feature_control->volume[ch].vol_current = volume;
 
                         if (volume < 0x8000) {
-                            volume2db = 0.00390625 * volume;
+                            volume2mdb = (int16_t)(((uint32_t)volume * 125) / 32);
                         } else if (volume > 0x8000) {
-                            volume2db = -0.00390625 * (0xffff - volume + 1);
+                            volume2mdb = (int16_t)-((((uint32_t)0xffff - volume + 1) * 125) / 32);
                         }
 
-                        USB_LOG_DBG("Set UnitId:%d ch[%d] %0.4f dB\r\n", entity_id, ch, volume2db);
-                        usbd_audio_set_volume(entity_id, ch, volume2db);
+                        USB_LOG_DBG("Set UnitId:%d ch[%d] %d mdB\r\n", entity_id, ch, volume2mdb);
+                        usbd_audio_set_volume(entity_id, ch, volume2mdb);
                         break;
                     case AUDIO_REQUEST_GET_CUR:
                         memcpy(*data, &current_feature_control->volume[ch].vol_current, 2);
@@ -435,7 +435,7 @@ void usbd_audio_add_entity(uint8_t entity_id, uint16_t bDescriptorSubtype)
     usb_slist_add_tail(&usbd_audio_entity_info_head, &entity_info->list);
 }
 
-__WEAK void usbd_audio_set_volume(uint8_t entity_id, uint8_t ch, float dB)
+__WEAK void usbd_audio_set_volume(uint8_t entity_id, uint8_t ch, int16_t mdB)
 {
 }
 

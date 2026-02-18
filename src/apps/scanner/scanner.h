@@ -17,7 +17,7 @@
 #ifndef APP_SCANNER_H
 #define APP_SCANNER_H
 
-#include "dcs.h"
+#include "features/dcs/dcs.h"
 #include "drivers/bsp/keyboard.h"
 
 typedef enum 

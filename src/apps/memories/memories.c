@@ -8,20 +8,19 @@
 #include "ui/freqinput.h"
 #include "ui/helper.h"
 #include "ui/ui.h"
-#include "radio.h"
+#include "features/radio/radio.h"
 #include "apps/settings/settings.h"
 #include "drivers/bsp/st7565.h"
 #include "core/misc.h"
-#include "external/printf/printf.h"
-#include "dcs.h"
-#include "audio.h"
+#include "features/dcs/dcs.h"
+#include "features/audio/audio.h"
 
 
 
 // =============================================================================
 // Include Storage for Channel Attributes
 // =============================================================================
-#include "features/storage.h"
+#include "features/storage/storage.h"
 
 // =============================================================================
 // Mode State Machine
@@ -87,11 +86,23 @@ static const char *scrambleNames[] = {"Off", "2600Hz", "2700Hz", "2800Hz", "2900
 
 static void GetToneText(DCS_CodeType_t type, uint8_t code, char *buf, uint8_t sz) {
     if (type == CODE_TYPE_OFF) {
-        snprintf(buf, sz, "Off");
+        strcpy(buf, "Off");
     } else if (type == CODE_TYPE_CONTINUOUS_TONE) {
-        snprintf(buf, sz, "%u.%uHz", CTCSS_Options[code] / 10, CTCSS_Options[code] % 10);
+        // snprintf(buf, sz, "%u.%uHz", CTCSS_Options[code] / 10, CTCSS_Options[code] % 10);
+        NUMBER_ToDecimal(buf, CTCSS_Options[code] / 10, 3, false);
+        strcat(buf, ".");
+        uint8_t len = strlen(buf);
+        buf[len] = (CTCSS_Options[code] % 10) + '0';
+        buf[len+1] = '\0';
+        strcat(buf, "Hz");
     } else {
-        snprintf(buf, sz, "D%03o%c", DCS_Options[code], (type == CODE_TYPE_REVERSE_DIGITAL) ? 'I' : 'N');
+        // snprintf(buf, sz, "D%03o%c", DCS_Options[code], (type == CODE_TYPE_REVERSE_DIGITAL) ? 'I' : 'N');
+        strcpy(buf, "D   N");
+        uint16_t val = DCS_Options[code];
+        buf[1] = ((val >> 6) & 7) + '0';
+        buf[2] = ((val >> 3) & 7) + '0';
+        buf[3] = (val & 7) + '0';
+        if (type == CODE_TYPE_REVERSE_DIGITAL) buf[4] = 'I';
     }
 }
 
@@ -238,9 +249,9 @@ static void DoDelete(void) {
 static void GetPower(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
     if (editChannel.OUTPUT_POWER <= 7) {
-        snprintf(buf, sz, "%s", powerNames[editChannel.OUTPUT_POWER]);
+        strcpy(buf, powerNames[editChannel.OUTPUT_POWER]);
     } else {
-        snprintf(buf, sz, "Unk");
+        strcpy(buf, "Unk");
     }
 }
 
@@ -258,7 +269,7 @@ static void ChangePower(const MenuItem *item, bool up) {
 
 static void GetBandwidth(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", bwNames[editChannel.CHANNEL_BANDWIDTH % 2]);
+    strcpy(buf, bwNames[editChannel.CHANNEL_BANDWIDTH % 2]);
 }
 
 static void ChangeBandwidth(const MenuItem *item, bool up) {
@@ -270,9 +281,9 @@ static void ChangeBandwidth(const MenuItem *item, bool up) {
 static void GetModulation(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
     if (editChannel.Modulation < MODULATION_UKNOWN) {
-        snprintf(buf, sz, "%s", gModulationStr[editChannel.Modulation]);
+        strcpy(buf, gModulationStr[editChannel.Modulation]);
     } else {
-        snprintf(buf, sz, "?");
+        strcpy(buf, "?");
     }
 }
 
@@ -292,7 +303,7 @@ static void ChangeModulation(const MenuItem *item, bool up) {
 
 static void GetOffsetDir(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", offsetDirNames[editChannel.TX_OFFSET_FREQUENCY_DIRECTION % 3]);
+    strcpy(buf, offsetDirNames[editChannel.TX_OFFSET_FREQUENCY_DIRECTION % 3]);
 }
 
 static void ChangeOffsetDir(const MenuItem *item, bool up) {
@@ -304,7 +315,7 @@ static void ChangeOffsetDir(const MenuItem *item, bool up) {
 static void GetOffsetVal(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
     uint32_t freq = editChannel.TX_OFFSET_FREQUENCY;
-    snprintf(buf, sz, "%u.%05u", freq/100000, freq%100000);
+    UI_PrintFrequencyEx(buf, freq, true);
 }
 
 static void GetRxTone(const MenuItem *item, char *buf, uint8_t sz) {
@@ -333,7 +344,7 @@ static void GetScramble(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
     uint8_t sc = editChannel.SCRAMBLING_TYPE;
     if (sc > 10) sc = 0;
-    snprintf(buf, sz, "%s", scrambleNames[sc]);
+    strcpy(buf, scrambleNames[sc]);
 }
 
 static void ChangeScramble(const MenuItem *item, bool up) {
@@ -350,7 +361,7 @@ static void ChangeScramble(const MenuItem *item, bool up) {
 
 static void GetStep(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", stepNames[editChannel.STEP_SETTING % 7]);
+    strcpy(buf, stepNames[editChannel.STEP_SETTING % 7]);
 }
 
 static void ChangeStep(const MenuItem *item, bool up) {
@@ -362,7 +373,7 @@ static void ChangeStep(const MenuItem *item, bool up) {
 
 static void GetCompander(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", compNames[editChannel.Compander % 4]);
+    strcpy(buf, compNames[editChannel.Compander % 4]);
 }
 
 static void ChangeCompander(const MenuItem *item, bool up) {
@@ -373,7 +384,7 @@ static void ChangeCompander(const MenuItem *item, bool up) {
 
 static void GetBusyLock(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
-    snprintf(buf, sz, "%s", yesNoNames[editChannel.BUSY_CHANNEL_LOCK ? 1 : 0]);
+    strcpy(buf, yesNoNames[editChannel.BUSY_CHANNEL_LOCK ? 1 : 0]);
 }
 
 static void ChangeBusyLock(const MenuItem *item, bool up) {
@@ -389,15 +400,16 @@ static void GetScanlists(const MenuItem *item, char *buf, uint8_t sz) {
     if (editChannel.SCANLIST2_PARTICIPATION) mask |= 2;
     if (editChannel.SCANLIST3_PARTICIPATION) mask |= 4;
     
-    if (mask == 0) snprintf(buf, sz, "None");
-    else if (mask == 7) snprintf(buf, sz, "All");
+    if (mask == 0) strcpy(buf, "None");
+    else if (mask == 7) strcpy(buf, "All");
     else {
         // e.g. "1+2", "1+3", "2+3", "1", "2", "3"
         // Or simpler: "1 2 3"
-        int pos = 0;
-        if (mask & 1) pos += snprintf(buf + pos, sz - pos, "1");
-        if (mask & 2) pos += snprintf(buf + pos, sz - pos, "%s2", pos > 0 ? "+" : "");
-        if (mask & 4) pos += snprintf(buf + pos, sz - pos, "%s3", pos > 0 ? "+" : "");
+        // Or simpler: "1 2 3"
+        buf[0] = '\0';
+        if (mask & 1) strcat(buf, "1");
+        if (mask & 2) { if (buf[0]) strcat(buf, "+"); strcat(buf, "2"); }
+        if (mask & 4) { if (buf[0]) strcat(buf, "+"); strcat(buf, "3"); }
     }
 }
 
@@ -447,16 +459,16 @@ static void GetName(const MenuItem *item, char *buf, uint8_t sz) {
     char name[17];
     SETTINGS_FetchChannelName(name, detailChannelIndex);
     if (strlen(name) > 0) {
-        snprintf(buf, sz, "%s", name);
+        strcpy(buf, name);
     } else {
-        snprintf(buf, sz, "---");
+        strcpy(buf, "---");
     }
 }
 
 static void GetFreq(const MenuItem *item, char *buf, uint8_t sz) {
     (void)item;
     uint32_t f = editChannel.freq_config_RX.Frequency;
-    snprintf(buf, sz, "%u.%05u", f/100000, f%100000);
+    UI_PrintFrequencyEx(buf, f, true);
 }
 
 static bool ActionFreq(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
@@ -555,9 +567,11 @@ static void EnterDetailMenu(uint16_t index) {
     char name[17];
     SETTINGS_FetchChannelName(name, index);
     if (strlen(name) > 0) {
-        snprintf(detailTitle, sizeof(detailTitle), "%s", name);
+        strcpy(detailTitle, name);
     } else {
-        snprintf(detailTitle, sizeof(detailTitle), "CH-%03u", index + 1);
+        // snprintf(detailTitle, sizeof(detailTitle), "CH-%03u", index + 1);
+        strcpy(detailTitle, "CH-   ");
+        NUMBER_ToDecimal(detailTitle + 3, index + 1, 3, true);
     }
     channelDetailMenu.title = detailTitle;
     channelDetailMenu.i = 0;
@@ -580,7 +594,9 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
     bool valid = RADIO_CheckValidChannel(realIndex, false, 0);
 
     // Numeric index on the left in tiny font
-    AG_PrintSmall(2, baseline_y, "%03u", realIndex + 1);
+    char idx_buf[4];
+    NUMBER_ToDecimal(idx_buf, realIndex + 1, 3, true);
+    AG_PrintSmall(2, baseline_y, idx_buf);
 
     if (!valid) {
         AG_PrintMedium(18, baseline_y, "-");
@@ -598,17 +614,17 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
         case MDF_NAME:
         case MDF_NAME_FREQ:
             if (strlen(name) > 0) {
-                snprintf(mainLabel, sizeof(mainLabel), "%s", name);
-                snprintf(rightLabel, sizeof(rightLabel), "%u.%05u", freq/100000, freq%100000);
+                strcpy(mainLabel, name);
+                UI_PrintFrequencyEx(rightLabel, freq, true);
             } else {
-                snprintf(mainLabel, sizeof(mainLabel), "%u.%05u", freq/100000, freq%100000);
+                UI_PrintFrequencyEx(mainLabel, freq, true);
                 rightLabel[0] = '\0';
             }
             break;
         case MDF_FREQUENCY:
-            snprintf(mainLabel, sizeof(mainLabel), "%u.%05u", freq/100000, freq%100000);
+            UI_PrintFrequencyEx(mainLabel, freq, true);
             if (strlen(name) > 0) {
-                snprintf(rightLabel, sizeof(rightLabel), "%s", name);
+                strcpy(rightLabel, name);
             } else {
                 rightLabel[0] = '\0';
             }
@@ -616,18 +632,18 @@ static void Memories_RenderItem(uint16_t index, uint8_t visIndex) {
         case MDF_CHANNEL:
         default:
             if (strlen(name) > 0) {
-                snprintf(mainLabel, sizeof(mainLabel), "%s", name);
+                strcpy(mainLabel, name);
             } else {
-                snprintf(mainLabel, sizeof(mainLabel), "%u.%05u", freq/100000, freq%100000);
+                UI_PrintFrequencyEx(mainLabel, freq, true);
             }
             rightLabel[0] = '\0';
             break;
     }
 
-    AG_PrintMedium(18, baseline_y, "%s", mainLabel);
+    AG_PrintMedium(18, baseline_y, mainLabel);
     
     if (strlen(rightLabel) > 0) {
-        AG_PrintSmallEx(LCD_WIDTH - 6, baseline_y, POS_R, C_FILL, "%s", rightLabel);
+        AG_PrintSmallEx(LCD_WIDTH - 6, baseline_y, POS_R, C_FILL, rightLabel);
     }
 
     // Scan List Indicators (Upper Right)
@@ -814,7 +830,7 @@ static void UpdateSearchTitle(void) {
 #ifdef ENABLE_SCAN_LIST_EDITING
     if (scanListFilterMode) {
         if (searchDigitCount == 0) {
-            snprintf(listTitle, sizeof(listTitle), "Scanlist");
+            strcpy(listTitle, "Scanlist");
         } else {
             char buf[16] = {0};
             int pos = 0;
@@ -828,20 +844,27 @@ static void UpdateSearchTitle(void) {
                     }
                 }
             }
-            snprintf(listTitle, sizeof(listTitle), "Scanlist %s?", buf);
+            buf[pos] = '\0';
+            strcpy(listTitle, "Scanlist ");
+            strcat(listTitle, buf);
+            strcat(listTitle, "?");
         }
     } else {
         if (searchDigitCount == 0) {
-            snprintf(listTitle, sizeof(listTitle), "Memories");
+            strcpy(listTitle, "Memories");
         } else {
-            snprintf(listTitle, sizeof(listTitle), "Memories %s?", searchDigits);
+            strcpy(listTitle, "Memories ");
+            strcat(listTitle, searchDigits);
+            strcat(listTitle, "?");
         }
     }
 #else
     if (searchDigitCount == 0) {
-        snprintf(listTitle, sizeof(listTitle), "Memories");
+        strcpy(listTitle, "Memories");
     } else {
-        snprintf(listTitle, sizeof(listTitle), "Memories %s?", searchDigits);
+        strcpy(listTitle, "Memories ");
+        strcat(listTitle, searchDigits);
+        strcat(listTitle, "?");
     }
 #endif
     memoriesMenu.title = listTitle;

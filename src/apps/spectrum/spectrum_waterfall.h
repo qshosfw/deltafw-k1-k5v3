@@ -19,10 +19,10 @@
 
 #pragma once
 
-#include "features/keyboard_state.h"
+#include "features/keyboard/keyboard_state.h"
 
 #include "ui/bitmaps.h"
-#include "../board.h"
+#include "core/board.h"
 #include "py32f0xx.h"
 #include "../drivers/bsp/bk4819-regs.h"
 #include "../drivers/bsp/bk4819.h"
@@ -31,11 +31,10 @@
 #include "../drivers/bsp/st7565.h"
 #include "../drivers/bsp/system.h"
 #include "../drivers/bsp/systick.h"
-#include "../external/printf/printf.h"
 #include "ui/font.h"
 #include "../apps/battery/battery.h"
 #include "core/misc.h"
-#include "../radio.h"
+#include "features/radio/radio.h"
 #include "apps/settings/settings.h"
 #include "../ui/helper.h"
 #include <stdbool.h>

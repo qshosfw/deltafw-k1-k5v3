@@ -3,8 +3,7 @@
 #include "../drivers/bsp/st7565.h"
 #include <string.h>
 #include <stdlib.h>
-#include "../external/printf/printf.h"
-#include "../audio.h"
+#include "features/audio/audio.h"
 
 #define MENU_STACK_DEPTH 4
 
@@ -15,7 +14,7 @@ static Menu *active_menu = NULL;
 static bool is_editing = false;
 static bool is_pressed = false;
 
-static void (*renderFn)(uint8_t x, uint8_t y, const char *pattern, ...);
+static void (*renderFn)(uint8_t x, uint8_t y, const char *str);
 
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -44,12 +43,15 @@ static void renderItem(uint16_t index, uint8_t i) {
   // Use baseline calculation matching fagci logic
   const uint8_t baseline_y = y + active_menu->itemHeight - (active_menu->itemHeight >= MENU_ITEM_H ? 3 : 2);
 
-  renderFn(3, baseline_y, "%s %c", item->name, item->submenu ? '>' : ' ');
+  char label[32]; // Buffer to hold the formatted string
+  strcpy(label, item->name);
+  strcat(label, item->submenu ? " >" : "  ");
+  renderFn(3, baseline_y, label);
 
   if (item->get_value_text) {
     char value_buf[32];
     item->get_value_text(item, value_buf, sizeof(value_buf));
-    AG_PrintSmallEx(ex - 7, baseline_y, POS_R, C_FILL, "%s", value_buf);
+    AG_PrintSmallEx(ex - 7, baseline_y, POS_R, C_FILL, value_buf);
   }
 }
 
@@ -326,17 +328,23 @@ void AG_MENU_GetPath(char *buf, size_t len) {
     
     for (uint8_t i = 0; i < menu_stack_top; ++i) {
         const char *t = menu_stack[i]->title ? menu_stack[i]->title : "";
-        int w = snprintf(buf + offset, len - offset, "%s > ", t);
-        if (w < 0 || (size_t)w >= len - offset) {
+        size_t t_len = strlen(t);
+        size_t required_len = t_len + 3; // for " > "
+        
+        if (offset + required_len + 1 > len) { // +1 for null terminator
             buf[len-1] = '\0';
             return;
         }
-        offset += w;
+        
+        strcpy(buf + offset, t);
+        offset += t_len;
+        strcpy(buf + offset, " > ");
+        offset += 3;
     }
     
     // Active menu
     if (active_menu) {
         const char *t = active_menu->title ? active_menu->title : "";
-        snprintf(buf + offset, len - offset, "%s", t);
+        strcpy(buf + offset, t);
     }
 }

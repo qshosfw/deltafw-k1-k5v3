@@ -17,12 +17,13 @@
 #include <string.h>
 #include "drivers/bsp/st7565.h"
 #include "drivers/bsp/bk4819.h"
-#include "external/printf/printf.h"
 #include "core/misc.h"
+#include "features/radio/frequencies.h"
 #include "apps/settings/settings.h"
 #include "ui/helper.h"
 #include "ui/main.h"
-#include "functions.h"
+#include "features/radio/functions.h"
+#include <stdlib.h>
 
 #if defined(ENABLE_RSSI_BAR) || defined(ENABLE_MIC_BAR)
 
@@ -102,13 +103,25 @@ void UI_DisplayRSSIBar(const bool now) {
     }
   }
 
-  sprintf(String, "%d dBm", dBm);
+  // sprintf(String, "%d dBm", dBm);
+  NUMBER_ToDecimal(String, abs(dBm), 3, false);
+  if (dBm < 0) {
+    memmove(String + 1, String, 4);
+    String[0] = '-';
+  }
+  strcat(String, " dBm");
   uint8_t labelX = 128 - (strlen(String) * 4);
   UI_PrintStringSmallest(String, labelX, LINE * 8 + 1, false, true);
-  if (s < 10) {
-    sprintf(String, "S%u", s);
+  if (s <= 9) {
+    // sprintf(String, "S%u", s);
+    String[0] = 'S';
+    String[1] = s + '0';
+    String[2] = '\0';
   } else {
-    sprintf(String, "S9+%u0", s - 9);
+    // sprintf(String, "S9+%u0", s - 9);
+    strcpy(String, "S9+  0");
+    NUMBER_ToDecimal(String + 3, s - 9, 2, false);
+    String[5] = '0'; // Ensure trailing zero as per format S9+x0
   }
   UI_PrintStringSmallest(String, 2, LINE * 8 + 1, false, true);
   
@@ -186,7 +199,9 @@ void UI_DisplayAudioBar(void) {
     }
   }
 
-  sprintf(String, "%u dB", afDB);
+  // sprintf(String, "%u dB", afDB);
+  NUMBER_ToDecimal(String, afDB, 3, false);
+  strcat(String, " dB");
   uint8_t labelX = 128 - (strlen(String) * 4);
   UI_PrintStringSmallest(String, labelX, LINE * 8 + 1, false, true);
   

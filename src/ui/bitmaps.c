@@ -312,30 +312,6 @@ const uint8_t BITMAP_compand[6] =
     0b00100100
 };
 
-/*
-const uint8_t BITMAP_Ready[7] =
-{
-    0b00001000,
-    0b00010000,
-    0b00100000,
-    0b00010000,
-    0b00001000,
-    0b00000100,
-    0b00000010,
-};
-
-const uint8_t BITMAP_NotReady[7] =
-{
-    0b00000000,
-    0b01000010,
-    0b00100100,
-    0b00011000,
-    0b00100100,
-    0b01000010,
-    0b00000000,
-};
-*/
-
 const uint8_t BITMAP_PowerUser[3] =
 {   // 'arrow' symbol
     0b00111110,

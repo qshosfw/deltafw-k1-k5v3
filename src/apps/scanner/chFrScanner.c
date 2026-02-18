@@ -1,10 +1,10 @@
 
-#include "features/app.h"
+#include "features/app/app.h"
 #include "apps/scanner/chFrScanner.h"
-#include "functions.h"
+#include "features/radio/functions.h"
 #include "core/misc.h"
 #include "apps/settings/settings.h"
-//#include "debugging.h"
+//#include "core/debugging.h"
 
 int8_t            gScanStateDir;
 bool              gScanKeepResult;

@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "audio.h"     // VOICE_ID_t
+#include "features/audio/audio.h"     // VOICE_ID_t
 #include "apps/settings/settings.h"
 
 typedef struct {
@@ -155,6 +155,7 @@ enum
     MENU_F2LONG,
     MENU_MLONG,
     MENU_BATTYP,
+    MENU_LIVESEEK,
     MENU_PASSCODE,
     MENU_PASSCODE_MAX_TRIES,
 #ifdef ENABLE_EEPROM_HEXDUMP
@@ -179,6 +180,9 @@ extern const char* const gSubMenu_RXMode[4];
 extern const char* const gSubMenu_MDF[4];
 #ifdef ENABLE_ALARM
     extern const char    gSubMenu_AL_MOD[2][5];
+#endif
+#ifdef ENABLE_LIVESEEK
+    extern const char    gSubMenu_LiveSeek[3][9];
 #endif
 #ifdef ENABLE_DTMF_CALLING
 extern const char        gSubMenu_D_RSP[4][11];

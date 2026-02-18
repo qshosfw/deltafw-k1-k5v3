@@ -1,11 +1,11 @@
 /* Legacy simple spectrum.c from GitHub */
 #include "apps/spectrum/spectrum.h"
-#include "am_fix.h"
-#include "audio.h"
+#include "features/am_fix/am_fix.h"
+#include "features/audio/audio.h"
 #include "core/misc.h"
 #include "drivers/bsp/bk4819.h"
-#include "functions.h"
-#include "radio.h"
+#include "features/radio/functions.h"
+#include "features/radio/radio.h"
 #include "ui/ui.h"
 
 #define F_MIN frequencyBandTable[0].lower
@@ -16,14 +16,14 @@
 #endif
 
 #include "drivers/bsp/backlight.h"
-#include "frequencies.h"
+#include "features/radio/frequencies.h"
 #include "ui/helper.h"
 #include "ui/main.h"
 
 #ifdef ENABLE_SERIAL_SCREENCAST
-#include "screencast.h"
+#include "features/screencast/screencast.h"
 #endif
-#include "features/storage.h"
+#include "features/storage/storage.h"
 
 #ifdef ENABLE_SPECTRUM_EXTENSIONS
 #include "drivers/bsp/py25q16.h"
@@ -652,7 +652,10 @@ static void DrawSpectrum()
 
 static void DrawStatus()
 {
-    sprintf(String, "%d/%d", settings.dbMin, settings.dbMax);
+    // sprintf(String, "%d/%d", settings.dbMin, settings.dbMax);
+    NUMBER_ToDecimal(String, settings.dbMin, 4, false);
+    String[4] = '/';
+    NUMBER_ToDecimal(String + 5, settings.dbMax, 4, false);
     UI_PrintStringSmallest(String, 0, 0, true, true);
     BOARD_ADC_GetBatteryInfo(&gBatteryVoltages[gBatteryCheckCounter++ % 4]);
     uint16_t voltage = (gBatteryVoltages[0] + gBatteryVoltages[1] + gBatteryVoltages[2] + gBatteryVoltages[3]) / 4 * 760 / gBatteryCalibration[3];
@@ -685,11 +688,12 @@ static void ShowChannelName(uint32_t f)
 
 static void DrawF(uint32_t f)
 {
-    sprintf(String, "%u.%05u", f / 100000, f % 100000);
+    UI_PrintFrequencyEx(String, f, true);
     UI_PrintStringSmallNormal(String, 0, 127, 1);
-    sprintf(String, "%3s", gModulationStr[settings.modulationType]);
+    strcpy(String, gModulationStr[settings.modulationType]);
     UI_PrintStringSmallest(String, 116, 1, false, true);
-    sprintf(String, "%4sk", bwOptions[settings.listenBw]);
+    strcpy(String, bwOptions[settings.listenBw]);
+    strcat(String, "k");
     UI_PrintStringSmallest(String, 108, 7, false, true);
 #ifdef ENABLE_SPECTRUM_EXTENSIONS
     ShowChannelName(f);
@@ -700,23 +704,43 @@ static void DrawNums()
 {
     if (currentState == SPECTRUM) {
 #ifdef ENABLE_SCAN_RANGES
-        if (gScanRangeStart) sprintf(String, "%ux", GetStepsCountDisplay());
+        if (gScanRangeStart) {
+            NUMBER_ToDecimal(String, GetStepsCountDisplay(), 3, false);
+            strcat(String, "x");
+        }
         else
 #endif
-        sprintf(String, "%ux", GetStepsCount());
+        {
+            NUMBER_ToDecimal(String, GetStepsCount(), 3, false);
+            strcat(String, "x");
+        }
         UI_PrintStringSmallest(String, 0, 1, false, true);
-        sprintf(String, "%u.%02uk", GetScanStep() / 100, GetScanStep() % 100);
+        NUMBER_ToDecimal(String, GetScanStep() / 100, 3, false);
+        String[3] = '.';
+        NUMBER_ToDecimal(String + 4, GetScanStep() % 100, 2, true);
+        strcat(String, "k");
         UI_PrintStringSmallest(String, 0, 7, false, true);
     }
     if (IsCenterMode()) {
-        sprintf(String, "%u.%05u \x7F%u.%02uk", currentFreq / 100000, currentFreq % 100000, settings.frequencyChangeStep / 100, settings.frequencyChangeStep % 100);
+        UI_PrintFrequencyEx(String, currentFreq, true);
+        strcat(String, " \x7F");
+        NUMBER_ToDecimal(String + strlen(String), settings.frequencyChangeStep / 100, 2, false);
+        strcat(String, ".");
+        NUMBER_ToDecimal(String + strlen(String), settings.frequencyChangeStep % 100, 2, true);
+        strcat(String, "k");
         UI_PrintStringSmallest(String, 36, 49, false, true);
     } else {
-        sprintf(String, "%u.%05u", GetFStart() / 100000, GetFStart() % 100000);
+        UI_PrintFrequencyEx(String, GetFStart(), true);
         UI_PrintStringSmallest(String, 0, 49, false, true);
-        sprintf(String, "\x7F%u.%02uk", settings.frequencyChangeStep / 100, settings.frequencyChangeStep % 100);
+        
+        strcpy(String, "\x7F");
+        NUMBER_ToDecimal(String + 1, settings.frequencyChangeStep / 100, 2, false);
+        strcat(String, ".");
+        NUMBER_ToDecimal(String + strlen(String), settings.frequencyChangeStep % 100, 2, true);
+        strcat(String, "k");
         UI_PrintStringSmallest(String, 48, 49, false, true);
-        sprintf(String, "%u.%05u", GetFEnd() / 100000, GetFEnd() % 100000);
+        
+        UI_PrintFrequencyEx(String, GetFEnd(), true);
         UI_PrintStringSmallest(String, 93, 49, false, true);
     }
 }
@@ -820,7 +844,12 @@ static void RenderStill()
     uint8_t x = Rssi2PX(scanInfo.rssi, 0, 121);
     for (int i = 0; i < x; ++i) if (i % 5) gFrameBuffer[2][i + 3] |= 0b00000111;
     int dbm = Rssi2DBm(scanInfo.rssi);
-    sprintf(String, "S: %u   %d dBm", DBm2S(dbm), dbm);
+    // sprintf(String, "S: %u   %d dBm", DBm2S(dbm), dbm);
+    strcpy(String, "S: ");
+    String[3] = DBm2S(dbm) + '0';
+    strcpy(String + 4, "   ");
+    NUMBER_ToDecimal(String + 7, dbm, 4, false);
+    strcat(String, " dBm");
     UI_PrintStringSmallest(String, 4, 25, false, true);
     if (!monitorMode) gFrameBuffer[2][3 + Rssi2PX(settings.rssiTriggerLevel, 0, 121)] = 0b11111111;
     for (int idx = 1; idx <= 4; ++idx) {
@@ -828,12 +857,24 @@ static void RenderStill()
         if (menuState == idx) for (int j = 0; j < 30; ++j) { gFrameBuffer[4][j + offset] = 0xFF; gFrameBuffer[5][j + offset] = 0xFF; }
         UI_PrintStringSmallest(registerSpecs[idx].name, offset + 2, 4 * 8 + 2, false, menuState != idx);
 #ifdef ENABLE_SPECTRUM_EXTENSIONS
-        if(idx == 1) sprintf(String, "%ddB", LNAsOptions[GetRegMenuValue(idx)]);
-        else if(idx == 2) sprintf(String, "%ddB", LNAOptions[GetRegMenuValue(idx)]);
-        else if(idx == 3) sprintf(String, "%ddB", VGAOptions[GetRegMenuValue(idx)]);
-        else if(idx == 4) sprintf(String, "%skHz", BPFOptions[(GetRegMenuValue(idx) / 0x2aaa)]);
+        if(idx == 1) {
+            NUMBER_ToDecimal(String, LNAsOptions[GetRegMenuValue(idx)], 3, false);
+            strcat(String, "dB");
+        }
+        else if(idx == 2) {
+            NUMBER_ToDecimal(String, LNAOptions[GetRegMenuValue(idx)], 3, false);
+            strcat(String, "dB");
+        }
+        else if(idx == 3) {
+            NUMBER_ToDecimal(String, VGAOptions[GetRegMenuValue(idx)], 3, false);
+            strcat(String, "dB");
+        }
+        else if(idx == 4) {
+            strcpy(String, BPFOptions[(GetRegMenuValue(idx) / 0x2aaa)]);
+            strcat(String, "kHz");
+        }
 #else
-        sprintf(String, "%u", GetRegMenuValue(idx));
+        NUMBER_ToDecimal(String, GetRegMenuValue(idx), 4, false);
 #endif
         UI_PrintStringSmallest(String, offset + 2, 5 * 8 + 1, false, menuState != idx);
     }

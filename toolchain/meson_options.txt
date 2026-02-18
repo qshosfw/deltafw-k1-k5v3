@@ -49,6 +49,7 @@ option('SPECTRUM_EXTENSIONS', type: 'boolean', value: true, description: 'Enable
 option('SPECTRUM_EXTRA_VALUES', type: 'boolean', value: true, description: 'Enable Spectrum Extra Values')
 option('APP_BREAKOUT_GAME', type: 'boolean', value: false, description: 'Enable Breakout Game')
 option('REGA', type: 'boolean', value: false, description: 'Enable REGA')
+option('LIVESEEK', type: 'boolean', value: true, description: 'Enable LiveSeek (RSSI Spectrum on main screen)')
 option('PMR446_FREQUENCY_BAND', type: 'boolean', value: false, description: 'Enable PMR446 Frequency Band')
 option('GMRS_FRS_MURS_BANDS', type: 'boolean', value: false, description: 'Enable GMRS/FRS/MURS Bands')
 option('FREQUENCY_LOCK_REGION_CA', type: 'boolean', value: true, description: 'Enable Frequency Lock Region CA')

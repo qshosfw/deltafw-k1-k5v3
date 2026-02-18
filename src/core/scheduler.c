@@ -20,8 +20,8 @@
     #include "apps/fm/fm.h"
 #endif
 #include "apps/scanner/scanner.h"
-#include "audio.h"
-#include "functions.h"
+#include "features/audio/audio.h"
+#include "features/radio/functions.h"
 #include "apps/battery/battery.h"
 #include "core/misc.h"
 #include "apps/settings/settings.h"
@@ -43,6 +43,11 @@
     } while (0)
 
 static volatile uint32_t gGlobalSysTickCounter;
+
+uint32_t SYSTICK_GetTick(void)
+{
+    return gGlobalSysTickCounter;
+}
 
 // we come here every 10ms
 void SysTick_Handler(void)

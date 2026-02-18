@@ -21,13 +21,13 @@
 //#endif
 
 #include "apps/aircopy/aircopy.h"
-#include "audio.h"
+#include "features/audio/audio.h"
 #include "drivers/bsp/bk4819.h"
 #include "drivers/bsp/crc.h"
 #include "drivers/bsp/eeprom.h"
-#include "frequencies.h"
+#include "features/radio/frequencies.h"
 #include "core/misc.h"
-#include "radio.h"
+#include "features/radio/radio.h"
 #include "ui/helper.h"
 #include "ui/inputbox.h"
 #include "ui/ui.h"

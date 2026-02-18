@@ -15,7 +15,7 @@ void Passcode_SetMaxTries(uint8_t maxTries);
 bool Passcode_IsLocked(void);
 void Passcode_Lock(void);
 
-#include "features/storage.h"
+#include "features/storage/storage.h"
 
 // For Storage
 void Passcode_DeriveKEK(const char *password, uint8_t *kek_out);

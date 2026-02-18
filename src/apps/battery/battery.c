@@ -19,13 +19,13 @@
 #include "battery.h"
 #include "drivers/bsp/backlight.h"
 #include "drivers/bsp/st7565.h"
-#include "functions.h"
+#include "features/radio/functions.h"
 #include "core/misc.h"
 #include "apps/settings/settings.h"
 #include "apps/battery/battery_ui.h"
 #include "ui/menu.h"
 #include "ui/ui.h"
-//#include "debugging.h"
+//#include "core/debugging.h"
 
 uint16_t          gBatteryCalibration[6];
 uint16_t          gBatteryCurrentVoltage;

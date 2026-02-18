@@ -14,12 +14,12 @@
  *     limitations under the License.
  */
 #include "apps/spectrum/spectrum_waterfall.h"
-#include "am_fix.h"
-#include "audio.h"
+#include "features/am_fix/am_fix.h"
+#include "features/audio/audio.h"
 #include "core/misc.h"
 #include "drivers/bsp/bk4819.h"
-#include "functions.h"
-#include "radio.h"
+#include "features/radio/functions.h"
+#include "features/radio/radio.h"
 #include "ui/ui.h"
 
 #ifdef ENABLE_SPECTRUM_ADVANCED
@@ -61,14 +61,14 @@ static void SetBandLed(uint32_t freq, bool isTx, bool hasSignal)
 #endif
 
 #include "drivers/bsp/backlight.h"
-#include "frequencies.h"
+#include "features/radio/frequencies.h"
 #include "ui/helper.h"
 #include "ui/main.h"
 
 #ifdef ENABLE_SERIAL_SCREENCAST
-#include "screencast.h"
+#include "features/screencast/screencast.h"
 #endif
-#include "features/storage.h"
+#include "features/storage/storage.h"
 
 #ifdef ENABLE_SPECTRUM_EXTENSIONS
 #include "drivers/bsp/py25q16.h"
@@ -1080,7 +1080,7 @@ static void DrawWaterfall(void)
     const uint8_t WATERFALL_HEIGHT = 19;
     const uint8_t WATERFALL_WIDTH = 128;
     const uint16_t SPEC_WIDTH = GetStepsCount();
-    const float xScale = (float)SPEC_WIDTH / WATERFALL_WIDTH;
+    // const float xScale = (float)SPEC_WIDTH / WATERFALL_WIDTH;
 
     for (uint8_t y_offset = 0; y_offset < WATERFALL_HEIGHT - 1; y_offset++)
     {
@@ -1094,7 +1094,7 @@ static void DrawWaterfall(void)
 
         for (uint8_t x = 0; x < WATERFALL_WIDTH; x++)
         {
-            uint16_t specIdx = (uint16_t)(x * xScale);
+            uint16_t specIdx = (uint16_t)(((uint32_t)x * SPEC_WIDTH) / WATERFALL_WIDTH);
             if (specIdx >= SPEC_WIDTH - 1) specIdx = SPEC_WIDTH - 2;
             
             // Unpack 4-bit levels
@@ -1281,10 +1281,19 @@ static void DrawSpectrumEnhanced(void)
 static void DrawStatus()
 {
 #ifdef SPECTRUM_EXTRA_VALUES
-    sprintf(String, "%d/%d P:%d T:%d", settings.dbMin, settings.dbMax,
-            Rssi2DBm(peak.rssi), Rssi2DBm(settings.rssiTriggerLevel));
+    // sprintf(String, "%d/%d P:%d T:%d", settings.dbMin, settings.dbMax, Rssi2DBm(peak.rssi), Rssi2DBm(settings.rssiTriggerLevel));
+    NUMBER_ToDecimal(String, settings.dbMin, 4, false); // Assuming max 4 digits for db
+    String[4] = '/';
+    NUMBER_ToDecimal(String + 5, settings.dbMax, 4, false);
+    strcpy(String + 9, " P:");
+    NUMBER_ToDecimal(String + 12, Rssi2DBm(peak.rssi), 4, false);
+    strcpy(String + 16, " T:");
+    NUMBER_ToDecimal(String + 19, Rssi2DBm(settings.rssiTriggerLevel), 4, false);
 #else
-    sprintf(String, "%d/%d", settings.dbMin, settings.dbMax);
+    // sprintf(String, "%d/%d", settings.dbMin, settings.dbMax);
+    NUMBER_ToDecimal(String, settings.dbMin, 4, false);
+    String[4] = '/';
+    NUMBER_ToDecimal(String + 5, settings.dbMax, 4, false);
 #endif
     UI_PrintStringSmallest(String, 0, 0, true, true);
 
@@ -1359,12 +1368,14 @@ static void ShowChannelName(uint32_t f)
 
 static void DrawF(uint32_t f)
 {
-    sprintf(String, "%u.%05u MHz", f / 100000, f % 100000);
+    UI_PrintFrequencyEx(String, f, true);
+    strcat(String, " MHz");
     UI_PrintStringSmallest(String, 38, 1, false, true);
 
-    sprintf(String, "%3s", gModulationStr[settings.modulationType]);
+    strcpy(String, gModulationStr[settings.modulationType]);
     UI_PrintStringSmallest(String, 116, 1, false, true);
-    sprintf(String, "%4sk", bwOptions[settings.listenBw]);
+    strcpy(String, bwOptions[settings.listenBw]);
+    strcat(String, "k");
     UI_PrintStringSmallest(String, 108, 7, false, true);
 
 #ifdef ENABLE_SPECTRUM_EXTENSIONS
@@ -1409,23 +1420,31 @@ static void DrawNums()
 #ifdef ENABLE_SCAN_RANGES
         if (gScanRangeStart)
         {
-            sprintf(String, "%ux", GetStepsCountDisplay());
+            NUMBER_ToDecimal(String, GetStepsCountDisplay(), 3, false);
+            strcat(String, "x");
         }
         else
 #endif
         {
-            sprintf(String, "%ux", GetStepsCount());
+            NUMBER_ToDecimal(String, GetStepsCount(), 3, false);
+            strcat(String, "x");
         }
         UI_PrintStringSmallest(String, 0, 1, false, true);
-        sprintf(String, "%u.%02uk", GetScanStep() / 100, GetScanStep() % 100);
+        NUMBER_ToDecimal(String, GetScanStep() / 100, 3, false);
+        String[3] = '.';
+        NUMBER_ToDecimal(String + 4, GetScanStep() % 100, 2, true);
+        strcat(String, "k");
         UI_PrintStringSmallest(String, 0, 7, false, true);
     }
 
     if (IsCenterMode())
     {
-        sprintf(String, "%u.%05u \x7F%u.%02uk", currentFreq / 100000,
-                currentFreq % 100000, settings.frequencyChangeStep / 100,
-                settings.frequencyChangeStep % 100);
+        UI_PrintFrequencyEx(String, currentFreq, true);
+        strcat(String, " \x7F");
+        NUMBER_ToDecimal(String + strlen(String), settings.frequencyChangeStep / 100, 2, false);
+        strcat(String, ".");
+        NUMBER_ToDecimal(String + strlen(String), settings.frequencyChangeStep % 100, 2, true);
+        strcat(String, "k");
 #ifdef ENABLE_SPECTRUM_ADVANCED
         UI_PrintStringSmallest(String, 36, 33, false, true);
 #else
@@ -1434,22 +1453,25 @@ static void DrawNums()
     }
     else
     {
-        sprintf(String, "%u.%05u", GetFStart() / 100000, GetFStart() % 100000);
+        UI_PrintFrequencyEx(String, GetFStart(), true);
 #ifdef ENABLE_SPECTRUM_ADVANCED
         UI_PrintStringSmallest(String, 0, 34, false, true);
 #else
         UI_PrintStringSmallest(String, 0, 49, false, true);
 #endif
 
-        sprintf(String, "\x7F%u.%02uk", settings.frequencyChangeStep / 100,
-                settings.frequencyChangeStep % 100);
+        strcpy(String, "\x7F");
+        NUMBER_ToDecimal(String + 1, settings.frequencyChangeStep / 100, 2, false);
+        strcat(String, ".");
+        NUMBER_ToDecimal(String + strlen(String), settings.frequencyChangeStep % 100, 2, true);
+        strcat(String, "k");
 #ifdef ENABLE_SPECTRUM_ADVANCED
         UI_PrintStringSmallest(String, 48, 34, false, true);
 #else
         UI_PrintStringSmallest(String, 48, 49, false, true);
 #endif
 
-        sprintf(String, "%u.%05u", GetFEnd() / 100000, GetFEnd() % 100000);
+        UI_PrintFrequencyEx(String, GetFEnd(), true);
 #ifdef ENABLE_SPECTRUM_ADVANCED
         UI_PrintStringSmallest(String, 93, 34, false, true);
 #else
@@ -1860,9 +1882,15 @@ static void RenderStill()
 
     int dbm = Rssi2DBm(scanInfo.rssi);
     uint8_t s = DBm2S(dbm);
-    sprintf(String, "S: %u", s);
+    // sprintf(String, "S: %u", s);
+    strcpy(String, "S: ");
+    String[3] = s + '0';
+    String[4] = '\0';
     UI_PrintStringSmallest(String, 4, 25, false, true);
-    sprintf(String, "%d dBm", dbm);
+    
+    // sprintf(String, "%d dBm", dbm);
+    NUMBER_ToDecimal(String, dbm, 4, false);
+    strcat(String, " dBm");
     UI_PrintStringSmallest(String, 28, 25, false, true);
 
     if (!monitorMode)
@@ -1892,29 +1920,34 @@ static void RenderStill()
                 gFrameBuffer[row + 1][j + offset] = 0xFF;
             }
         }
-        sprintf(String, "%s", registerSpecs[idx].name);
+        // sprintf(String, "%s", registerSpecs[idx].name);
+        strcpy(String, registerSpecs[idx].name);
         UI_PrintStringSmallest(String, offset + 2, row * 8 + 2, false,
                             menuState != idx);
 
 #ifdef ENABLE_SPECTRUM_EXTENSIONS
         if(idx == 1)
         {
-            sprintf(String, "%ddB", LNAsOptions[GetRegMenuValue(idx)]);
+            NUMBER_ToDecimal(String, LNAsOptions[GetRegMenuValue(idx)], 3, false);
+            strcat(String, "dB");
         }
         else if(idx == 2)
         {
-            sprintf(String, "%ddB", LNAOptions[GetRegMenuValue(idx)]);
+            NUMBER_ToDecimal(String, LNAOptions[GetRegMenuValue(idx)], 3, false);
+            strcat(String, "dB");
         }
         else if(idx == 3)
         {
-            sprintf(String, "%ddB", VGAOptions[GetRegMenuValue(idx)]);
+            NUMBER_ToDecimal(String, VGAOptions[GetRegMenuValue(idx)], 3, false);
+            strcat(String, "dB");
         }
         else if(idx == 4)
         {
-            sprintf(String, "%skHz", BPFOptions[(GetRegMenuValue(idx) / 0x2aaa)]);
+            strcpy(String, BPFOptions[(GetRegMenuValue(idx) / 0x2aaa)]);
+            strcat(String, "kHz");
         }
 #else
-        sprintf(String, "%u", GetRegMenuValue(idx));
+        NUMBER_ToDecimal(String, GetRegMenuValue(idx), 4, false);
 #endif
         UI_PrintStringSmallest(String, offset + 2, (row + 1) * 8 + 1, false,
                             menuState != idx);

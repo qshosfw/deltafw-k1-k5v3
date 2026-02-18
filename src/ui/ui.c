@@ -18,7 +18,7 @@
 #include <string.h>
 
 #include "apps/scanner/chFrScanner.h"
-#include "features/dtmf.h"
+#include "features/dtmf/dtmf.h"
 #ifdef ENABLE_FMRADIO
     #include "apps/fm/fm.h"
 #endif
@@ -31,7 +31,7 @@
     #include "apps/fm/fm_ui.h"
 #endif
 #ifdef ENABLE_REGA
-    #include "features/rega.h"
+    #include "features/rega/rega.h"
 #endif
 #include "ui/inputbox.h"
 #include "ui/main.h"

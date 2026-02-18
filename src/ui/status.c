@@ -24,8 +24,7 @@
 #include "ui/bitmaps.h"
 #include "drivers/bsp/keyboard.h"
 #include "drivers/bsp/st7565.h"
-#include "external/printf/printf.h"
-#include "functions.h"
+#include "features/radio/functions.h"
 #include "apps/battery/battery.h"
 #include "core/misc.h"
 #include "apps/settings/settings.h"
@@ -54,7 +53,10 @@ static void convertTime(uint8_t *line, uint8_t type)
     gStatusLine[0] = gStatusLine[7] = gStatusLine[14] = 0x00; // Quick fix on display (on scanning I, II, etc.)
 
     char str[6];
-    sprintf(str, "%02u:%02u", m, s);
+    // sprintf(str, "%02u:%02u", m, s);
+    NUMBER_ToDecimal(str, m, 2, true);
+    str[2] = ':';
+    NUMBER_ToDecimal(str + 3, s, 2, true);
     UI_PrintStringSmallBufferNormal(str, line);
 
     gUpdateStatus = true;
@@ -178,9 +180,15 @@ void UI_DisplayStatus() {
         char bat_str[10];
         if (show_volt) {
              const uint16_t voltage = (gBatteryVoltageAverage <= 999) ? gBatteryVoltageAverage : 999;
-             sprintf(bat_str, "%u.%02uV", voltage / 100, voltage % 100);
-        } else {
-             sprintf(bat_str, "%u%%", BATTERY_VoltsToPercent(gBatteryVoltageAverage));
+             // sprintf(bat_str, "%u.%02uV", voltage / 100, voltage % 100);
+             NUMBER_ToDecimal(bat_str, voltage / 100, 1, false);
+             bat_str[1] = '.';
+             NUMBER_ToDecimal(bat_str + 2, voltage % 100, 2, true);
+             strcat(bat_str, "V");
+        } else { // show_perc
+             // sprintf(bat_str, "%u%%", BATTERY_VoltsToPercent(gBatteryVoltageAverage));
+             NUMBER_ToDecimal(bat_str, BATTERY_VoltsToPercent(gBatteryVoltageAverage), 3, false);
+             strcat(bat_str, "%");
         }
 
         uint8_t str_len = strlen(bat_str);

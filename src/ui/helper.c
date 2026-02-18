@@ -17,7 +17,6 @@
 #include <string.h>
 
 #include "drivers/bsp/st7565.h"
-#include "external/printf/printf.h"
 #include "ui/font.h"
 #include "ui/helper.h"
 #include "ui/inputbox.h"
@@ -33,7 +32,9 @@ void UI_GenerateChannelString(char *pString, const uint8_t Channel)
 
     if (gInputBoxIndex == 0)
     {
-        sprintf(pString, "CH-%02u", Channel + 1);
+       // sprintf(pString, "CH-%02u", Channel + 1);
+    strcpy(pString, "CH-  ");
+    NUMBER_ToDecimal(pString + 3, Channel + 1, 2, true);
         return;
     }
 
@@ -57,11 +58,14 @@ void UI_GenerateChannelStringEx(char *pString, const bool bShowPrefix, const uin
 
     if (bShowPrefix) {
         // BUG here? Prefixed NULLs are allowed
-        sprintf(pString, "CH-%03u", ChannelNumber + 1);
+       // sprintf(pString, "CH-%03u", ChannelNumber + 1);
+    strcpy(pString, "CH-   ");
+    NUMBER_ToDecimal(pString + 3, ChannelNumber + 1, 3, true);
     } else if (ChannelNumber == 0xFF) {
         strcpy(pString, "NULL");
     } else {
-        sprintf(pString, "%03u", ChannelNumber + 1);
+       // sprintf(pString, "%03u", ChannelNumber + 1);
+    NUMBER_ToDecimal(pString, ChannelNumber + 1, 3, true);
     }
 }
 
@@ -410,4 +414,77 @@ int ConvertDomain(int aValue, int aMin, int aMax, int bMin, int bMax) {
   if (aValue <= aMin) aValue = aMin;
   if (aValue >= aMax) aValue = aMax;
   return ((aValue - aMin) * bRange + aRange / 2) / aRange + bMin;
+}
+
+void NUMBER_ToDecimal(char *str, uint32_t val, uint8_t len, bool leadingZero)
+{
+    str[len] = '\0';
+    for (int i = len - 1; i >= 0; i--) {
+        uint8_t digit = val % 10;
+        if (val == 0 && !leadingZero && i < len - 1) {
+            str[i] = ' ';
+        } else {
+            str[i] = digit + '0';
+        }
+        val /= 10;
+    }
+}
+
+void NUMBER_ToHex(char *str, uint32_t val, uint8_t len)
+{
+    str[len] = '\0';
+    for (int i = len - 1; i >= 0; i--) {
+        uint8_t nibble = val & 0x0F;
+        str[i] = (nibble < 10) ? (nibble + '0') : (nibble - 10 + 'A');
+        val >>= 4;
+    }
+}
+
+void UI_PrintDecimal(char *str, uint32_t val, uint8_t len)
+{
+    NUMBER_ToDecimal(str, val, len, false);
+}
+
+void UI_PrintFrequency(char *str, uint32_t frequency)
+{
+    UI_PrintFrequencyEx(str, frequency, false);
+}
+
+void UI_PrintFrequencyEx(char *str, uint32_t frequency, bool highRes)
+{
+    uint32_t mhz = frequency / 100000;
+    uint32_t khz = frequency % 100000;
+    
+    NUMBER_ToDecimal(str, mhz, 3, false);
+    str[3] = '.';
+    if (highRes) {
+        NUMBER_ToDecimal(str + 4, khz, 5, true);
+    } else {
+        NUMBER_ToDecimal(str + 4, khz / 100, 3, true);
+    }
+}
+
+void UI_FormatVoltage(char *str, uint16_t millivolts)
+{
+    NUMBER_ToDecimal(str, millivolts / 1000, 2, false);
+    str[2] = '.';
+    NUMBER_ToDecimal(str + 3, (millivolts % 1000) / 10, 2, true);
+    str[5] = 'V';
+    str[6] = '\0';
+}
+
+void UI_FormatTemp(char *str, int16_t deciCelsius)
+{
+    int16_t val = deciCelsius;
+    if (val < 0) {
+        str[0] = '-';
+        val = -val;
+    } else {
+        str[0] = ' ';
+    }
+    NUMBER_ToDecimal(str + 1, val / 10, 2, false);
+    str[3] = '.';
+    NUMBER_ToDecimal(str + 4, val % 10, 1, true);
+    str[5] = 'C';
+    str[6] = '\0';
 }

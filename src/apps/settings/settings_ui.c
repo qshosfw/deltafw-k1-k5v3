@@ -1,20 +1,18 @@
 #include <string.h>
-#include "features/storage.h"
+#include "features/storage/storage.h"
 #include "settings_ui.h"
 #include "../../ui/ag_menu.h"
 #include "../../drivers/bsp/st7565.h"
-#include "../../external/printf/printf.h"
 #include "../../apps/settings/settings.h"
 #include "../../apps/security/passcode.h"
-#include "../../ui/menu.h"
+#include "ui/menu.h"
 
 #include "../../ui/ui.h"
 #include "../../drivers/bsp/bk4819.h"
 #include "../../core/misc.h"
-#include "../../frequencies.h"
-#include "../../audio.h"
-#include "../../dcs.h" // For CTCSS/DCS tables
-#include "../../dcs.h" // For CTCSS/DCS tables
+#include "features/radio/frequencies.h"
+#include "features/audio/audio.h"
+#include "features/dcs/dcs.h" // For CTCSS/DCS tables
 #include "../../ui/helper.h" // For frequency helpers
 #ifdef ENABLE_EEPROM_HEXDUMP
 #include "../../ui/hexdump.h"
@@ -27,12 +25,73 @@ extern void EEPROM_ReadBuffer(uint32_t Address, uint8_t *pBuffer, uint32_t Size)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 #define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
 #define INC_DEC(val, min, max, inc) do { \
-    if (inc) { if (val < (max)) val++; else val = (min); } \
-    else     { if (val > (min)) val--; else val = (max); } \
+    if (inc) { if ((val) < (max)) (val)++; else (val) = (min); } \
+    else     { if ((val) > (min)) (val)--; else (val) = (max); } \
 } while(0)
 
 // Reference to DCS/CTCSS tables
 // They are extern in dcs.h
+
+// --- Table-Driven Settings metadata ---
+
+typedef enum {
+    SET_TYPE_BOOL,
+    SET_TYPE_LIST,
+    SET_TYPE_INT8,
+    SET_TYPE_UNIT,
+    SET_TYPE_SPECIAL
+} SetType;
+
+typedef struct {
+    uint8_t id;
+    SetType type;
+    void *ptr;
+    uint8_t min;
+    uint8_t max;
+    const void *list;
+    uint8_t width; // 0 for char**, >0 for char[N][W]
+} SettingConfig;
+
+static const SettingConfig settingConfigs[] = {
+    {MENU_SQL,      SET_TYPE_INT8,  &gEeprom.SQUELCH_LEVEL, 0, 9, NULL, 0},
+    {MENU_BEEP,     SET_TYPE_BOOL,  &gEeprom.BEEP_CONTROL, 0, 1, gSubMenu_OFF_ON, 4},
+    {MENU_ROGER,    SET_TYPE_LIST,  &gEeprom.ROGER, 0, ROGER_MODE_MDC, gSubMenu_ROGER, 6},
+    {MENU_STE,      SET_TYPE_BOOL,  &gEeprom.TAIL_TONE_ELIMINATION, 0, 1, gSubMenu_OFF_ON, 4},
+    {MENU_RP_STE,   SET_TYPE_INT8,  &gEeprom.REPEATER_TAIL_TONE_ELIMINATION, 0, 10, NULL, 0},
+    {MENU_MDF,      SET_TYPE_LIST,  &gEeprom.CHANNEL_DISPLAY_MODE, 0, 3, gSubMenu_MDF, 0},
+    {MENU_ABR_MAX,  SET_TYPE_INT8,  &gEeprom.BACKLIGHT_MAX, 1, 10, NULL, 0},
+    {MENU_ABR_MIN,  SET_TYPE_INT8,  &gEeprom.BACKLIGHT_MIN, 0, 9, NULL, 0},
+    {MENU_BAT_TXT,  SET_TYPE_LIST,  &gSetting_battery_text, 0, 7, gSubMenu_BAT_TXT, 8},
+    {MENU_PONMSG,   SET_TYPE_LIST,  &gEeprom.POWER_ON_DISPLAY_MODE, 0, 4, gSubMenu_PONMSG, 8},
+    {MENU_ABR_ON_TX_RX, SET_TYPE_LIST, &gSetting_backlight_on_tx_rx, 0, 3, gSubMenu_RX_TX, 6},
+    {MENU_SET_LCK,  SET_TYPE_BOOL,  &gSetting_set_lck, 0, 1, gSubMenu_SET_LCK, 9},
+    {MENU_SET_TMR,  SET_TYPE_BOOL,  &gSetting_set_tmr, 0, 1, gSubMenu_OFF_ON, 4},
+    {MENU_SET_AUD,  SET_TYPE_LIST,  &gSetting_set_audio, 0, 4, gSubMenu_SET_AUD, 6},
+    {MENU_BATTYP,   SET_TYPE_LIST,  &gEeprom.BATTERY_TYPE, 0, 4, gSubMenu_BATTYP, 12},
+    {MENU_D_ST,     SET_TYPE_BOOL,  &gEeprom.DTMF_SIDE_TONE, 0, 1, gSubMenu_OFF_ON, 4},
+    {MENU_D_LIVE_DEC, SET_TYPE_BOOL, &gSetting_live_DTMF_decoder, 0, 1, gSubMenu_OFF_ON, 4},
+#ifdef ENABLE_MIC_BAR
+    {MENU_MIC_BAR,  SET_TYPE_BOOL,  &gSetting_mic_bar, 0, 1, gSubMenu_OFF_ON, 4},
+#endif
+#ifdef ENABLE_VOICE
+    {MENU_VOICE,    SET_TYPE_LIST,  &gEeprom.VOICE_PROMPT, 0, 2, gSubMenu_VOICE, 4},
+#endif
+#ifdef ENABLE_ALARM
+    {MENU_AL_MOD,   SET_TYPE_BOOL,  &gEeprom.ALARM_MODE, 0, 1, gSubMenu_AL_MOD, 5},
+#endif
+#ifdef ENABLE_NARROWER_BW_FILTER
+    {MENU_SET_NFM,  SET_TYPE_BOOL,  &gSetting_set_nfm, 0, 1, gSubMenu_SET_NFM, 9},
+#endif
+    {MENU_SET_CTR,  SET_TYPE_INT8,  &gSetting_set_ctr, 0, 15, NULL, 0},
+    {MENU_SET_INV,  SET_TYPE_BOOL,  &gSetting_set_inv, 0, 1, gSubMenu_OFF_ON, 4},
+};
+
+static const SettingConfig *GetSettingConfig(uint8_t id) {
+    for (uint16_t i = 0; i < ARRAY_SIZE(settingConfigs); i++) {
+        if (settingConfigs[i].id == id) return &settingConfigs[i];
+    }
+    return NULL;
+}
 
 // --- Helper Functions ---
 
@@ -42,637 +101,209 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
     if (!buf) return;
     buf[0] = '\0';
 
-    switch (settingId) {
-        // --- Sound ---
-        case MENU_SQL:
-            snprintf(buf, bufLen, "%d", gEeprom.SQUELCH_LEVEL);
-            break;
-        case MENU_BEEP:
-            snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gEeprom.BEEP_CONTROL]);
-            break;
-        case MENU_ROGER:
-            snprintf(buf, bufLen, "%s", gSubMenu_ROGER[gEeprom.ROGER]);
-            break;
-        case MENU_VOX:
-            if (!gEeprom.VOX_SWITCH) snprintf(buf, bufLen, "OFF");
-            else snprintf(buf, bufLen, "%d", gEeprom.VOX_LEVEL);
-            break;
-        case MENU_MIC:
-            snprintf(buf, bufLen, "+%u.%udB", gMicGain_dB2[gEeprom.MIC_SENSITIVITY] / 2, gMicGain_dB2[gEeprom.MIC_SENSITIVITY] % 2);
-            break;
-        #ifdef ENABLE_MIC_BAR
-        case MENU_MIC_BAR:
-            snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_mic_bar]);
-            break;
-        #endif
-        #ifdef ENABLE_VOICE
-        case MENU_VOICE:
-             snprintf(buf, bufLen, "%s", gSubMenu_VOICE[gEeprom.VOICE_PROMPT]);
-             break;
-        #endif
-        case MENU_STE:
-            snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gEeprom.TAIL_TONE_ELIMINATION]);
-            break;
-        case MENU_RP_STE:
-            snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gEeprom.REPEATER_TAIL_TONE_ELIMINATION > 0]);
-            break;
-        case MENU_1_CALL:
-            snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gEeprom.CHAN_1_CALL != 0]); // Simplistic
-            break;
-        #ifdef ENABLE_ALARM
-        case MENU_AL_MOD:
-            snprintf(buf, bufLen, "%s", gSubMenu_AL_MOD[gEeprom.ALARM_MODE]);
-            break;
-        #endif
-
-        // --- Display ---
-        case MENU_SET_AUD:
-            snprintf(buf, bufLen, "%s", gSubMenu_SET_AUD[gSetting_set_audio]);
-            break;
-        case MENU_ABR:
-            if (gEeprom.BACKLIGHT_TIME == 0) snprintf(buf, bufLen, "OFF");
-            else if (gEeprom.BACKLIGHT_TIME >= 61) snprintf(buf, bufLen, "ON");
-            else snprintf(buf, bufLen, "%ds", gEeprom.BACKLIGHT_TIME * 5);
-            break;
-        case MENU_ABR_MAX:
-            snprintf(buf, bufLen, "%d", gEeprom.BACKLIGHT_MAX);
-            break;
-        case MENU_ABR_MIN:
-            snprintf(buf, bufLen, "%d", gEeprom.BACKLIGHT_MIN);
-            break;
-        case MENU_MDF:
-            snprintf(buf, bufLen, "%s", gSubMenu_MDF[gEeprom.CHANNEL_DISPLAY_MODE]);
-            break;
-        case MENU_BAT_TXT:
-             snprintf(buf, bufLen, "%s", gSubMenu_BAT_TXT[gSetting_battery_text]);
-             break;
-        case MENU_PONMSG:
-             snprintf(buf, bufLen, "%s", gSubMenu_PONMSG[gEeprom.POWER_ON_DISPLAY_MODE]);
-             break;
-        case MENU_ABR_ON_TX_RX:
-             snprintf(buf, bufLen, "%s", gSubMenu_RX_TX[gSetting_backlight_on_tx_rx]);
-             break;
-         #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-        case MENU_SET_CTR:
-             snprintf(buf, bufLen, "%d", gSetting_set_ctr);
-             break;
-        case MENU_SET_INV:
-             snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_set_inv]);
-             break;
-        case MENU_SET_LCK:
-             snprintf(buf, bufLen, "%s", gSubMenu_SET_LCK[gSetting_set_lck]);
-             break;
-        case MENU_SET_TMR:
-             snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_set_tmr]);
-             break;
-        #ifdef ENABLE_NARROWER_BW_FILTER
-        case MENU_SET_NFM:
-             snprintf(buf, bufLen, "%s", gSubMenu_SET_NFM[gSetting_set_nfm]);
-             break;
-        #endif
-        case MENU_SET_PWR:
-             snprintf(buf, bufLen, "%s", gSubMenu_SET_PWR[gSetting_set_pwr]);
-             break;
-        case MENU_SET_PTT:
-             snprintf(buf, bufLen, "%s", gSubMenu_SET_PTT[gSetting_set_ptt]);
-             break;
-        case MENU_SET_TOT:
-             snprintf(buf, bufLen, "%s", gSubMenu_SET_TOT[gSetting_set_tot]);
-             break;
-        case MENU_SET_EOT:
-             snprintf(buf, bufLen, "%s", gSubMenu_SET_TOT[gSetting_set_eot]);
-             break;
-         #endif
-        #ifdef ENABLE_DEEP_SLEEP_MODE
-        case MENU_SET_OFF:
-             if (gSetting_set_off == 0) snprintf(buf, bufLen, "OFF");
-             else snprintf(buf, bufLen, "%d min", gSetting_set_off);
-             break;
-        #endif
-        case MENU_F1SHRT:
-        case MENU_F1LONG:
-        case MENU_F2SHRT:
-        case MENU_F2LONG:
-        case MENU_MLONG:
-             {
-                 uint8_t val = 0;
-                 if (settingId == MENU_F1SHRT)      val = gEeprom.KEY_1_SHORT_PRESS_ACTION;
-                 else if (settingId == MENU_F1LONG) val = gEeprom.KEY_1_LONG_PRESS_ACTION;
-                 else if (settingId == MENU_F2SHRT) val = gEeprom.KEY_2_SHORT_PRESS_ACTION;
-                 else if (settingId == MENU_F2LONG) val = gEeprom.KEY_2_LONG_PRESS_ACTION;
-                 else if (settingId == MENU_MLONG)  val = gEeprom.KEY_M_LONG_PRESS_ACTION;
-                 
-                 // Find name by ID in gSubMenu_SIDEFUNCTIONS
-                 const char* name = "NONE";
-                 for(int i=0; i<gSubMenu_SIDEFUNCTIONS_size; i++) {
-                     if(gSubMenu_SIDEFUNCTIONS[i].id == val) {
-                         name = gSubMenu_SIDEFUNCTIONS[i].name;
-                         break;
-                     }
-                 }
-                 snprintf(buf, bufLen, "%s", name);
-             }
-             break;
-
-        // --- Radio ---
-        case MENU_STEP:
-            {
-               uint16_t step = gStepFrequencyTable[gTxVfo->STEP_SETTING];
-               snprintf(buf, bufLen, "%d.%02u", step / 100, step % 100);
-            }
-            break;
-        case MENU_W_N:
-             snprintf(buf, bufLen, "%s", gSubMenu_W_N[gTxVfo->CHANNEL_BANDWIDTH]);
-             break;
-        case MENU_TXP:
-             snprintf(buf, bufLen, "%s", gSubMenu_TXP[gTxVfo->OUTPUT_POWER]);
-             break;
-        case MENU_SFT_D:
-             snprintf(buf, bufLen, "%s", gSubMenu_SFT_D[gTxVfo->TX_OFFSET_FREQUENCY_DIRECTION]);
-             break;
-        case MENU_OFFSET:
-             {
-                 uint32_t off = gTxVfo->TX_OFFSET_FREQUENCY;
-                 snprintf(buf, bufLen, "%lu.%05lu", off / 100000, off % 100000);
-             }
-             break;
-        case MENU_BCL:
-             snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gTxVfo->BUSY_CHANNEL_LOCK]);
-             break;
-        case MENU_AM:
-             snprintf(buf, bufLen, "%s", gModulationStr[gTxVfo->Modulation]);
-             break;
-        case MENU_SC_REV:
-             if (gEeprom.SCAN_RESUME_MODE < 3) {
-                 const char* modes[] = {"TO", "CO", "SE"};
-                 snprintf(buf, bufLen, "%s", modes[gEeprom.SCAN_RESUME_MODE]);
-             } else {
-                 snprintf(buf, bufLen, "TIME");
-             }
-             break;
-        case MENU_R_DCS:
-        case MENU_T_DCS:
-            {
-                uint8_t code = (settingId == MENU_R_DCS) ? gTxVfo->pRX->Code : gTxVfo->pTX->Code;
-                uint8_t type = (settingId == MENU_R_DCS) ? gTxVfo->pRX->CodeType : gTxVfo->pTX->CodeType;
-                
-                if (type != CODE_TYPE_DIGITAL && type != CODE_TYPE_REVERSE_DIGITAL) snprintf(buf, bufLen, "OFF");
-                else {
-                   snprintf(buf, bufLen, "D%03o%c", DCS_Options[code], type == CODE_TYPE_REVERSE_DIGITAL ? 'I' : 'N');
+    const SettingConfig *conf = GetSettingConfig(settingId);
+    if (conf) {
+        uint8_t val = *(uint8_t *)conf->ptr;
+        switch (conf->type) {
+            case SET_TYPE_BOOL:
+            case SET_TYPE_LIST:
+                if (conf->list) {
+                    if (conf->width == 0) strcpy(buf, ((const char *const *)conf->list)[val]);
+                    else strcpy(buf, (const char *)conf->list + (val * conf->width));
                 }
+                return;
+            case SET_TYPE_INT8:
+                NUMBER_ToDecimal(buf, val, 1, false);
+                return;
+            default: break;
+        }
+    }
+
+    switch (settingId) {
+        // --- Special Formatters ---
+        case MENU_VOX:
+            if (!gEeprom.VOX_SWITCH) strcpy(buf, "OFF");
+            else NUMBER_ToDecimal(buf, gEeprom.VOX_LEVEL, 1, false);
+            break;
+        case MENU_MIC: {
+            const uint8_t gain = gMicGain_dB2[gEeprom.MIC_SENSITIVITY];
+            strcpy(buf, "+  . dB");
+            NUMBER_ToDecimal(buf + 1, gain / 2, 2, false);
+            buf[4] = (gain % 2) + '0';
+            break;
+        }
+        case MENU_ABR:
+            if (gEeprom.BACKLIGHT_TIME == 0) strcpy(buf, "OFF");
+            else if (gEeprom.BACKLIGHT_TIME >= 61) strcpy(buf, "ON");
+            else { NUMBER_ToDecimal(buf, gEeprom.BACKLIGHT_TIME * 5, 3, false); strcat(buf, "s"); }
+            break;
+        case MENU_F1SHRT: case MENU_F1LONG: case MENU_F2SHRT: case MENU_F2LONG: case MENU_MLONG: {
+            uint8_t val = (settingId == MENU_F1SHRT) ? gEeprom.KEY_1_SHORT_PRESS_ACTION :
+                          (settingId == MENU_F1LONG) ? gEeprom.KEY_1_LONG_PRESS_ACTION :
+                          (settingId == MENU_F2SHRT) ? gEeprom.KEY_2_SHORT_PRESS_ACTION :
+                          (settingId == MENU_F2LONG) ? gEeprom.KEY_2_LONG_PRESS_ACTION : gEeprom.KEY_M_LONG_PRESS_ACTION;
+            const char* name = "NONE";
+            for(int i=0; i<gSubMenu_SIDEFUNCTIONS_size; i++) if(gSubMenu_SIDEFUNCTIONS[i].id == val) { name = gSubMenu_SIDEFUNCTIONS[i].name; break; }
+            strcpy(buf, name);
+            break;
+        }
+        case MENU_STEP: {
+            uint16_t step = gStepFrequencyTable[gTxVfo->STEP_SETTING];
+            NUMBER_ToDecimal(buf, step / 100, 2, false); strcat(buf, ".");
+            NUMBER_ToDecimal(buf + strlen(buf), step % 100, 2, true);
+            break;
+        }
+        case MENU_OFFSET: UI_PrintFrequencyEx(buf, gTxVfo->TX_OFFSET_FREQUENCY, true); break;
+        case MENU_SC_REV: {
+            const char* modes[] = {"TO", "CO", "SE", "TIME"};
+            strcpy(buf, modes[gEeprom.SCAN_RESUME_MODE < 4 ? gEeprom.SCAN_RESUME_MODE : 3]);
+            break;
+        }
+        case MENU_R_DCS: case MENU_T_DCS: {
+            uint8_t code = (settingId == MENU_R_DCS) ? gTxVfo->pRX->Code : gTxVfo->pTX->Code;
+            uint8_t type = (settingId == MENU_R_DCS) ? gTxVfo->pRX->CodeType : gTxVfo->pTX->CodeType;
+            if (type != CODE_TYPE_DIGITAL && type != CODE_TYPE_REVERSE_DIGITAL) strcpy(buf, "OFF");
+            else {
+                strcpy(buf, "D   N"); uint16_t v = DCS_Options[code];
+                buf[1] = ((v >> 6) & 7) + '0'; buf[2] = ((v >> 3) & 7) + '0'; buf[3] = (v & 7) + '0';
+                if (type == CODE_TYPE_REVERSE_DIGITAL) buf[4] = 'I';
             }
             break;
-        case MENU_R_CTCS:
-        case MENU_T_CTCS:
-            {
-                 uint8_t code = (settingId == MENU_R_CTCS) ? gTxVfo->pRX->Code : gTxVfo->pTX->Code;
-                 uint8_t type = (settingId == MENU_R_CTCS) ? gTxVfo->pRX->CodeType : gTxVfo->pTX->CodeType;
-                 
-                 if (type != CODE_TYPE_CONTINUOUS_TONE) snprintf(buf, bufLen, "OFF");
-                 else snprintf(buf, bufLen, "%u.%uHz", CTCSS_Options[code] / 10, CTCSS_Options[code] % 10);
+        }
+        case MENU_R_CTCS: case MENU_T_CTCS: {
+            uint8_t code = (settingId == MENU_R_CTCS) ? gTxVfo->pRX->Code : gTxVfo->pTX->Code;
+            uint8_t type = (settingId == MENU_R_CTCS) ? gTxVfo->pRX->CodeType : gTxVfo->pTX->CodeType;
+            if (type != CODE_TYPE_CONTINUOUS_TONE) strcpy(buf, "OFF");
+            else {
+                NUMBER_ToDecimal(buf, CTCSS_Options[code] / 10, 3, false); strcat(buf, ".");
+                uint8_t l = strlen(buf); buf[l] = (CTCSS_Options[code] % 10) + '0'; buf[l+1] = '\0'; strcat(buf, "Hz");
             }
             break;
+        }
         case MENU_SCR:
-             if (gSetting_ScrambleEnable && gTxVfo->SCRAMBLING_TYPE > 0 && gTxVfo->SCRAMBLING_TYPE <= 10) 
-                snprintf(buf, bufLen, "%s", gSubMenu_SCRAMBLER[gTxVfo->SCRAMBLING_TYPE]);
-             else snprintf(buf, bufLen, "OFF");
-             break;
-        case MENU_COMPAND:
-             snprintf(buf, bufLen, "%s", gSubMenu_RX_TX[gTxVfo->Compander]);
-             break;
-        #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-        case MENU_TX_LOCK:
-             snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_F_LOCK == F_LOCK_ALL]); // Simplified
-             break;
-        case MENU_350EN:
-             snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_350EN]);
-             break;
-        #endif
-
-        // --- System ---
-        case MENU_TOT:
-             snprintf(buf, bufLen, "%ds", (gEeprom.TX_TIMEOUT_TIMER + 1) * 15);
-             break;
+            if (gSetting_ScrambleEnable && gTxVfo->SCRAMBLING_TYPE > 0 && gTxVfo->SCRAMBLING_TYPE <= 10) 
+                 strcpy(buf, gSubMenu_SCRAMBLER[gTxVfo->SCRAMBLING_TYPE]);
+            else strcpy(buf, "OFF");
+            break;
+        case MENU_COMPAND: strcpy(buf, gSubMenu_RX_TX[gTxVfo->Compander]); break;
+        case MENU_TOT: NUMBER_ToDecimal(buf, (gEeprom.TX_TIMEOUT_TIMER + 1) * 15, 3, false); strcat(buf, "s"); break;
         case MENU_AUTOLK:
-             if (gEeprom.AUTO_KEYPAD_LOCK) snprintf(buf, bufLen, "%ds", gEeprom.AUTO_KEYPAD_LOCK * 15);
-             else snprintf(buf, bufLen, "OFF");
-             break;
+            if (gEeprom.AUTO_KEYPAD_LOCK) { NUMBER_ToDecimal(buf, gEeprom.AUTO_KEYPAD_LOCK * 15, 3, false); strcat(buf, "s"); }
+            else strcpy(buf, "OFF");
+            break;
         case MENU_TDR:
-             // Logic repeated from original
-             if (gEeprom.CROSS_BAND_RX_TX == CROSS_BAND_OFF && gEeprom.DUAL_WATCH == DUAL_WATCH_OFF) snprintf(buf, bufLen, "OFF");
-             else if (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF) snprintf(buf, bufLen, "CROSS");
-             else snprintf(buf, bufLen, "CHAN %c", gEeprom.DUAL_WATCH == DUAL_WATCH_CHAN_A ? 'A' : 'B');
-             break;
+            if (gEeprom.CROSS_BAND_RX_TX == CROSS_BAND_OFF && gEeprom.DUAL_WATCH == DUAL_WATCH_OFF) strcpy(buf, "OFF");
+            else if (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF) strcpy(buf, "CROSS");
+            else { strcpy(buf, "CHAN  "); buf[5] = (gEeprom.DUAL_WATCH == DUAL_WATCH_CHAN_A ? 'A' : 'B'); }
+            break;
         case MENU_SAVE:
-             if (gEeprom.BATTERY_SAVE == 0) snprintf(buf, bufLen, "OFF");
-             else snprintf(buf, bufLen, "1:%d", gEeprom.BATTERY_SAVE);
-             break;
-        case MENU_BATTYP:
-             snprintf(buf, bufLen, "%s", gSubMenu_BATTYP[gEeprom.BATTERY_TYPE]);
-             break;
-        case MENU_SET_NAV:
-             {
-                 const char* modes[] = {"K1 (L/R)", "K5 (U/D)"};
-                 snprintf(buf, bufLen, "%s", modes[gEeprom.SET_NAV]);
-             }
-             break;
-
-        // --- DTMF ---
-         case MENU_UPCODE:
-            snprintf(buf, bufLen, "%.8s", gEeprom.DTMF_UP_CODE);
+            if (gEeprom.BATTERY_SAVE == 0) strcpy(buf, "OFF");
+            else { strcpy(buf, "1:"); NUMBER_ToDecimal(buf + 2, gEeprom.BATTERY_SAVE, 1, false); }
             break;
-         case MENU_DWCODE:
-            snprintf(buf, bufLen, "%.8s", gEeprom.DTMF_DOWN_CODE);
-            break;
-         case MENU_PTT_ID:
-            snprintf(buf, bufLen, "%s", gSubMenu_PTT_ID[gTxVfo->DTMF_PTT_ID_TX_MODE]);
-            break;
-         case MENU_D_ST:
-            snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gEeprom.DTMF_SIDE_TONE]);
-            break;
-         #ifdef ENABLE_DTMF_CALLING
-         case MENU_ANI_ID:
-            snprintf(buf, bufLen, "%.8s", gEeprom.ANI_DTMF_ID);
-            break;
-         case MENU_D_RSP:
-            snprintf(buf, bufLen, "%s", gSubMenu_D_RSP[gEeprom.DTMF_DECODE_RESPONSE]);
-            break;
-         case MENU_D_HOLD:
-            snprintf(buf, bufLen, "%ds", gEeprom.DTMF_auto_reset_time);
-            break;
-         case MENU_D_PRE:
-            snprintf(buf, bufLen, "%dms", gEeprom.DTMF_PRELOAD_TIME);
-            break;
-         case MENU_D_DCD:
-            snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gTxVfo->DTMF_DECODING_ENABLE]);
-            break;
-         #endif
-         case MENU_D_LIVE_DEC:
-             snprintf(buf, bufLen, "%s", gSubMenu_OFF_ON[gSetting_live_DTMF_decoder]);
-             break;
-
-
-
-        // Custom Actions
-        #ifdef ENABLE_EEPROM_HEXDUMP
-        case MENU_MEMVIEW: // ID for MemView
-             // This logic needs to be in Action handler not UpdateValue.
-             // Wait, Settings_UpdateValue is called for changeVal (Left/Right/Select on options).
-             // Actions (Enter key on purely action items) usually handled in menu system or specialized.
-             // settings_ui.c uses generic menu system.
-             // We need to intercept the Action for this item.
-             // But existing items (e.g. Nav Layout) use changeVal for toggling.
-             // Items with M_ITEM_ACTION usually trigger something.
-             // Root menu items open submenus.
-             // Let's see how submenus are opened relative to this.
-             // Menu system handles submenu opening.
-             // For custom screen, we might need a custom callback or global handler.
-             // `changeVal` is for value modification.
-             // `action` in menu struct is null for items.
-             break;
-        #endif
-#ifdef ENABLE_PASSCODE
-        case MENU_PASSCODE:
-             {
-                 uint8_t len = Passcode_GetLength();
-                 if (len == 0) {
-                     snprintf(buf, bufLen, "OFF");
-                 } else {
-                     // Safety cap
-                     if (len > 12) len = 12;
-                     memset(buf, '*', len);
-                     buf[len] = '\0';
-                 }
-             }
-             break;
-        case MENU_PASSCODE_MAX_TRIES:
-             snprintf(buf, bufLen, "%d", Passcode_GetMaxTries());
-             break;
+         case MENU_UPCODE: strncpy(buf, gEeprom.DTMF_UP_CODE, 8); buf[8] = '\0'; break;
+         case MENU_DWCODE: strncpy(buf, gEeprom.DTMF_DOWN_CODE, 8); buf[8] = '\0'; break;
+#ifdef ENABLE_DTMF_CALLING
+         case MENU_ANI_ID: strncpy(buf, gEeprom.ANI_DTMF_ID, 8); buf[8] = '\0'; break;
+         case MENU_D_RSP: strcpy(buf, gSubMenu_D_RSP[gEeprom.DTMF_DECODE_RESPONSE]); break;
+         case MENU_D_HOLD: NUMBER_ToDecimal(buf, gEeprom.DTMF_auto_reset_time, 2, false); strcat(buf, "s"); break;
+         case MENU_D_PRE: NUMBER_ToDecimal(buf, gEeprom.DTMF_PRELOAD_TIME, 4, false); strcat(buf, "ms"); break;
+         case MENU_D_DCD: strcpy(buf, gSubMenu_OFF_ON[gTxVfo->DTMF_DECODING_ENABLE]); break;
 #endif
+#ifdef ENABLE_PASSCODE
+        case MENU_PASSCODE: {
+            uint8_t len = Passcode_GetLength();
+            if (len == 0) strcpy(buf, "OFF");
+            else { if (len > 12) len = 12; memset(buf, '*', len); buf[len] = '\0'; }
+            break;
+        }
+        case MENU_PASSCODE_MAX_TRIES: NUMBER_ToDecimal(buf, Passcode_GetMaxTries(), 2, false); break;
+#endif
+        case MENU_BCL: strcpy(buf, gSubMenu_OFF_ON[gTxVfo->BUSY_CHANNEL_LOCK]); break;
+        case MENU_TXP: strcpy(buf, gSubMenu_TXP[gTxVfo->OUTPUT_POWER]); break;
+        case MENU_SFT_D: strcpy(buf, gSubMenu_SFT_D[gTxVfo->TX_OFFSET_FREQUENCY_DIRECTION]); break;
+        case MENU_W_N: strcpy(buf, gSubMenu_W_N[gTxVfo->CHANNEL_BANDWIDTH]); break;
+        case MENU_AM: strcpy(buf, gModulationStr[gTxVfo->Modulation]); break;
+        case MENU_LIVESEEK: strcpy(buf, gSubMenu_LiveSeek[gEeprom.LIVESEEK_MODE]); break;
+        case MENU_SET_NAV: strcpy(buf, gEeprom.SET_NAV ? "K5 (U/D)" : "K1 (L/R)"); break;
+        case MENU_PTT_ID: strcpy(buf, gSubMenu_PTT_ID[gTxVfo->DTMF_PTT_ID_TX_MODE]); break;
+        case MENU_SET_INV: strcpy(buf, gSetting_set_inv ? "ON" : "OFF"); break;
+        case MENU_SET_CTR: NUMBER_ToDecimal(buf, gSetting_set_ctr, 2, false); break;
     }
 }
 
 static void Settings_UpdateValue(uint8_t settingId, bool up) {
-    switch (settingId) {
-        // --- Sound ---
-        case MENU_SET_AUD:
-            INC_DEC(gSetting_set_audio, 0, 4, up);
-            RADIO_SetModulation(gRxVfo->Modulation);
-            break;
-        case MENU_SQL:
-            INC_DEC(gEeprom.SQUELCH_LEVEL, 0, 9, up);
-            break;
-        case MENU_BEEP:
-             gEeprom.BEEP_CONTROL = !gEeprom.BEEP_CONTROL;
-             break;
-        case MENU_ROGER:
-             INC_DEC(gEeprom.ROGER, 0, ROGER_MODE_MDC, up);
-             break;
-        case MENU_VOX:
-            if (up) {
-                if (!gEeprom.VOX_SWITCH) { gEeprom.VOX_SWITCH = true; gEeprom.VOX_LEVEL = 1; }
-                else if (gEeprom.VOX_LEVEL < 9) gEeprom.VOX_LEVEL++;
-                else gEeprom.VOX_SWITCH = false;
-            } else {
-                if (!gEeprom.VOX_SWITCH) { gEeprom.VOX_SWITCH = true; gEeprom.VOX_LEVEL = 9; }
-                else if (gEeprom.VOX_LEVEL > 1) gEeprom.VOX_LEVEL--;
-                else gEeprom.VOX_SWITCH = false;
+    const SettingConfig *conf = GetSettingConfig(settingId);
+    if (conf) {
+        uint8_t *val = (uint8_t *)conf->ptr;
+        INC_DEC(*val, conf->min, conf->max, up);
+        // Post-update side effects
+        if (settingId == MENU_ABR_MAX && gEeprom.BACKLIGHT_MIN >= gEeprom.BACKLIGHT_MAX) gEeprom.BACKLIGHT_MIN = gEeprom.BACKLIGHT_MAX - 1;
+        if (settingId == MENU_ABR_MIN && gEeprom.BACKLIGHT_MAX <= gEeprom.BACKLIGHT_MIN) gEeprom.BACKLIGHT_MAX = gEeprom.BACKLIGHT_MIN + 1;
+        if (settingId == MENU_SET_CTR || settingId == MENU_SET_INV) ST7565_ContrastAndInv();
+    } else {
+        switch (settingId) {
+            case MENU_VOX:
+                if (!gEeprom.VOX_SWITCH) { gEeprom.VOX_SWITCH = true; gEeprom.VOX_LEVEL = up ? 1 : 9; }
+                else {
+                    if (up) { if (gEeprom.VOX_LEVEL < 9) gEeprom.VOX_LEVEL++; else gEeprom.VOX_SWITCH = false; }
+                    else { if (gEeprom.VOX_LEVEL > 1) gEeprom.VOX_LEVEL--; else gEeprom.VOX_SWITCH = false; }
+                }
+                break;
+            case MENU_MIC: INC_DEC(gEeprom.MIC_SENSITIVITY, 0, 4, up); break;
+            case MENU_ABR: INC_DEC(gEeprom.BACKLIGHT_TIME, 0, 61, up); if (gEeprom.BACKLIGHT_TIME < 61) BACKLIGHT_TurnOn(); break;
+            case MENU_F1SHRT: case MENU_F1LONG: case MENU_F2SHRT: case MENU_F2LONG: case MENU_MLONG: {
+                uint8_t *v = (settingId == MENU_F1SHRT) ? &gEeprom.KEY_1_SHORT_PRESS_ACTION :
+                             (settingId == MENU_F1LONG) ? &gEeprom.KEY_1_LONG_PRESS_ACTION :
+                             (settingId == MENU_F2SHRT) ? &gEeprom.KEY_2_SHORT_PRESS_ACTION :
+                             (settingId == MENU_F2LONG) ? &gEeprom.KEY_2_LONG_PRESS_ACTION : &gEeprom.KEY_M_LONG_PRESS_ACTION;
+                int idx = 0;
+                for(int i=0; i<gSubMenu_SIDEFUNCTIONS_size; i++) if(gSubMenu_SIDEFUNCTIONS[i].id == *v) { idx = i; break; }
+                INC_DEC(idx, 0, gSubMenu_SIDEFUNCTIONS_size - 1, up);
+                *v = gSubMenu_SIDEFUNCTIONS[idx].id;
+                break;
             }
-            break;
-        case MENU_MIC:
-            INC_DEC(gEeprom.MIC_SENSITIVITY, 0, 4, up);
-            break;
-        #ifdef ENABLE_MIC_BAR
-        case MENU_MIC_BAR:
-            gSetting_mic_bar = !gSetting_mic_bar;
-            break;
-        #endif
-        #ifdef ENABLE_VOICE
-        case MENU_VOICE:
-             INC_DEC(gEeprom.VOICE_PROMPT, 0, 2, up);
-             break;
-        #endif
-        case MENU_STE:
-             gEeprom.TAIL_TONE_ELIMINATION = !gEeprom.TAIL_TONE_ELIMINATION;
-             break;
-        case MENU_RP_STE:
-             INC_DEC(gEeprom.REPEATER_TAIL_TONE_ELIMINATION, 0, 10, up); // 0-10
-             break;
-        #ifdef ENABLE_ALARM
-        case MENU_AL_MOD:
-             gEeprom.ALARM_MODE = !gEeprom.ALARM_MODE;
-             break;
-        #endif
-
-        // --- Display ---
-        case MENU_ABR:
-             INC_DEC(gEeprom.BACKLIGHT_TIME, 0, 61, up);
-             if (gEeprom.BACKLIGHT_TIME < 61) BACKLIGHT_TurnOn();
-             break;
-        case MENU_ABR_MAX:
-             INC_DEC(gEeprom.BACKLIGHT_MAX, 1, 10, up);
-             if (gEeprom.BACKLIGHT_MIN >= gEeprom.BACKLIGHT_MAX) gEeprom.BACKLIGHT_MIN = gEeprom.BACKLIGHT_MAX - 1;
-             BACKLIGHT_TurnOn();
-             break;
-        case MENU_ABR_MIN:
-             INC_DEC(gEeprom.BACKLIGHT_MIN, 0, 9, up);
-             if (gEeprom.BACKLIGHT_MIN >= gEeprom.BACKLIGHT_MAX) gEeprom.BACKLIGHT_MAX = gEeprom.BACKLIGHT_MIN + 1;
-             BACKLIGHT_TurnOn();
-             break;
-        case MENU_MDF:
-             INC_DEC(gEeprom.CHANNEL_DISPLAY_MODE, 0, 3, up);
-             break;
-        case MENU_BAT_TXT:
-             INC_DEC(gSetting_battery_text, 0, 7, up); // 0-7
-             break;
-        case MENU_PONMSG:
-             INC_DEC(gEeprom.POWER_ON_DISPLAY_MODE, 0, ARRAY_SIZE(gSubMenu_PONMSG)-1, up);
-             break;
-        case MENU_ABR_ON_TX_RX:
-             INC_DEC(gSetting_backlight_on_tx_rx, 0, 3, up);
-             break;
-        #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
-        case MENU_SET_CTR:
-             INC_DEC(gSetting_set_ctr, 0, 15, up);
-             ST7565_ContrastAndInv();
-             break;
-        case MENU_SET_INV:
-             gSetting_set_inv = !gSetting_set_inv;
-             ST7565_ContrastAndInv();
-             break;
-        case MENU_SET_LCK:
-             gSetting_set_lck = !gSetting_set_lck;
-             break;
-        case MENU_SET_TMR:
-             gSetting_set_tmr = !gSetting_set_tmr;
-             break;
-        #ifdef ENABLE_NARROWER_BW_FILTER
-        case MENU_SET_NFM:
-             gSetting_set_nfm = !gSetting_set_nfm;
-             break;
-        #endif
-        case MENU_SET_PWR:
-             INC_DEC(gSetting_set_pwr, 0, ARRAY_SIZE(gSubMenu_SET_PWR) - 1, up);
-             break;
-        case MENU_SET_PTT:
-             INC_DEC(gSetting_set_ptt, 0, ARRAY_SIZE(gSubMenu_SET_PTT) - 1, up);
-             gSetting_set_ptt_session = gSetting_set_ptt;
-             break;
-        case MENU_SET_TOT:
-             INC_DEC(gSetting_set_tot, 0, ARRAY_SIZE(gSubMenu_SET_TOT) - 1, up);
-             break;
-        case MENU_SET_EOT:
-             INC_DEC(gSetting_set_eot, 0, ARRAY_SIZE(gSubMenu_SET_TOT) - 1, up);
-             break;
-        #endif
-        #ifdef ENABLE_DEEP_SLEEP_MODE
-        case MENU_SET_OFF:
-             INC_DEC(gSetting_set_off, 0, 120, up);
-             break;
-        #endif
-        case MENU_F1SHRT:
-        case MENU_F1LONG:
-        case MENU_F2SHRT:
-        case MENU_F2LONG:
-        case MENU_MLONG:
-             {
-                 uint8_t *val = NULL;
-                 if (settingId == MENU_F1SHRT)      val = &gEeprom.KEY_1_SHORT_PRESS_ACTION;
-                 else if (settingId == MENU_F1LONG) val = &gEeprom.KEY_1_LONG_PRESS_ACTION;
-                 else if (settingId == MENU_F2SHRT) val = &gEeprom.KEY_2_SHORT_PRESS_ACTION;
-                 else if (settingId == MENU_F2LONG) val = &gEeprom.KEY_2_LONG_PRESS_ACTION;
-                 else if (settingId == MENU_MLONG)  val = &gEeprom.KEY_M_LONG_PRESS_ACTION;
-                 
-                 if (val) {
-                     uint8_t currentId = *val;
-                     int idx = 0;
-                     for(int i=0; i<gSubMenu_SIDEFUNCTIONS_size; i++) {
-                         if(gSubMenu_SIDEFUNCTIONS[i].id == currentId) {
-                             idx = i;
-                             break;
-                         }
-                     }
-                     INC_DEC(idx, 0, gSubMenu_SIDEFUNCTIONS_size - 1, up);
-                     *val = gSubMenu_SIDEFUNCTIONS[idx].id;
-                 }
-             }
-             break;
-
-        // --- Radio ---
-        case MENU_STEP:
-             {
-                 uint8_t idx = gTxVfo->STEP_SETTING;
-                 INC_DEC(idx, 0, STEP_N_ELEM - 1, up);
-                 gTxVfo->STEP_SETTING = idx;
-             }
-             break;
-        case MENU_W_N:
-             INC_DEC(gTxVfo->CHANNEL_BANDWIDTH, 0, 1, up);
-             break;
-        case MENU_TXP:
-             INC_DEC(gTxVfo->OUTPUT_POWER, 0, 2, up);
-             break;
-        case MENU_SFT_D:
-             INC_DEC(gTxVfo->TX_OFFSET_FREQUENCY_DIRECTION, 0, 2, up);
-             break;
-        case MENU_OFFSET:
-             if (up) gTxVfo->TX_OFFSET_FREQUENCY += 10000;
-             else if (gTxVfo->TX_OFFSET_FREQUENCY >= 10000) gTxVfo->TX_OFFSET_FREQUENCY -= 10000;
-             break;
-        case MENU_BCL:
-             gTxVfo->BUSY_CHANNEL_LOCK = !gTxVfo->BUSY_CHANNEL_LOCK;
-             break;
-        case MENU_AM:
-             INC_DEC(gTxVfo->Modulation, 0, MODULATION_UKNOWN - 1, up);
-             break;
-        case MENU_SC_REV:
-             INC_DEC(gEeprom.SCAN_RESUME_MODE, 0, 2, up);
-             break;
-        case MENU_COMPAND:
-             INC_DEC(gTxVfo->Compander, 0, 3, up);
-             break;
-#ifdef ENABLE_SCRAMBLER
-        case MENU_SCR:
-             INC_DEC(gTxVfo->SCRAMBLING_TYPE, 0, 10, up);
-             gSetting_ScrambleEnable = (gTxVfo->SCRAMBLING_TYPE > 0);
-             if (gTxVfo->Modulation == MODULATION_FM) {
-                 if (gSetting_ScrambleEnable)
-                     BK4819_EnableScramble(gTxVfo->SCRAMBLING_TYPE - 1);
-                 else
-                     BK4819_DisableScramble();
-             }
-             break;
+            case MENU_STEP: INC_DEC(gTxVfo->STEP_SETTING, 0, STEP_N_ELEM - 1, up); break;
+            case MENU_OFFSET: if (up) gTxVfo->TX_OFFSET_FREQUENCY += 10000; else if (gTxVfo->TX_OFFSET_FREQUENCY >= 10000) gTxVfo->TX_OFFSET_FREQUENCY -= 10000; break;
+            case MENU_SCR: INC_DEC(gTxVfo->SCRAMBLING_TYPE, 0, 10, up); gSetting_ScrambleEnable = (gTxVfo->SCRAMBLING_TYPE > 0); break;
+            case MENU_R_DCS: case MENU_T_DCS: {
+                uint8_t *t = (settingId == MENU_R_DCS) ? &gTxVfo->pRX->CodeType : &gTxVfo->pTX->CodeType;
+                uint8_t *c = (settingId == MENU_R_DCS) ? &gTxVfo->pRX->Code : &gTxVfo->pTX->Code;
+                if (*t == CODE_TYPE_OFF) { if(up) { *t = CODE_TYPE_DIGITAL; *c = 0; } else { *t = CODE_TYPE_REVERSE_DIGITAL; *c = 103; } }
+                else if (*t == CODE_TYPE_DIGITAL) { if (up) { if (*c < 103) (*c)++; else *t = CODE_TYPE_REVERSE_DIGITAL, *c = 0; } else { if (*c > 0) (*c)--; else *t = CODE_TYPE_OFF; } }
+                else if (*t == CODE_TYPE_REVERSE_DIGITAL) { if (up) { if (*c < 103) (*c)++; else *t = CODE_TYPE_OFF; } else { if (*c > 0) (*c)--; else *t = CODE_TYPE_DIGITAL, *c = 103; } }
+                else { *t = CODE_TYPE_DIGITAL; *c = 0; }
+                break;
+            }
+            case MENU_R_CTCS: case MENU_T_CTCS: {
+                uint8_t *t = (settingId == MENU_R_CTCS) ? &gTxVfo->pRX->CodeType : &gTxVfo->pTX->CodeType;
+                uint8_t *c = (settingId == MENU_R_CTCS) ? &gTxVfo->pRX->Code : &gTxVfo->pTX->Code;
+                if (*t != CODE_TYPE_CONTINUOUS_TONE) { if(up) { *t = CODE_TYPE_CONTINUOUS_TONE; *c = 0; } else { *t = CODE_TYPE_CONTINUOUS_TONE; *c = 49; } }
+                else { if (up) { if (*c < 49) (*c)++; else *t = CODE_TYPE_OFF; } else { if (*c > 0) (*c)--; else *t = CODE_TYPE_OFF; } }
+                break;
+            }
+            case MENU_TDR: {
+                uint8_t s = (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF) ? 3 : (gEeprom.DUAL_WATCH == DUAL_WATCH_CHAN_B) ? 2 : (gEeprom.DUAL_WATCH == DUAL_WATCH_CHAN_A) ? 1 : 0;
+                INC_DEC(s, 0, 3, up);
+                gEeprom.CROSS_BAND_RX_TX = CROSS_BAND_OFF; gEeprom.DUAL_WATCH = DUAL_WATCH_OFF;
+                if (s == 1) gEeprom.DUAL_WATCH = DUAL_WATCH_CHAN_A; else if (s == 2) gEeprom.DUAL_WATCH = DUAL_WATCH_CHAN_B; else if (s == 3) gEeprom.CROSS_BAND_RX_TX = CROSS_BAND_CHAN_B;
+                break;
+            }
+#ifdef ENABLE_DTMF_CALLING
+            case MENU_D_HOLD: INC_DEC(gEeprom.DTMF_auto_reset_time, 5, 60, up); break;
+            case MENU_D_PRE: { uint16_t v = gEeprom.DTMF_PRELOAD_TIME / 10; INC_DEC(v, 3, 99, up); gEeprom.DTMF_PRELOAD_TIME = v * 10; break; }
 #endif
-
-        case MENU_R_DCS:
-        case MENU_T_DCS:
-             {
-                 uint8_t *type = (settingId == MENU_R_DCS) ? &gTxVfo->pRX->CodeType : &gTxVfo->pTX->CodeType;
-                 uint8_t *code = (settingId == MENU_R_DCS) ? &gTxVfo->pRX->Code : &gTxVfo->pTX->Code;
-                 
-                 // DCS Cycle: OFF -> DxxxN -> DxxxI -> OFF
-                 if (*type == CODE_TYPE_OFF) {
-                     if(up) { *type = CODE_TYPE_DIGITAL; *code = 0; }
-                     else   { *type = CODE_TYPE_REVERSE_DIGITAL; *code = 103; }
-                 } else if (*type == CODE_TYPE_DIGITAL) {
-                     if (up) {
-                         if (*code < 103) (*code)++;
-                         else { *type = CODE_TYPE_REVERSE_DIGITAL; *code = 0; }
-                     } else {
-                         if (*code > 0) (*code)--;
-                         else { *type = CODE_TYPE_OFF; }
-                     }
-                 } else if (*type == CODE_TYPE_REVERSE_DIGITAL) {
-                     if (up) {
-                         if (*code < 103) (*code)++;
-                         else { *type = CODE_TYPE_OFF; }
-                     } else {
-                         if (*code > 0) (*code)--;
-                         else { *type = CODE_TYPE_DIGITAL; *code = 103; }
-                     }
-                 } else {
-                     // If currently CTCSS, switch to DCS
-                     *type = CODE_TYPE_DIGITAL; *code = 0;
-                 }
-                 
-                 // Apply to hardware if needed (saving happens at end)
-             }
-             break;
-        case MENU_R_CTCS:
-        case MENU_T_CTCS:
-             {
-                 uint8_t *type = (settingId == MENU_R_CTCS) ? &gTxVfo->pRX->CodeType : &gTxVfo->pTX->CodeType;
-                 uint8_t *code = (settingId == MENU_R_CTCS) ? &gTxVfo->pRX->Code : &gTxVfo->pTX->Code;
-
-                 // CTCSS Cycle: OFF -> 67.0 -> ... -> 254.1 -> OFF
-                 if (*type != CODE_TYPE_CONTINUOUS_TONE) {
-                     if(up) { *type = CODE_TYPE_CONTINUOUS_TONE; *code = 0; }
-                     else   { *type = CODE_TYPE_CONTINUOUS_TONE; *code = 49; }
-                 } else {
-                     if (up) {
-                         if (*code < 49) (*code)++;
-                         else *type = CODE_TYPE_OFF;
-                     } else {
-                         if (*code > 0) (*code)--;
-                         else *type = CODE_TYPE_OFF;
-                     }
-                 }
-             }
-             break;
-
-        // --- System ---
-        case MENU_TOT:
-             INC_DEC(gEeprom.TX_TIMEOUT_TIMER, 0, 11, up);
-             break;
-        case MENU_AUTOLK:
-             INC_DEC(gEeprom.AUTO_KEYPAD_LOCK, 0, 40, up);
-             break;
-        case MENU_TDR:
-              {
-                  uint8_t state = 0;
-                  if (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF) state = 3;
-                  else if (gEeprom.DUAL_WATCH == DUAL_WATCH_CHAN_B) state = 2;
-                  else if (gEeprom.DUAL_WATCH == DUAL_WATCH_CHAN_A) state = 1;
-                  else state = 0;
-                  INC_DEC(state, 0, 3, up);
-                  gEeprom.CROSS_BAND_RX_TX = CROSS_BAND_OFF;
-                  gEeprom.DUAL_WATCH = DUAL_WATCH_OFF;
-                  if (state == 1) gEeprom.DUAL_WATCH = DUAL_WATCH_CHAN_A;
-                  else if (state == 2) gEeprom.DUAL_WATCH = DUAL_WATCH_CHAN_B;
-                  else if (state == 3) gEeprom.CROSS_BAND_RX_TX = CROSS_BAND_CHAN_B; 
-              }
-              break;
-         case MENU_SAVE:
-              INC_DEC(gEeprom.BATTERY_SAVE, 0, 4, up);
-              break;
-         case MENU_BATTYP:
-              INC_DEC(gEeprom.BATTERY_TYPE, 0, 4, up);
-              break;
-         case MENU_SET_NAV:
-              gEeprom.SET_NAV = !gEeprom.SET_NAV;
-              break;
-
-        // --- DTMF ---
-         case MENU_PTT_ID:
-              INC_DEC(gTxVfo->DTMF_PTT_ID_TX_MODE, 0, ARRAY_SIZE(gSubMenu_PTT_ID)-1, up);
-              break;
-         case MENU_D_ST:
-              gEeprom.DTMF_SIDE_TONE = !gEeprom.DTMF_SIDE_TONE;
-              break;
-         #ifdef ENABLE_DTMF_CALLING
-         case MENU_D_RSP:
-              INC_DEC(gEeprom.DTMF_DECODE_RESPONSE, 0, ARRAY_SIZE(gSubMenu_D_RSP)-1, up);
-              break;
-         case MENU_D_HOLD:
-              INC_DEC(gEeprom.DTMF_auto_reset_time, 5, 60, up);
-              break;
-         case MENU_D_PRE:
-              {
-                 uint16_t val = gEeprom.DTMF_PRELOAD_TIME / 10;
-                 INC_DEC(val, 3, 99, up);
-                 gEeprom.DTMF_PRELOAD_TIME = val * 10;
-              }
-              break;
-        case MENU_D_DCD:
-              gTxVfo->DTMF_DECODING_ENABLE = !gTxVfo->DTMF_DECODING_ENABLE;
-              break;
-         #endif
-         case MENU_D_LIVE_DEC:
-              gSetting_live_DTMF_decoder = !gSetting_live_DTMF_decoder;
-              break;
-
 #ifdef ENABLE_PASSCODE
-         case MENU_PASSCODE_MAX_TRIES:
-               {
-                   uint8_t val = Passcode_GetMaxTries();
-                   INC_DEC(val, 3, 50, up);
-                   Passcode_SetMaxTries(val);
-               }
-               break;
+            case MENU_PASSCODE_MAX_TRIES: { uint8_t v = Passcode_GetMaxTries(); INC_DEC(v, 3, 50, up); Passcode_SetMaxTries(v); break; }
 #endif
-
-        default:
-             break;
+            case MENU_BCL: gTxVfo->BUSY_CHANNEL_LOCK = !gTxVfo->BUSY_CHANNEL_LOCK; break;
+            case MENU_TXP: INC_DEC(gTxVfo->OUTPUT_POWER, 0, 2, up); break;
+            case MENU_SFT_D: INC_DEC(gTxVfo->TX_OFFSET_FREQUENCY_DIRECTION, 0, 2, up); break;
+            case MENU_W_N: INC_DEC(gTxVfo->CHANNEL_BANDWIDTH, 0, 1, up); break;
+            case MENU_AM: INC_DEC(gTxVfo->Modulation, 0, MODULATION_UKNOWN-1, up); break;
+            case MENU_LIVESEEK: INC_DEC(gEeprom.LIVESEEK_MODE, 0, 2, up); break;
+            case MENU_SET_NAV: gEeprom.SET_NAV = !gEeprom.SET_NAV; break;
+            case MENU_PTT_ID: INC_DEC(gTxVfo->DTMF_PTT_ID_TX_MODE, 0, 3, up); break;
+        }
     }
     
     // Live Save
@@ -781,6 +412,9 @@ static const MenuItem radioItems[] = {
     {"Compander", MENU_COMPAND, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
 #ifdef ENABLE_SCRAMBLER
     {"Scrambler", MENU_SCR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+#endif
+#ifdef ENABLE_LIVESEEK
+    {"LiveSeek", MENU_LIVESEEK, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
 #endif
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     {"Tx Lock", MENU_TX_LOCK, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},

@@ -1,8 +1,7 @@
 #include "freqinput.h"
 #include "ag_graphics.h"
 #include "../drivers/bsp/st7565.h"
-#include "../frequencies.h"
-#include "../external/printf/printf.h"
+#include "features/radio/frequencies.h"
 #include "../apps/settings/settings.h"
 #include <string.h>
 
@@ -144,9 +143,9 @@ void FreqInput_Render(void) {
         if (i == cursor_pos) {
             // Draw inverted (cursor position)
             AG_FillRect(x - 1, y - 10, digit_w, 12, C_FILL);
-            AG_PrintMediumEx(x, y, POS_L, C_CLEAR, "%s", ch);
+            AG_PrintMediumEx(x, y, POS_L, C_CLEAR, ch);
         } else {
-            AG_PrintMediumEx(x, y, POS_L, C_FILL, "%s", ch);
+            AG_PrintMediumEx(x, y, POS_L, C_FILL, ch);
         }
         
         x += digit_w;
@@ -165,7 +164,7 @@ void FreqInput_Render(void) {
     
     // Row 1: Navigation and digits
     AG_FillRect(2, HINT_Y, 14, 7, C_FILL);
-    AG_PrintSmallEx(9, HINT_Y + 5, POS_C, C_INVERT, "%s", navLabel);
+    AG_PrintSmallEx(9, HINT_Y + 5, POS_C, C_INVERT, navLabel);
     AG_PrintSmall(18, HINT_Y + 5, "Move");
     
     AG_FillRect(54, HINT_Y, 18, 7, C_FILL);

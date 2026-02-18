@@ -25,7 +25,7 @@
 #include "drivers/bsp/system.h"
 #include "apps/boot/boot.h"
 #include "core/misc.h"
-#include "radio.h"
+#include "features/radio/radio.h"
 #include "apps/settings/settings.h"
 #include "ui/menu.h"
 #include "ui/ui.h"

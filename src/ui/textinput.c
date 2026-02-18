@@ -2,8 +2,8 @@
 #include "ui/textinput.h"
 #include "ui/ag_graphics.h"
 #include "drivers/bsp/st7565.h"
-#include "external/printf/printf.h"
 #include "apps/settings/settings.h"
+#include "helper.h"
 
 // State
 static char *gTextInputBuffer = NULL;
@@ -368,8 +368,12 @@ void TextInput_Render(void) {
         case CHARSET_NUMBERS: charsetName = "123"; break;
         case CHARSET_SYMBOLS: charsetName = "#@$"; break;
     }
-    AG_PrintSmall(2, HEADER_Y, "%s", charsetName);
-    AG_PrintSmallEx(LCD_WIDTH - 2, HEADER_Y, POS_R, C_FILL, "%u/%u", charCount, gTextInputMaxLen);
+    AG_PrintSmall(2, HEADER_Y, charsetName);
+    char countBuf[10];
+    NUMBER_ToDecimal(countBuf, charCount, 1, false);
+    strcat(countBuf, "/");
+    NUMBER_ToDecimal(countBuf + strlen(countBuf), gTextInputMaxLen, 1, false);
+    AG_PrintSmallEx(LCD_WIDTH - 2, HEADER_Y, POS_R, C_FILL, countBuf);
 
 
 
@@ -378,7 +382,8 @@ void TextInput_Render(void) {
 
     // Input text
     for (size_t i = 0; i < charCount; i++) {
-        AG_PrintMedium(4 + i * CHAR_W, INPUT_Y + 8, "%c", gTextInputBuffer[i]);
+        char ch_buf[2] = {gTextInputBuffer[i], 0};
+        AG_PrintMedium(4 + i * CHAR_W, INPUT_Y + 8, ch_buf);
     }
 
     // Cursor blink (Time based)
@@ -404,14 +409,15 @@ void TextInput_Render(void) {
 
             // Key number in inverted box
             AG_FillRect(xPos, yPos, 7, 6, C_FILL);
-            AG_PrintSmallEx(xPos + 3, yPos + 5, POS_C, C_INVERT, "%u", keyIdx);
+            char key_buf[2] = {'0' + keyIdx, 0};
+            AG_PrintSmallEx(xPos + 3, yPos + 5, POS_C, C_INVERT, key_buf);
 
             // Characters preview (max 4 chars)
             const char *chars = currentSet[keyIdx];
             char preview[5];
             strncpy(preview, chars, 4);
             preview[4] = '\0';
-            AG_PrintSmall(xPos + 9, yPos + 5, "%s", preview);
+            AG_PrintSmall(xPos + 9, yPos + 5, preview);
         }
     }
 
@@ -429,12 +435,12 @@ void TextInput_Render(void) {
         case CHARSET_NUMBERS: modeName = "SYM"; break;
         case CHARSET_SYMBOLS: modeName = "ABC"; break;
     }
-    AG_PrintSmall(11, BOTTOM_Y + 4, "%s", modeName);
+    AG_PrintSmall(11, BOTTOM_Y + 4, modeName);
 
     // 0 = Space
     AG_FillRect(44, BOTTOM_Y, 7, 6, C_FILL);
     AG_PrintSmallEx(47, BOTTOM_Y + 5, POS_C, C_INVERT, "0");
-    AG_PrintSmall(53, BOTTOM_Y + 4, "%s", currentSet[0]);
+    AG_PrintSmall(53, BOTTOM_Y + 4, currentSet[0]);
 
     // F = Case
     AG_FillRect(86, BOTTOM_Y, 7, 6, C_FILL);

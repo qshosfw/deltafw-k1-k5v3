@@ -18,16 +18,16 @@
 
 #include <string.h>
 
-#include "features/action.h"
+#include "features/action/action.h"
 #include "apps/fm/fm.h"
-#include "features/generic.h"
-#include "audio.h"
+#include "features/generic/generic.h"
+#include "features/audio/audio.h"
 #include "drivers/bsp/bk1080.h"
 #include "drivers/bsp/bk4819.h"
-#include "features/storage.h"
+#include "features/storage/storage.h"
 #include "drivers/bsp/py25q16.h"
 #include "drivers/bsp/gpio.h"
-#include "functions.h"
+#include "features/radio/functions.h"
 #include "core/misc.h"
 #include "apps/settings/settings.h"
 #include "ui/inputbox.h"

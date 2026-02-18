@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.3.1"
+version = "1.4.0"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -22,7 +22,7 @@ compiler = "arm-none-eabi-gcc"
 
 [presets.Fusion]
 description = "🚀 Packed with features, memory intensive"
-options = { EDITION_STRING = "Fusion", FMRADIO = false, VOX = false, AIRCOPY = false }
+options = { EDITION_STRING = "Fusion", FMRADIO = false, VOX = false, AIRCOPY = false, LIVESEEK = true, SERIAL_SCREENCAST = false }
 
 [presets.Custom]
 description = "✨ Balanced build for daily use"
@@ -128,6 +128,7 @@ APP_BREAKOUT_GAME = false
 CW_KEYER = true
 DTMF_CALLING = false
 RESCUE_OPERATIONS = false
+LIVESEEK = true
 REGA = false
 
 # 🔌 UART Commands
@@ -144,7 +145,7 @@ FIRMWARE_DEBUG_LOGGING = false
 IDENTIFIER = true
 SWD = false
 CRYPTO = true
-STORAGE_ENCRYPTION = true
+STORAGE_ENCRYPTION = false ## Highly experimental, unreliable, CAN CORRUPT VFOS & SETTINGS!
 PASSCODE = true
 TRNG_SENSORS = true
 EEPROM_HEXDUMP = true

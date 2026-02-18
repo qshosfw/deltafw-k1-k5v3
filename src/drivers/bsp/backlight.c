@@ -23,11 +23,10 @@
 #include "drivers/bsp/gpio.h"
 #include "drivers/bsp/systick.h"
 #include "apps/settings/settings.h"
-#include "external/printf/printf.h"
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     #include "drivers/bsp/system.h"
-    #include "audio.h"
+    #include "features/audio/audio.h"
     #include "core/misc.h"
 #endif
 

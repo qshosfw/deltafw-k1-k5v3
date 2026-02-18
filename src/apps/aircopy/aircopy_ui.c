@@ -20,9 +20,8 @@
 
 #include "apps/aircopy/aircopy.h"
 #include "drivers/bsp/st7565.h"
-#include "external/printf/printf.h"
 #include "core/misc.h"
-#include "radio.h"
+#include "features/radio/radio.h"
 #include "apps/aircopy/aircopy_ui.h"
 #include "ui/helper.h"
 #include "ui/inputbox.h"
@@ -56,7 +55,7 @@ void UI_DisplayAircopy(void)
 
     if (gInputBoxIndex == 0) {
         uint32_t frequency = gRxVfo->freq_config_RX.Frequency;
-        sprintf(String, "%3u.%05u", frequency / 100000, frequency % 100000);
+        UI_PrintFrequencyEx(String, frequency, true);
         // show the remaining 2 small frequency digits
         UI_PrintStringSmallNormal(String + 7, 97, 0, 3);
         String[7] = 0;
@@ -64,7 +63,11 @@ void UI_DisplayAircopy(void)
         UI_DisplayFrequency(String, 16, 2, false);
     } else {
         const char *ascii = INPUTBOX_GetAscii();
-        sprintf(String, "%.3s.%.3s", ascii, ascii + 3);
+        // sprintf(String, "%.3s.%.3s", ascii, ascii + 3);
+        strncpy(String, ascii, 3);
+        String[3] = '.';
+        strncpy(String + 4, ascii + 3, 3);
+        String[7] = '\0';
         UI_DisplayFrequency(String, 16, 2, false);
     }
 
@@ -73,9 +76,14 @@ void UI_DisplayAircopy(void)
     percent = (gAirCopyBlockNumber * 10000) / 120;
 
     if (gAirCopyIsSendMode == 0) {
-        sprintf(String, "RCV:%02u.%02u%% E:%d", percent / 100, percent % 100, gErrorsDuringAirCopy);
+        strcpy(String, "RCV:  .  % E:     ");
+        NUMBER_ToDecimal(String + 4, percent / 100, 2, true);
+        NUMBER_ToDecimal(String + 7, percent % 100, 2, true);
+        NUMBER_ToDecimal(String + 13, gErrorsDuringAirCopy, 3, false);
     } else if (gAirCopyIsSendMode == 1) {
-        sprintf(String, "SND:%02u.%02u%%", percent / 100, percent % 100);
+        strcpy(String, "SND:  .  %");
+        NUMBER_ToDecimal(String + 4, percent / 100, 2, true);
+        NUMBER_ToDecimal(String + 7, percent % 100, 2, true);
     }
 
     // Draw gauge

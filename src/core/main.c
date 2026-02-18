@@ -19,19 +19,22 @@
 #include <stdio.h>     // NULL
 
 #ifdef ENABLE_AM_FIX
-    #include "am_fix.h"
+    #include "features/am_fix/am_fix.h"
 #endif
 
-#include "audio.h"
-#include "board.h"
+#include "features/audio/audio.h"
+#include "core/board.h"
 #include "core/misc.h"
-#include "radio.h"
+#include "features/radio/radio.h"
 #include "apps/settings/settings.h"
+#ifdef ENABLE_LIVESEEK
+    #include "apps/liveseek/liveseek.h"
+#endif
 #include "core/version.h"
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
     #ifdef ENABLE_FMRADIO
-        #include "features/action.h"
+        #include "features/action/action.h"
         #include "ui/ui.h"
     #endif
     #ifdef ENABLE_SPECTRUM
@@ -44,9 +47,9 @@
     #include "apps/scanner/chFrScanner.h"
 #endif
 
-#include "features/app.h"
-#include "features/dtmf.h"
-#include "features/cw.h"
+#include "features/app/app.h"
+#include "features/dtmf/dtmf.h"
+#include "features/cw/cw.h"
 
 #include "drivers/bsp/backlight.h"
 #include "drivers/bsp/bk4819.h"
@@ -69,7 +72,6 @@
 #include "apps/boot/welcome.h"
 #include "ui/menu.h"
 
-#include "external/printf/printf.h"
 
 void _putchar(__attribute__((unused)) char c)
 {
@@ -258,6 +260,9 @@ void Main(void)
 
         // GPIO_ClearBit(&GPIOA->DATA, GPIOA_PIN_VOICE_0);
 
+#ifdef ENABLE_LIVESEEK
+        LiveSeek_TimeSlice();
+#endif
         gUpdateStatus = true;
 
 #ifdef ENABLE_VOICE

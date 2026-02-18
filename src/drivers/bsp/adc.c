@@ -7,7 +7,7 @@
 // Temperature Calibration Addresses (from factory)
 #define TS_CAL1_ADDR  ((uint16_t*)0x1FFF3228)  // 30 C 
 #define TS_CAL2_ADDR  ((uint16_t*)0x1FFF3230)  // 105 C
-#define VREFINT_VOLTS 1.2f                 // Typical 1.2V
+#define VREFINT_MV    1200                     // Typical 1.2V
 
 void ADC_Init(void)
 {
@@ -94,31 +94,34 @@ uint16_t ADC_ReadChannel(uint32_t channel)
     return 0;
 }
 
-float ADC_GetVref(void)
+uint16_t ADC_GetVref(void)
 {
     uint16_t v_raw = ADC_ReadChannel(LL_ADC_CHANNEL_VREFINT);
-    if (v_raw == 0) return 3.3f; // Fallback to 3.3V if read fails
-    return (VREFINT_VOLTS * 4095.0f) / (float)v_raw;
+    if (v_raw == 0) return 3300; 
+    return (uint16_t)(((uint32_t)VREFINT_MV * 4095) / (uint32_t)v_raw);
 }
 
-float ADC_GetTemp(void)
+int16_t ADC_GetTemp(void)
 {
     uint16_t ts_cal1 = *TS_CAL1_ADDR; // ADC raw value at 30 C
     uint16_t ts_cal2 = *TS_CAL2_ADDR; // ADC raw value at 105 C
     uint16_t ts_data = ADC_ReadChannel(LL_ADC_CHANNEL_TEMPSENSOR);
-    float vdda = ADC_GetVref();
+    uint16_t vdda_mv = ADC_GetVref();
     
-    // TSCAL values are measured at 3.3V. 
+    // TSCAL values are measured at 3.3V (3300mV). 
     // We normalize the current reading to the 3.3V calibration baseline.
-    float ts_data_norm = (float)ts_data * vdda / 3.3f;
+    uint32_t ts_data_norm = ((uint32_t)ts_data * vdda_mv) / 3300;
 
     // Safety check for unprogrammed/corrupt calibration
     if (ts_cal2 <= ts_cal1 || ts_cal1 == 0xFFFF || ts_cal1 == 0) {
         // Fallback to typical values: 0.75V at 30C, 2.5mV/C
-        // (ts_data_norm * 3300 / 4095) is in mV
-        return (ts_data_norm * 3300.0f / 4095.0f - 750.0f) / 2.5f + 30.0f;
+        // Voltage in mV: (ts_data_norm * 3300 / 4095)
+        // Temp * 10 = 300 + (mV - 750) * 10 / 2.5
+        uint32_t mv = (ts_data_norm * 3300) / 4095;
+        return 300 + ((int32_t)mv - 750) * 4; 
     }
 
-    // Linear interpolation
-    return 30.0f + (ts_data_norm - (float)ts_cal1) * (105.0f - 30.0f) / (float)(ts_cal2 - ts_cal1);
+    // Linear interpolation: 30C + (norm - cal1) * (105 - 30) / (cal2 - cal1)
+    // In 0.1C units: 300 + (norm - cal1) * 750 / (cal2 - cal1)
+    return 300 + (int16_t)(((int32_t)ts_data_norm - (int32_t)ts_cal1) * 750 / (int32_t)(ts_cal2 - ts_cal1));
 }

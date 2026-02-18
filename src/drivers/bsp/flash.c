@@ -15,7 +15,7 @@
  */
 
 #include "drivers/bsp/flash.h"
-#include "sram-overlay.h"
+#include "features/sram/sram-overlay.h"
 
 void FLASH_Init(FLASH_READ_MODE ReadMode)
 {

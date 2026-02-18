@@ -1,24 +1,23 @@
 #ifdef ENABLE_PASSCODE
 #include <string.h>
 #include "passcode.h"
-#include "features/storage.h"
+#include "features/storage/storage.h"
 #include "helper/crypto.h"
 #include "helper/identifier.h"
 #include "ui/textinput.h"
 #include "ui/ui.h"
 #include "ui/menu.h" // For gUpdateDisplay etc
-#include "audio.h"
+#include "features/audio/audio.h"
 #include "drivers/bsp/st7565.h"
 #include "drivers/bsp/keyboard.h"
 #include "core/misc.h" // for gStatusLine
-#include "external/printf/printf.h"
 #include "ui/helper.h"
 #include "drivers/bsp/system.h"
 #include "apps/settings/settings.h" // gEeprom (if needed, but we use direct storage)
 #include "drivers/hal/Inc/py32f071_ll_iwdg.h" // For Watchdog
 #include "ui/status.h"
 #include "ui/ag_graphics.h"
-#include "board.h"
+#include "core/board.h"
 
 #define PASSCODE_MAGIC 0x51534850 // "QSHP" (Bumped for safe MigratedMask init)
 #define PASSCODE_MAX_LEN 32
@@ -420,8 +419,8 @@ void Passcode_Prompt(void) {
                  
                  AG_PrintMediumBoldEx(64, 28, POS_C, C_FILL, "SECURITY LOCKOUT");
                  
-                 char buf[32];
-                 sprintf(buf, "%d seconds", remaining);
+                 char buf[32] = "      seconds";
+                 NUMBER_ToDecimal(buf, remaining, 5, false);
                  AG_PrintSmallEx(64, 42, POS_C, C_FILL, "Please wait");
                  AG_PrintMediumEx(64, 54, POS_C, C_FILL, buf);
 

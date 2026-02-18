@@ -6,6 +6,7 @@ project('deltafw', 'c', 'cpp',
     'cpp_std=c++11',
     'buildtype=minsize', 
     'b_staticpic=false',
+    'b_lto=true',
   ])
 
 # Compiler configuration
@@ -63,7 +64,9 @@ common_flags = [
   '-fdata-sections',
   '-Wno-type-limits',
   '-fno-math-errno',
-  '-fno-trapping-math'
+  '-fno-trapping-math',
+  '-fmerge-all-constants',
+  '-fno-asynchronous-unwind-tables'
 ]
 
 add_project_arguments(common_flags, language : ['c', 'cpp'])
@@ -103,28 +106,28 @@ sources = files(
   '../src/core/misc.c',
   '../src/core/scheduler.c',
   '../src/core/version.c',
-  '../src/board.c',
-  '../src/audio.c',
-  '../src/radio.c',
-  '../src/frequencies.c',
-  '../src/dcs.c',
+  '../src/core/board.c',
+  '../src/features/audio/audio.c',
+  '../src/features/radio/radio.c',
+  '../src/features/radio/frequencies.c',
+  '../src/features/dcs/dcs.c',
   '../src/apps/settings/settings.c',
   '../src/apps/settings/settings_ui.c',
-  '../src/functions.c',
+  '../src/features/radio/functions.c',
   '../src/ui/bitmaps.c',
   '../src/ui/font.c',
 
   # Features
-  '../src/features/action.c',
-  '../src/features/app.c',
+  '../src/features/action/action.c',
+  '../src/features/app/app.c',
   '../src/apps/scanner/chFrScanner.c',
-  '../src/features/common.c',
-  '../src/features/dtmf.c',
-  '../src/features/generic.c',
-  '../src/features/main_screen.c',
-  '../src/features/menu.c',
+  '../src/features/common/common.c',
+  '../src/features/dtmf/dtmf.c',
+  '../src/features/generic/generic.c',
+  '../src/features/main_screen/main_screen.c',
+  '../src/features/menu/menu.c',
   '../src/apps/security/passcode.c',
-  '../src/features/storage.c',
+  '../src/features/storage/storage.c',
   '../src/apps/scanner/scanner.c',
 
   # Drivers BSP
@@ -164,7 +167,6 @@ sources = files(
   '../src/apps/boot/welcome.c',
 
   # Third Party
-  '../src/external/printf/printf.c',
 
   # Startup
   '../src/core/startup_py32f071xx.s',
@@ -195,7 +197,6 @@ sources = files(
 
 defines += '-DPY32F071x8'
 defines += '-DUSE_FULL_LL_DRIVER'
-defines += '-DPRINTF_INCLUDE_CONFIG_H'
 
 # Options Processing
 if get_option('CUSTOM_FIRMWARE_MODS')
@@ -210,7 +211,7 @@ endif
 
 if get_option('UART')
   defines += '-DENABLE_UART'
-  sources += files('../src/drivers/bsp/uart.c', '../src/features/uart.c')
+  sources += files('../src/drivers/bsp/uart.c', '../src/features/uart/uart.c')
 endif
 
 if get_option('USB')
@@ -246,7 +247,7 @@ endif
 
 if get_option('SERIAL_SCREENCAST')
   defines += '-DENABLE_SERIAL_SCREENCAST'
-  sources += files('../src/screencast.c')
+  sources += files('../src/features/screencast/screencast.c')
 endif
 
 if get_option('UART_CMD_RSSI')
@@ -282,7 +283,7 @@ endif
 
 if get_option('FLASHLIGHT')
   defines += '-DENABLE_FLASHLIGHT'
-  sources += files('../src/features/flashlight.c')
+  sources += files('../src/features/flashlight/flashlight.c')
 endif
 
 if get_option('ALARM')
@@ -411,7 +412,7 @@ endif
 
 if get_option('CW_KEYER')
   defines += '-DENABLE_CW_KEYER'
-  sources += files('../src/features/cw.c')
+  sources += files('../src/features/cw/cw.c')
 endif
 
 if get_option('DTMF_CALLING')
@@ -437,12 +438,17 @@ if get_option('SPECTRUM')
 endif
 if get_option('APP_BREAKOUT_GAME')
   defines += '-DENABLE_APP_BREAKOUT_GAME'
-  sources += files('../src/features/breakout.c')
+  sources += files('../src/features/breakout/breakout.c')
 endif
 
 if get_option('REGA')
   defines += '-DENABLE_REGA'
-  sources += files('../src/features/rega.c')
+  sources += files('../src/features/rega/rega.c')
+endif
+
+if get_option('LIVESEEK')
+  defines += '-DENABLE_LIVESEEK'
+  sources += files('../src/apps/liveseek/liveseek.c')
 endif
 
 if get_option('PMR446_FREQUENCY_BAND')
@@ -479,7 +485,7 @@ endif
 
 if get_option('AM_FIX')
   defines += '-DENABLE_AM_FIX'
-  sources += files('../src/am_fix.c')
+  sources += files('../src/features/am_fix/am_fix.c')
 endif
 
 if get_option('AM_FIX_SHOW_DATA')

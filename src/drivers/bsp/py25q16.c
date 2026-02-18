@@ -24,7 +24,6 @@
 #include "py32f071_ll_dma.h"
 #include "drivers/bsp/system.h"
 #include "drivers/bsp/systick.h"
-#include "external/printf/printf.h"
 
 // #define DEBUG
 
@@ -32,13 +31,15 @@
 #define CHANNEL_RD LL_DMA_CHANNEL_4
 #define CHANNEL_WR LL_DMA_CHANNEL_5
 
+#include "core/board.h"
+
 #define CS_PIN GPIO_MAKE_PIN(GPIOA, LL_GPIO_PIN_3)
 
 #define SECTOR_SIZE 0x1000
 #define PAGE_SIZE 0x100
 
 static uint32_t SectorCacheAddr = 0x1000000;
-static uint8_t SectorCache[SECTOR_SIZE];
+#define SectorCache gCommonBuffer
 static uint32_t BlackHole[1];
 static volatile bool TC_Flag;
 

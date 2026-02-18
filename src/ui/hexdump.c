@@ -1,5 +1,4 @@
 #include <string.h>
-#include "external/printf/printf.h"
 #include "hexdump.h"
 #include "ui.h"
 #include "ag_graphics.h"
@@ -34,7 +33,8 @@ void HexDump_Render(const char *title, HexDump_ReadCb read_cb, uint32_t total_si
         uint32_t offset = i * BYTES_PER_LINE;
         
         // Render Offset
-        AG_PrintSmallEx(0, y + (LINE_H-2), POS_L, C_FILL, "%02lX", offset); // %02lX for 32-bit offset support? or just %02X if small?
+        // (Moved to the end of loop for overlay/consistency, or rendered here)
+        // AG_PrintSmallEx(0, y + (LINE_H-2), POS_L, C_FILL, "%02lX", offset); 
         // Let's use %04X for general use, or adjust based on size.
         // For CPU ID (256 bytes) %02X is fine. For EEPROM (8K+) need %04X.
         // 0000 -> 4 chars * 5px = 20px. 
@@ -138,15 +138,19 @@ void HexDump_Render(const char *title, HexDump_ReadCb read_cb, uint32_t total_si
             // ASCII: 8 bytes. 4px per char -> 32px. (X:96-128)
             // Total: 20 + 4 + 72 + 32 = 128. Correct.
             
-            sprintf_(buf, "%02X", val);
-            AG_PrintSmallEx(24 + (j * 9), y + (LINE_H-2), POS_L, C_FILL, "%s", buf);
+            // sprintf_(buf, "%02X", val);
+            NUMBER_ToHex(buf, val, 2);
+            AG_PrintSmallEx(24 + (j * 9), y + (LINE_H-2), POS_L, C_FILL, buf);
             
-            sprintf_(buf, "%c", IsPrintable(val));
-            AG_PrintSmallEx(96 + (j * 4), y + (LINE_H-2), POS_L, C_FILL, "%s", buf);
+            // sprintf_(buf, "%c", IsPrintable(val));
+            buf[0] = IsPrintable(val);
+            buf[1] = '\0';
+            AG_PrintSmallEx(96 + (j * 4), y + (LINE_H-2), POS_L, C_FILL, buf);
         }
         
         // Offset (4 digits)
-        AG_PrintSmallEx(0, y + (LINE_H-2), POS_L, C_FILL, "%04X", offset);
+        NUMBER_ToHex(buf, offset, 4);
+        AG_PrintSmallEx(0, y + (LINE_H-2), POS_L, C_FILL, buf);
     }
     
     ST7565_BlitFullScreen();

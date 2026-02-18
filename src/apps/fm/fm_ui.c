@@ -21,7 +21,6 @@
 #include "apps/fm/fm.h"
 #include "drivers/bsp/bk1080.h"
 #include "drivers/bsp/st7565.h"
-#include "external/printf/printf.h"
 #include "core/misc.h"
 #include "apps/settings/settings.h"
 #include "apps/fm/fm_ui.h"
@@ -37,11 +36,14 @@ void UI_DisplayFM(void)
 
     UI_PrintString("FM", 2, 0, 0, 8);
 
-    sprintf(String, "%d%s-%dM", 
-        BK1080_GetFreqLoLimit(gEeprom.FM_Band)/10,
-        gEeprom.FM_Band == 0 ? ".5" : "",
-        BK1080_GetFreqHiLimit(gEeprom.FM_Band)/10
-        );
+    uint32_t lo = BK1080_GetFreqLoLimit(gEeprom.FM_Band);
+    uint32_t hi = BK1080_GetFreqHiLimit(gEeprom.FM_Band);
+    
+    // Formatting manually or using helpers for lo-hi band display
+    strcpy(String, "    . -    M");
+    NUMBER_ToDecimal(String, lo / 10, 3, false);
+    if (gEeprom.FM_Band == 0) String[4] = '5';
+    NUMBER_ToDecimal(String + 6, hi / 10, 3, false);
     
     UI_PrintStringSmallNormal(String, 1, 0, 6);
 
@@ -55,20 +57,23 @@ void UI_DisplayFM(void)
         pPrintStr = "DEL?";
     } else if (gFM_ScanState == FM_SCAN_OFF) {
         if (gEeprom.FM_IsMrMode) {
-            sprintf(String, "MR(CH%02u)", gEeprom.FM_SelectedChannel + 1);
+            strcpy(String, "MR(CH  )");
+            NUMBER_ToDecimal(String + 5, gEeprom.FM_SelectedChannel + 1, 2, true);
             pPrintStr = String;
         } else {
             pPrintStr = "VFO";
             for (unsigned int i = 0; i < 20; i++) {
                 if (gEeprom.FM_FrequencyPlaying == gFM_Channels[i]) {
-                    sprintf(String, "VFO(CH%02u)", i + 1);
+                    strcpy(String, "VFO(CH  )");
+                    NUMBER_ToDecimal(String + 6, i + 1, 2, true);
                     pPrintStr = String;
                     break;
                 }
             }
         }
     } else if (gFM_AutoScan) {
-        sprintf(String, "A-SCAN(%u)", gFM_ChannelPosition + 1);
+        strcpy(String, "A-SCAN( )");
+        NUMBER_ToDecimal(String + 7, gFM_ChannelPosition + 1, 1, true);
         pPrintStr = String;
     } else {
         pPrintStr = "M-SCAN";
@@ -80,13 +85,21 @@ void UI_DisplayFM(void)
     if (gAskToSave || (gEeprom.FM_IsMrMode && gInputBoxIndex > 0)) {
         UI_GenerateChannelString(String, gFM_ChannelPosition);
     } else if (gAskToDelete) {
-        sprintf(String, "CH-%02u", gEeprom.FM_SelectedChannel + 1);
+        strcpy(String, "CH-  ");
+        NUMBER_ToDecimal(String + 3, gEeprom.FM_SelectedChannel + 1, 2, true);
     } else {
         if (gInputBoxIndex == 0) {
-            sprintf(String, "%3d.%d", gEeprom.FM_FrequencyPlaying / 10, gEeprom.FM_FrequencyPlaying % 10);
+            strcpy(String, "   . ");
+            NUMBER_ToDecimal(String, gEeprom.FM_FrequencyPlaying / 10, 3, false);
+            String[4] = (gEeprom.FM_FrequencyPlaying % 10) + '0';
         } else {
             const char * ascii = INPUTBOX_GetAscii();
-            sprintf(String, "%.3s.%.1s",ascii, ascii + 3);
+            String[0] = ascii[0];
+            String[1] = ascii[1];
+            String[2] = ascii[2];
+            String[3] = '.';
+            String[4] = ascii[3];
+            String[5] = '\0';
         }
 
         UI_DisplayFrequency(String, 36, 1, gInputBoxIndex == 0, false);  // frequency

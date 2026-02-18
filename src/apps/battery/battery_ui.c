@@ -19,7 +19,7 @@
 
 #include "ui/bitmaps.h"
 #include "drivers/bsp/st7565.h"
-#include "functions.h"
+#include "features/radio/functions.h"
 #include "apps/battery/battery.h"
 #include "apps/battery/battery_ui.h"
 #include "core/misc.h"

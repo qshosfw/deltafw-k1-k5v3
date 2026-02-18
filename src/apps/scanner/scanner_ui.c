@@ -17,9 +17,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include "apps/scanner/scanner.h"
-#include "dcs.h"
+#include "features/dcs/dcs.h"
 #include "drivers/bsp/st7565.h"
-#include "external/printf/printf.h"
 #include "core/misc.h"
 #include "ui/helper.h"
 #include "apps/scanner/scanner_ui.h"
@@ -34,7 +33,8 @@ void UI_DisplayScanner(void)
     UI_DisplayClear();
 
     if (gScanSingleFrequency || (gScanCssState != SCAN_CSS_STATE_OFF && gScanCssState != SCAN_CSS_STATE_FAILED)) {
-        sprintf(String, "FREQ:%u.%05u", gScanFrequency / 100000, gScanFrequency % 100000);
+        strcpy(String, "FREQ:");
+        UI_PrintFrequencyEx(String + 5, gScanFrequency, true);
         pPrintStr = String;
     } else {
         pPrintStr = "FREQ:**.*****";
@@ -45,10 +45,17 @@ void UI_DisplayScanner(void)
     if (gScanCssState < SCAN_CSS_STATE_FOUND || !gScanUseCssResult) {
         pPrintStr = "CTC:******";
     } else if (gScanCssResultType == CODE_TYPE_CONTINUOUS_TONE) {
-        sprintf(String, "CTC:%u.%uHz", CTCSS_Options[gScanCssResultCode] / 10, CTCSS_Options[gScanCssResultCode] % 10);
+        strcpy(String, "CTC:   . Hz");
+        NUMBER_ToDecimal(String + 4, CTCSS_Options[gScanCssResultCode] / 10, 3, false);
+        String[8] = (CTCSS_Options[gScanCssResultCode] % 10) + '0';
         pPrintStr = String;
     } else {
-        sprintf(String, "DCS:D%03oN", DCS_Options[gScanCssResultCode]);
+        strcpy(String, "DCS:D   N");
+        // Manual octal conversion for 3 digits
+        uint16_t val = DCS_Options[gScanCssResultCode];
+        String[5] = ((val >> 6) & 7) + '0';
+        String[6] = ((val >> 3) & 7) + '0';
+        String[7] = (val & 7) + '0';
         pPrintStr = String;
     }
 

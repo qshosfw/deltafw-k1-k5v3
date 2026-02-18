@@ -48,4 +48,13 @@ void UI_PrintStringSmallest(const char *pString, uint8_t x, uint8_t y, bool stat
 
 int ConvertDomain(int aValue, int aMin, int aMax, int bMin, int bMax);
 
+void NUMBER_ToDecimal(char *str, uint32_t val, uint8_t len, bool leadingZero);
+void NUMBER_ToHex(char *str, uint32_t val, uint8_t len);
+
+void UI_PrintDecimal(char *str, uint32_t val, uint8_t len);
+void UI_PrintFrequency(char *str, uint32_t frequency);
+void UI_PrintFrequencyEx(char *str, uint32_t frequency, bool highRes);
+void UI_FormatVoltage(char *str, uint16_t millivolts);
+void UI_FormatTemp(char *str, int16_t deciCelsius);
+
 #endif

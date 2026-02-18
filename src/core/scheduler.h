@@ -28,4 +28,6 @@ static void inline SCHEDULER_Disable()
     NVIC_DisableIRQ(SysTick_IRQn);
 }
 
+uint32_t SYSTICK_GetTick(void);
+
 #endif

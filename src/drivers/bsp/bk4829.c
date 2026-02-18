@@ -20,7 +20,7 @@
 
 #include "apps/settings/settings.h"
 
-#include "audio.h"
+#include "features/audio/audio.h"
 
 #include "drivers/bsp/bk4819.h"
 #include "drivers/bsp/gpio.h"

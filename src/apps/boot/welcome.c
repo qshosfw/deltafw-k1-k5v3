@@ -18,19 +18,18 @@
 
 #include "drivers/bsp/py25q16.h"
 #include "drivers/bsp/st7565.h"
-#include "external/printf/printf.h"
 #include "apps/battery/battery.h"
 #include "apps/settings/settings.h"
 #include "core/misc.h"
 #include "ui/helper.h"
 #include "apps/boot/welcome.h"
-#include "features/storage.h"
+#include "features/storage/storage.h"
 #include "ui/status.h"
 #include "core/version.h"
 #include "ui/bitmaps.h"
 
 #ifdef ENABLE_SERIAL_SCREENCAST
-    #include "screencast.h"
+    #include "features/screencast/screencast.h"
 #endif
 
 void UI_DisplayReleaseKeys(void)
@@ -81,10 +80,11 @@ void UI_DisplayWelcome(void)
         // 0x0EC0
         Storage_ReadRecord(REC_SETTINGS_EXTRA, WelcomeString1, 0x30, 16);
 
-        sprintf(WelcomeString2, "%u.%02uV %u%%",
-                gBatteryVoltageAverage / 100,
-                gBatteryVoltageAverage % 100,
-                BATTERY_VoltsToPercent(gBatteryVoltageAverage));
+        // sprintf(WelcomeString2, "%u.%02uV %u%%", ...)
+        strcpy(WelcomeString2, " .  V    %");
+        NUMBER_ToDecimal(WelcomeString2, gBatteryVoltageAverage / 100, 1, false);
+        NUMBER_ToDecimal(WelcomeString2 + 2, gBatteryVoltageAverage % 100, 2, true);
+        NUMBER_ToDecimal(WelcomeString2 + 6, BATTERY_VoltsToPercent(gBatteryVoltageAverage), 3, false);
 
         if (gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_VOLTAGE)
         {
@@ -133,7 +133,9 @@ void UI_DisplayWelcome(void)
             gFrameBuffer[4][i] ^= 0xFF;
         }
 
-        sprintf(WelcomeString3, "%s Edition", Edition);
+        // sprintf(WelcomeString3, "%s Edition", Edition);
+        strcpy(WelcomeString3, Edition);
+        strcat(WelcomeString3, " Edition");
         UI_PrintStringSmallNormal(WelcomeString3, 0, 127, 6);
 
         /*

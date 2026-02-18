@@ -18,13 +18,13 @@ uint16_t ADC_GetValue(uint32_t channel);
 /* --- Specialized Measurement functions --- */
 
 /**
- * @brief Get internal temperature in Celsius
+ * @brief Get internal temperature in deci-Celsius (e.g. 255 = 25.5 C)
  */
-float ADC_GetTemp(void);
+int16_t ADC_GetTemp(void);
 
 /**
- * @brief Get VDDA voltage in Volts
+ * @brief Get VDDA voltage in millivolts (e.g. 3300 = 3.3V)
  */
-float ADC_GetVref(void);
+uint16_t ADC_GetVref(void);
 
 #endif

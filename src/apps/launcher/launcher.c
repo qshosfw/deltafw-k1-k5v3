@@ -8,16 +8,16 @@
 #include "ui/helper.h"
 #include "ui/menu.h"
 #include "drivers/bsp/st7565.h"
-#include "features/action.h"
-#include "features/app.h"
-#include "audio.h"
+#include "features/action/action.h"
+#include "features/app/app.h"
+#include "features/audio/audio.h"
 #include "apps/settings/settings.h"
 #include "apps/settings/settings_ui.h"
 #include "apps/aircopy/aircopy.h"
 #include "apps/boot/boot.h"
 
 #ifdef ENABLE_APP_BREAKOUT_GAME
-#include "features/breakout.h"
+#include "features/breakout/breakout.h"
 #endif
 
 #include "apps/scanner/scanner_ui.h"

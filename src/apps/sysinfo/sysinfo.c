@@ -12,7 +12,7 @@
 #include "drivers/bsp/st7565.h"
 #include "drivers/bsp/adc.h"
 #include "apps/settings/settings.h"
-#include "external/printf/printf.h"
+#include "apps/settings/settings.h"
 #include "helper/identifier.h"
 #include "helper/crypto.h"
 #include "ui/hexdump.h"
@@ -74,14 +74,14 @@ static const char* GetInfoLabel(InfoItem item) {
 static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
     switch (item) {
         case INFO_VERSION:
-            snprintf(buf, buflen, "%s", Version);
+            strcpy(buf, Version);
             break;
         case INFO_DATE:
-            snprintf(buf, buflen, "%s", BuildDate);
+            strcpy(buf, BuildDate);
             break;
         case INFO_COMMIT:
-            // Display short commit hash (7 chars max)
-            snprintf(buf, buflen, "%.7s", GitCommit);
+            strncpy(buf, GitCommit, 7);
+            buf[7] = '\0';
             break;
 #ifdef ENABLE_IDENTIFIER
         case INFO_SERIAL: {
@@ -91,55 +91,53 @@ static void GetInfoValue(InfoItem item, char* buf, size_t buflen) {
         case INFO_MAC: {
             uint8_t mac[6];
             GetMacAddress(mac);
-            snprintf(buf, buflen, "%02X:%02X:%02X:%02X:%02X:%02X", 
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+            for (int i = 0; i < 6; i++) {
+                NUMBER_ToHex(buf + i * 3, mac[i], 2);
+                if (i < 5) buf[i * 3 + 2] = ':';
+            }
+            buf[17] = '\0';
             break;
         }
 #endif
         case INFO_BATTERY: {
             uint16_t voltage = gBatteryVoltageAverage;
-            uint8_t percent = BATTERY_VoltsToPercent(voltage);
-            snprintf(buf, buflen, "%u.%02uV %u%%", voltage / 100, voltage % 100, percent);
+            UI_FormatVoltage(buf, voltage * 10);
+            strcat(buf, " ");
+            NUMBER_ToDecimal(buf + strlen(buf), BATTERY_VoltsToPercent(voltage), 3, false);
+            strcat(buf, "%");
             break;
         }
         case INFO_CHARGING:
-            snprintf(buf, buflen, "%s", gIsCharging ? "Yes" : "No");
+            strcpy(buf, gIsCharging ? "Yes" : "No");
             break;
         case INFO_TEMP: {
-            // Temperature from internal sensor
-            float temp = ADC_GetTemp();
-            int whole = (int)temp;
-            int frac = (int)((temp - whole) * 10);
-            if (frac < 0) frac = -frac;
-            
-            // Handle negative zero case (e.g. -0.5) where integer part is 0 but sign is needed
-            if (temp < 0 && whole == 0) {
-                snprintf(buf, buflen, "-%d.%d C", whole, frac);
-            } else {
-                snprintf(buf, buflen, "%d.%d C", whole, frac);
-            }
+            UI_FormatTemp(buf, ADC_GetTemp());
             break;
         }
         case INFO_RAM: {
-            // Simple estimate: stack pointer region usage
-            uint32_t used = 14016;  // From build output, or use runtime estimate
+            uint32_t used = 14016;
             uint32_t total = 16 * 1024;
-            snprintf(buf, buflen, "%lu/%luK", (unsigned long)(used / 1024), (unsigned long)(total / 1024));
+            NUMBER_ToDecimal(buf, used / 1024, 2, false);
+            strcat(buf, "/");
+            NUMBER_ToDecimal(buf + strlen(buf), total / 1024, 2, false);
+            strcat(buf, "K");
             break;
         }
 #ifdef ENABLE_PASSCODE
         case INFO_MK_HASH:
-            snprintf(buf, buflen, "%08lX", (unsigned long)Passcode_GetMasterKeyHash());
+            NUMBER_ToHex(buf, (uint32_t)Passcode_GetMasterKeyHash(), 8);
             break;
         case INFO_MIGRATED: {
             int count = 0;
             for(int i=0; i<REC_MAX; i++) if (Passcode_IsMigrated(i)) count++;
-            snprintf(buf, buflen, "%d/%d", count, REC_MAX);
+            NUMBER_ToDecimal(buf, count, 2, false);
+            strcat(buf, "/");
+            NUMBER_ToDecimal(buf + strlen(buf), REC_MAX, 2, false);
             break;
         }
 #endif
         case INFO_LICENSE:
-            snprintf(buf, buflen, "GNU GPL v3");
+            strcpy(buf, "GNU GPL v3");
             break;
         default:
             buf[0] = '\0';
@@ -173,10 +171,10 @@ static void SysInfo_RenderItem(uint16_t index, uint8_t visIndex) {
     GetInfoValue((InfoItem)index, value, sizeof(value));
 
     // Label on left (medium font)
-    AG_PrintMedium(3, baseline_y, "%s", label);
+    AG_PrintMedium(3, baseline_y, label);
     
     // Value on right (small font)
-    AG_PrintSmallEx(LCD_WIDTH - 5, baseline_y, POS_R, C_FILL, "%s", value);
+    AG_PrintSmallEx(LCD_WIDTH - 5, baseline_y, POS_R, C_FILL, value);
 }
 
 static bool mShowCode = false;

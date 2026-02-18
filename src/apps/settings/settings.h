@@ -20,9 +20,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "frequencies.h"
+#include "features/radio/frequencies.h"
 #include <apps/battery/battery.h>
-#include "radio.h"
+#include "features/radio/radio.h"
 #include <drivers/bsp/backlight.h>
 
 enum POWER_OnDisplayMode_t {
@@ -306,6 +306,7 @@ typedef struct {
     uint8_t               S0_LEVEL;
     uint8_t               S9_LEVEL;
 #endif
+    uint8_t               LIVESEEK_MODE;
 } EEPROM_Config_t;
 
 extern EEPROM_Config_t gEeprom;

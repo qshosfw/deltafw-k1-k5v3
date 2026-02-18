@@ -24,7 +24,7 @@
 
 #include "drivers/bsp/eeprom.h"
 #include "drivers/bsp/py25q16.h"
-#include "features/storage.h"
+#include "features/storage/storage.h"
 #include <string.h>
 
 #define HOLE_ADDR 0x1000000

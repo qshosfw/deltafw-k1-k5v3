@@ -5,7 +5,6 @@
 #include "fonts/muHeavy8ptBold.h"
 #include "fonts/muMatrix8ptRegular.h"
 #include "fonts/symbols.h"
-#include "../external/printf/printf.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -195,33 +194,24 @@ void write_char(uint8_t c, uint8_t tsx, uint8_t tsy, bool wrap, Color col,
 }
 
 static void printStr(const GFXfont *f, uint8_t x, uint8_t y, Color col,
-                     TextPos pos, const char *fmt, va_list args) {
-  char buf[64];
-  vsnprintf(buf, 64, fmt, args);
+                     TextPos pos, const char *str) {
   int16_t x1, y1;
   uint16_t w, h;
-  getTextBounds(buf, x, y, &x1, &y1, &w, &h, f);
+  getTextBounds(str, x, y, &x1, &y1, &w, &h, f);
   cursor.x = pos == POS_C ? x - (w >> 1) : pos == POS_R ? x - w : x;
   cursor.y = y;
-  for (char *p = buf; *p; p++)
+  for (const char *p = str; *p; p++)
     write_char(*p, 1, 1, 1, col, f);
 }
 
 // Macros to generate functions
 #define P(n, i)                                                                \
-  void AG_Print##n(uint8_t x, uint8_t y, const char *f, ...) {                 \
-    va_list a;                                                                 \
-    va_start(a, f);                                                            \
-    printStr(fonts[i], x, y, C_FILL, POS_L, f, a);                             \
-    va_end(a);                                                                 \
+  void AG_Print##n(uint8_t x, uint8_t y, const char *str) {                    \
+    printStr(fonts[i], x, y, C_FILL, POS_L, str);                              \
   }
 #define PX(n, i)                                                               \
-  void AG_Print##n##Ex(uint8_t x, uint8_t y, TextPos p, Color c, const char *f,\
-                    ...) {                                                     \
-    va_list a;                                                                 \
-    va_start(a, f);                                                            \
-    printStr(fonts[i], x, y, c, p, f, a);                                      \
-    va_end(a);                                                                 \
+  void AG_Print##n##Ex(uint8_t x, uint8_t y, TextPos p, Color c, const char *str) { \
+    printStr(fonts[i], x, y, c, p, str);                                       \
   }
 
 P(Small, 0)
@@ -229,9 +219,6 @@ PX(Small, 0) P(Medium, 1) PX(Medium, 1) P(MediumBold, 2) PX(MediumBold, 2)
     P(BigDigits, 3) PX(BigDigits, 3) P(BiggestDigits, 4) PX(BiggestDigits, 4)
 
 void AG_PrintSymbolsEx(uint8_t x, uint8_t y, TextPos p, Color c,
-                            const char *f, ...) {
-  va_list a;
-  va_start(a, f);
-  printStr(&Symbols, x, y, c, p, f, a);
-  va_end(a);
+                            const char *str) {
+  printStr(&Symbols, x, y, c, p, str);
 }

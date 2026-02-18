@@ -17,14 +17,14 @@
 
 #include <string.h>
 
-#include "features/dtmf.h"
+#include "features/dtmf/dtmf.h"
 #ifdef ENABLE_FMRADIO
     #include "apps/fm/fm.h"
 #endif
 #include "drivers/bsp/bk1080.h"
 #include "drivers/bsp/bk4819.h"
 #include "drivers/bsp/py25q16.h"
-#include "features/storage.h"
+#include "features/storage/storage.h"
 #include "core/misc.h"
 #include "apps/settings/settings.h"
 #include "ui/menu.h"
@@ -303,7 +303,10 @@ void SETTINGS_InitEEPROM(void)
         ChannelAttributes_t *att = &gMR_ChannelAttributes[i];
         if(att->__val == 0xff){
             att->__val = 0;
-            att->band = 0x7;
+            if (IS_MR_CHANNEL(i))
+                att->band = BAND7_470MHz; // Default for empty MR
+            else
+                att->band = i - FREQ_CHANNEL_FIRST; // Each VFO slot gets its proper band
         }
         gMR_ChannelExclude[i] = false;
     }
@@ -350,6 +353,8 @@ void SETTINGS_InitEEPROM(void)
         #ifdef ENABLE_DEEP_SLEEP_MODE
             gSetting_set_off = (Data[4] >> 1) > 120 ? 60 : (Data[4] >> 1); 
         #endif
+        
+        gEeprom.LIVESEEK_MODE = (Data[5] >> 6) & 0x03;
 
         gSetting_set_ptt_session = gSetting_set_ptt;
         gEeprom.KEY_LOCK_PTT = gSetting_set_lck;
@@ -777,7 +782,8 @@ void SETTINGS_SaveSettings(void)
 #endif
 
     uint8_t flags = (gSetting_set_inv << 0) |
-                     (gSetting_set_lck << 1);
+                     (gSetting_set_lck << 1) |
+                     ((gEeprom.LIVESEEK_MODE & 0x03) << 2);
 
     SecBuf[5] = ((flags << 4) | (gSetting_set_ctr & 0x0F));
     SecBuf[6] = ((gSetting_set_tot << 4) | (gSetting_set_eot & 0x0F));

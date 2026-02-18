@@ -3,7 +3,7 @@
 #include "drivers/bsp/py25q16.h"
 #include "helper/identifier.h"
 #include "apps/settings/settings.h"
-#include "external/printf/printf.h"
+#include "ui/helper.h"
 
 /*!< endpoint address */
 #define CDC_IN_EP  0x81
@@ -205,7 +205,10 @@ void cdc_acm_init(cdc_acm_rx_buf_t rx_buf)
     // Convert last 2 bytes to Hex string? Or last 4 hex digits?
     // "last 4 caps chars of mac address" -> likely last 2 bytes printed as hex.
     char macLast4[5];
-    sprintf(macLast4, "%02X%02X", mac[4], mac[5]);
+    // sprintf(macLast4, "%02X%02X", mac[4], mac[5]);
+    NUMBER_ToHex(macLast4, mac[4], 2);
+    NUMBER_ToHex(macLast4 + 2, mac[5], 2);
+    macLast4[4] = '\0';
     
     // Patch PID (Bytes 10, 11 of Device Descriptor)
     cdc_descriptor[10] = mac[5];
