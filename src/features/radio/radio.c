@@ -807,7 +807,6 @@ void RADIO_SetupRegisters(bool switchToForeground)
             case BK4819_FILTER_BW_NARROW:
             case BK4819_FILTER_BW_NARROWER:
                 #ifdef ENABLE_AM_FIX
-    //              BK4819_SetFilterBandwidth(Bandwidth, gRxVfo->Modulation == MODULATION_AM && gSetting_AM_fix);
                     BK4819_SetFilterBandwidth(Bandwidth, true);
                 #else
                     BK4819_SetFilterBandwidth(Bandwidth, false);

@@ -39,6 +39,13 @@ extern uint8_t           gFM_ChannelPosition;
 extern uint16_t          gFM_FrequencyDeviation;
 extern bool              gFM_FoundFrequency;
 extern uint16_t          gFM_RestoreCountdown_10ms;
+extern uint16_t          gFmAutoMuteCountdown_10ms;
+extern bool              gFM_AutoMuted;
+extern uint8_t           gFmAudioProfile;
+extern uint8_t           gFmSpacing;
+extern uint8_t           gFmSoftMuteRate;
+extern uint8_t           gFmSoftMuteAttenuation;
+extern bool              gFmFunctionMode;
 
 bool    FM_CheckValidChannel(uint8_t Channel);
 // returns first valid channel starting at Channel
@@ -54,6 +61,7 @@ int     FM_CheckFrequencyLock(uint16_t Frequency, uint16_t LowerLimit);
 void    FM_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld);
 
 void    FM_Play(void);
+void    FM_CheckAutoMute(void);
 void    FM_Start(void);
 
 #endif

@@ -31,8 +31,17 @@ void BK1080_WriteRegister(BK1080_Register_t Register, uint16_t Value);
 void BK1080_Mute(bool Mute);
 uint16_t BK1080_GetFreqLoLimit(uint8_t band);
 uint16_t BK1080_GetFreqHiLimit(uint8_t band);
-void BK1080_SetFrequency(uint16_t frequency, uint8_t band/*, uint8_t space*/);
 void BK1080_GetFrequencyDeviation(uint16_t Frequency);
+
+uint8_t BK1080_GetRSSI(void);
+uint8_t BK1080_GetSNR(void);
+uint16_t BK1080_GetAudioLevel(void);
+bool BK1080_IsStereo(void);
+void BK1080_SetAudioProfile(uint8_t profile);
+void BK1080_SetSoftMute(uint8_t rate, uint8_t attenuation);
+void BK1080_SetVolume(uint8_t volume);
+void BK1080_SetSeekThresholds(uint8_t rssi_th, uint8_t snr_th);
+void BK1080_SetFrequency(uint16_t frequency, uint8_t band, uint8_t spacing);
 
 #endif
 

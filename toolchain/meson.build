@@ -266,10 +266,17 @@ if get_option('EXTRA_UART_CMD')
   defines += '-DENABLE_EXTRA_UART_CMD'
 endif
 
+if get_option('BK1080')
+  defines += '-DENABLE_BK1080'
+  sources += files('../src/drivers/bsp/bk1080.c')
+endif
+
 if get_option('FMRADIO')
   defines += '-DENABLE_FMRADIO'
-  sources += files('../src/drivers/bsp/bk1080.c', '../src/apps/fm/fm.c', '../src/apps/fm/fm_ui.c')
+  sources += files('../src/apps/fm/fm.c', '../src/apps/fm/fm_ui.c')
 endif
+
+
 
 if get_option('VOICE')
   defines += '-DENABLE_VOICE'

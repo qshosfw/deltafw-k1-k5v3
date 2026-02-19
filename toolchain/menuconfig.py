@@ -20,7 +20,9 @@ FEATURES = {
     "ENABLE_AIRCOPY": {"title": "AirCopy", "desc": "Wireless config transfer", "category": "Comm", "size": 1200, "default": False},
     
     # Radio
-    "ENABLE_FMRADIO": {"title": "FM Radio", "desc": "Broadcast FM receiver", "category": "Radio", "size": 1500, "default": False},
+    "ENABLE_BK1080": {"title": "BK1080 Driver", "desc": "FM receiver chip driver", "category": "Radio", "size": 500, "default": True},
+    "ENABLE_FMRADIO": {"title": "FM Radio App", "desc": "WFM broadcast receiver app", "category": "Radio", "size": 1500, "default": True},
+    "ENABLE_BK1080_LISTEN_IN_VFO": {"title": "FM Listen in VFO", "desc": "Use BK1080 for FM in standard VFO", "category": "Radio", "size": 200, "default": True},
     "ENABLE_SPECTRUM": {"title": "Spectrum Analyzer", "desc": "RF spectrum view (F+5)", "category": "Radio", "size": 3500, "default": False},
     "ENABLE_SPECTRUM_EXTENSIONS": {"title": "Spectrum Extensions", "desc": "Extra spectrum features", "category": "Radio", "size": 500, "default": True},
     "ENABLE_NOAA": {"title": "NOAA Weather", "desc": "NOAA weather channels", "category": "Radio", "size": 200, "default": False},

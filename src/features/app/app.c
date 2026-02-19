@@ -1636,6 +1636,11 @@ void APP_TimeSlice10ms(void)
     if (gPttDoubleTapCountdown_10ms > 0)
         gPttDoubleTapCountdown_10ms--;
 
+#ifdef ENABLE_FMRADIO
+    if (gFmAutoMuteCountdown_10ms > 0)
+        gFmAutoMuteCountdown_10ms--;
+#endif
+
 #ifdef ENABLE_AM_FIX
     if (gRxVfo->Modulation == MODULATION_AM) {
         AM_fix_10ms(gEeprom.RX_VFO);
@@ -1655,6 +1660,10 @@ void APP_TimeSlice10ms(void)
 
     if (gCurrentFunction != FUNCTION_POWER_SAVE || !gRxIdleMode)
         CheckRadioInterrupts();
+
+#ifdef ENABLE_FMRADIO
+    FM_CheckAutoMute();
+#endif
 
     if (gCurrentFunction == FUNCTION_TRANSMIT)
     {   // transmitting

@@ -19,6 +19,7 @@
 #include "apps/scanner/chFrScanner.h"
 #ifdef ENABLE_FMRADIO
     #include "apps/fm/fm.h"
+    #include "drivers/bsp/bk1080.h"
 #endif
 #include "apps/scanner/scanner.h"
 #include "ui/bitmaps.h"
@@ -81,6 +82,26 @@ void UI_DisplayStatus() {
         strcpy(str, "Enter Passcode");
 #endif
     } else {
+#ifdef ENABLE_FMRADIO
+    if (gScreenToDisplay == DISPLAY_FM) {
+        static const char* profiles[] = {"75u ", "50u ", "RAW ", "BSS "};
+        strcat(str, profiles[gFmAudioProfile % 4]);
+        
+        static const char* spacings[] = {"200k ", "100k ", "50k "};
+        strcat(str, spacings[gFmSpacing % 3]);
+
+        static const char* rates[] = {"FST+ ", "FST ", "SLW ", "SLW- "};
+        strcat(str, rates[gFmSoftMuteRate % 4]);
+
+        char attStr[8];
+        uint8_t att = 16 - (gFmSoftMuteAttenuation % 4) * 2;
+        NUMBER_ToDecimal(attStr, att, 2, false);
+        strcat(attStr, "dB ");
+        strcat(str, attStr);
+        
+    } else
+#endif
+    {
 #ifdef ENABLE_NOAA
     if (!(gScanStateDir != SCAN_OFF || SCANNER_IsScanning()) && gIsNoaaMode) { // NOAA SCAN indicator
         *p++ = 'N';
@@ -130,14 +151,20 @@ void UI_DisplayStatus() {
     
     *p = '\0';
     }
+    }
 
     if (gEeprom.RX_VFO == 0 && gEeprom.TX_VFO == 0) {
         // Main VFO A
     }
     UI_PrintStringSmallest(str, 0, 0, true, true);
     
-    // Draw inverted F-key if pressed (white F on black background box)
-    if (gWasFKeyPressed && !gEeprom.KEY_LOCK && !AG_MENU_IsActive()) {
+    // Draw inverted F-key if pressed or in FM sticky mode
+    bool fmF = false;
+#ifdef ENABLE_FMRADIO
+    if (gScreenToDisplay == DISPLAY_FM && gFmFunctionMode) fmF = true;
+#endif
+
+    if ((gWasFKeyPressed || fmF) && !gEeprom.KEY_LOCK && !AG_MENU_IsActive()) {
         // Find position after any prior text (L, NOAA, S, etc.)
         uint8_t x = strlen(str) * 4;  // 4px per char in smallest font
         

@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.5.2"
+version = "1.6.0"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -62,6 +62,7 @@ USB = true
 FLASHLIGHT = true
 BOOT_RESUME_STATE = true
 DEEP_SLEEP_MODE = true
+BK1080 = true
 
 # 🔊 Audio & Voice
 VOICE = false
