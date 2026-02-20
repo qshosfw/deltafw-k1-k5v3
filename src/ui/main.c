@@ -18,6 +18,7 @@
 #include <stdlib.h>  // abs()
 
 #include "apps/scanner/chFrScanner.h"
+#include "core/scheduler.h"
 #include "features/dtmf/dtmf.h"
 #ifdef ENABLE_AM_FIX
     #include "features/am_fix/am_fix.h"
@@ -297,7 +298,14 @@ void UI_DisplayMain(void)
     }
 #endif
 
+
     unsigned int activeTxVFO = gRxVfoIsActive ? gEeprom.RX_VFO : gEeprom.TX_VFO;
+
+    // Check if the current scan list has any participants (MR mode only)
+    bool hasParticipants = true;
+    if (gScanStateDir != SCAN_OFF && IS_MR_CHANNEL(gEeprom.ScreenChannel[gEeprom.RX_VFO])) {
+        hasParticipants = (RADIO_FindNextChannel(0, 1, true, gEeprom.SCAN_LIST_DEFAULT) != 0xFF);
+    }
 
     for (unsigned int vfo_num = 0; vfo_num < 2; vfo_num++)
     {
@@ -453,26 +461,19 @@ void UI_DisplayMain(void)
                 continue;
 #endif
             }
-
-            // Matoz-style VFO indicator box (19px wide)
-            if (isMainVFO) {
-                // Selected VFO: solid 19px box
-                memset(p_line0, 127, 19);
-            }
         }
-        else // active TX VFO
-        {   // highlight the selected/used VFO with a marker
-            // Matoz-style VFO indicator box (19px wide)
-            if (isMainVFO) {
-                // Selected VFO: solid 19px box
-                memset(p_line0, 127, 19);
-            } else if (gEeprom.DUAL_WATCH != DUAL_WATCH_OFF) {
-                // Not selected but dual-watch active: hollow rectangle with corners
-                p_line0[0] = 0b01111111;
-                p_line0[1] = 0b01000001;
-                p_line0[17] = 0b01000001;
-                p_line0[18] = 0b01111111;
-            }
+
+        // Matoz-style VFO indicator box (19px wide) with Scanning Blink logic
+        bool isScVfo = (gScanStateDir != SCAN_OFF && vfo_num == gEeprom.RX_VFO);
+        bool blink = (SYSTICK_GetTick() / 80) % 2;
+        bool fillBox = isMainVFO;
+        
+        if (isScVfo && hasParticipants && blink) {
+            fillBox = !fillBox;
+        }
+
+        if (fillBox) {
+            memset(p_line0, 127, 19);
         }
 
         uint32_t frequency = gEeprom.VfoInfo[vfo_num].pRX->Frequency;
@@ -541,7 +542,7 @@ void UI_DisplayMain(void)
         }
 
         // Matoz-style channel label inside indicator box
-        bool filled = isMainVFO;  // solid box means inverted text
+        bool filled = fillBox;  // solid box means inverted text
         if (IS_MR_CHANNEL(gEeprom.ScreenChannel[vfo_num]))
         {   // channel mode - show M001, M002, etc.
             const bool inputting = gInputBoxIndex != 0 && gEeprom.TX_VFO == vfo_num;
@@ -796,8 +797,41 @@ void UI_DisplayMain(void)
         const char *labels[12];
         uint8_t nLabels = 0;
 
+        // Scan Indicator
+        bool isScanning = (gScanStateDir != SCAN_OFF && vfo_num == gEeprom.RX_VFO);
+        static char scanStr[16];
+        if (isScanning && !FUNCTION_IsRx()) {
+            if (IS_MR_CHANNEL(gEeprom.ScreenChannel[vfo_num])) {
+                uint8_t list = gEeprom.SCAN_LIST_DEFAULT;
+                if (list == 0) strcpy(scanStr, "SCAN NONE");
+                else if (list >= 1 && list <= 3) {
+                    strcpy(scanStr, "SCAN S ");
+                    scanStr[6] = '0' + list;
+                    scanStr[7] = 0;
+                } else if (list == 4) strcpy(scanStr, "SCAN LST");
+                else strcpy(scanStr, "SCAN ALL");
+            } else {
+                strcpy(scanStr, "SCANNING");
+            }
+
+            if (hasParticipants) {
+                const char *dotArr[] = {"", ".", "..", "..."};
+                uint8_t dots = (SYSTICK_GetTick() / 33) % 4;
+                strcat(scanStr, dotArr[dots]);
+            } else {
+                strcat(scanStr, "?");
+            }
+            
+            // Pad to 11 to keep attribute spacing stable
+            uint8_t len = strlen(scanStr);
+            while(len < 11) scanStr[len++] = ' ';
+            scanStr[11] = 0;
+            
+            labels[nLabels++] = scanStr;
+        }
+
         // 1. Scan List Participation (Supports 3 lists)
-        if (IS_MR_CHANNEL(gEeprom.ScreenChannel[vfo_num])) {
+        if (!isScanning && IS_MR_CHANNEL(gEeprom.ScreenChannel[vfo_num])) {
             const ChannelAttributes_t att = gMR_ChannelAttributes[gEeprom.ScreenChannel[vfo_num]];
             if (att.scanlist1 && att.scanlist2 && att.scanlist3) labels[nLabels++] = "S123";
             else if (att.scanlist1 && att.scanlist2) labels[nLabels++] = "S12";
