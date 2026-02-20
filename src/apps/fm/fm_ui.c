@@ -253,9 +253,30 @@ void UI_DisplayFM(void)
     UI_DrawBigFreqPixel(FreqStr, startX, 0);
     UI_PrintStringSmallest("MHz", startX + freqWidth + 3, 10, false, true); 
 
+    // Throttle SPI reads to avoid audible noise (100ms / 10Hz rate)
+    static uint8_t s_metrics_timer = 0;
+    static uint8_t s_cached_rssi = 0;
+    static uint8_t s_cached_snr = 0;
+    static uint16_t s_cached_dev = 0;
+    static bool s_cached_stereo = false;
+
+    if (s_metrics_timer > 0) {
+        s_metrics_timer--;
+    } else {
+        uint16_t reg07 = BK1080_ReadRegister(BK1080_REG_07);
+        uint16_t reg10 = BK1080_ReadRegister(BK1080_REG_10);
+        
+        s_cached_rssi = BK1080_REG_10_GET_RSSI(reg10);
+        s_cached_stereo = BK1080_REG_10_GET_STEN(reg10);
+        s_cached_snr = BK1080_REG_07_GET_SNR(reg07);
+        s_cached_dev = BK1080_REG_07_GET_FREQD(reg07);
+        
+        s_metrics_timer = 5; // 5 * 20ms = 100ms throttle
+    }
+
     char modeStr[48];
     modeStr[0] = '\0';
-    if (BK1080_IsStereo()) strcpy(modeStr, "ST ");
+    if (s_cached_stereo) strcpy(modeStr, "ST ");
 
     if (gRequestSaveFM) {
         strcat(modeStr, "SAVING..");
@@ -273,19 +294,16 @@ void UI_DisplayFM(void)
         strcat(modeStr, "?");
     } else {
         // Dynamic Instrumentation Label at Y=18
-        uint8_t rssi = BK1080_GetRSSI();
-        uint8_t snr = BK1080_GetSNR();
-        uint16_t dev_reg = BK1080_ReadRegister(BK1080_REG_07);
-        uint32_t dev_khz = (uint32_t)BK1080_REG_07_GET_FREQD(dev_reg) * 148 / 1000;
+        uint32_t dev_khz = (uint32_t)s_cached_dev * 148 / 1000;
 
         char temp[8];
         // RSSI with padding
-        NUMBER_ToDecimal(temp, rssi, 2, true);
+        NUMBER_ToDecimal(temp, s_cached_rssi, 2, true);
         strcat(modeStr, temp);
         strcat(modeStr, "uV ");
 
         // SNR with padding
-        NUMBER_ToDecimal(temp, snr, 2, true);
+        NUMBER_ToDecimal(temp, s_cached_snr, 2, true);
         strcat(modeStr, temp);
         strcat(modeStr, "dB ");
 
@@ -310,10 +328,8 @@ void UI_DisplayFM(void)
 
     UI_PrintStringSmallest(modeStr, 64 - (strlen(modeStr) * 2), 18, false, true);
 
-    uint8_t final_rssi = BK1080_GetRSSI();
-    uint8_t final_snr = BK1080_GetSNR();
-    uint16_t dev_reg_f = BK1080_ReadRegister(BK1080_REG_07);
-    UI_DrawFMMetrics(BK1080_REG_07_GET_FREQD(dev_reg_f), final_rssi, final_snr);
+    // Use cached values for metrics bars to avoid SPI traffic
+    UI_DrawFMMetrics(s_cached_dev, s_cached_rssi, s_cached_snr);
 
     UI_DrawFMSeekBar(freq);
 
