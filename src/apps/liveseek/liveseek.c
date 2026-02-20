@@ -174,7 +174,7 @@ void LiveSeek_DrawSpectrum(void)
         return;
 
     // Use opposite half of the seeking VFO
-    // gEeprom.TX_VFO 0 = A (top), 1 = B (bottom)
+    // gEeprom.TX_VFO 0 = A, 1 = B
     uint8_t seekingVfo = gEeprom.TX_VFO;
     
     int startLine, lineCount;
@@ -182,16 +182,17 @@ void LiveSeek_DrawSpectrum(void)
     int drawYPosition;
     int maxBarHeight;
     
+    // In this firmware: VFO A is Top (Line 0-2), VFO B is Bottom (Line 4-6)
     if (seekingVfo == 0) { 
-        // VFO A seeking -> Show on B (Lower Half: Lines 4-7)
+        // VFO A seeking -> Show on B (Lower Half: Lines 4-6)
         startLine = 4;
-        lineCount = 4;
+        lineCount = 3;
         startY = 32;
-        endY = 63;
-        drawYPosition = 63;
-        maxBarHeight = 24;
+        endY = 55;
+        drawYPosition = 55;
+        maxBarHeight = 16;
     } else { 
-        // VFO B seeking -> Show on A (Upper Half: Lines 0-2, avoid middle line 3)
+        // VFO B seeking -> Show on A (Upper Half: Lines 0-2)
         startLine = 0;
         lineCount = 3;
         startY = 0;
@@ -235,10 +236,12 @@ void LiveSeek_DrawSpectrum(void)
         }
     }
 
-    // Squelch Line (Dashed)
-    int sqY = drawYPosition - STOP_RSSI_LIMIT; 
-    if (sqY < startY) sqY = startY;
-    if (sqY > endY)   sqY = endY;
+    // Squelch Line (Dashed) - Relative to noise floor
+    int relativeSq = STOP_RSSI_LIMIT - _lowValue;
+    if (relativeSq < 0) relativeSq = 0;
+    if (relativeSq > maxBarHeight) relativeSq = maxBarHeight;
+    int sqY = drawYPosition - relativeSq; 
+
     for (int x = 0; x < 128; x += 4) {
         SafePixel((uint8_t)x, (uint8_t)sqY, true);
         SafePixel((uint8_t)x + 1, (uint8_t)sqY, true);
