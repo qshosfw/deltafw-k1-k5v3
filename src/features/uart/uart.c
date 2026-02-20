@@ -644,7 +644,7 @@ static void CMD_0529(uint32_t Port)
     Reply.Header.Size = sizeof(Reply.Data);
 
     // Basic stats
-    BOARD_ADC_GetBatteryInfo(&Reply.Data.Voltage);
+    Reply.Data.Voltage = gBatteryVoltageAverage * 10;
     Reply.Data.Current = 0;
     Reply.Data.Percent     = BATTERY_VoltsToPercent(gBatteryVoltageAverage);
     Reply.Data.BatteryType = gEeprom.BATTERY_TYPE;
