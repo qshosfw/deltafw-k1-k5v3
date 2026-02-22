@@ -1699,7 +1699,8 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
     {
         #ifdef ENABLE_VOICE
             if (UI_MENU_GetCurrentMenuId() != MENU_SCR)
-                gAnotherVoiceID = MenuList[gMenuCursor].voice_id;
+                // gAnotherVoiceID = MenuList[gMenuCursor].voice_id;
+                gAnotherVoiceID = VOICE_ID_MENU;
         #endif
         if (UI_MENU_GetCurrentMenuId() == MENU_UPCODE 
             || UI_MENU_GetCurrentMenuId() == MENU_DWCODE 

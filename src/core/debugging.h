@@ -4,6 +4,7 @@
 #ifdef ENABLE_UART
 
 #include "drivers/bsp/uart.h"
+#include <string.h>
 #include "drivers/bsp/bk4819.h"
 #include "features/am_fix/am_fix.h"
 #include "ui/helper.h"

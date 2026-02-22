@@ -351,7 +351,7 @@ void channelMove(uint16_t Channel)
     gBeepToPlay = BEEP_NONE;
 
     #ifdef ENABLE_VOICE
-        gAnotherVoiceID        = (VOICE_ID_t)Key;
+        // gAnotherVoiceID        = (VOICE_ID_t)Key;
     #endif
 
     gEeprom.MrChannel[Vfo]     = (uint8_t)Channel;

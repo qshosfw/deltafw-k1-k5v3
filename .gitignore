@@ -11,6 +11,8 @@ compile_commands.json
 k5_eeprom.raw
 
 /build
+/zig-out
+/.zig-cache
 /serialtool/__pycache__
 *.log
 __pycache__/

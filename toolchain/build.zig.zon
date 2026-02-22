@@ -1,0 +1,13 @@
+.{
+    .name = .deltafw,
+    .version = "1.6.6",
+    .fingerprint = 0xb6e00d4fdd2f58dc,
+    .minimum_zig_version = "0.14.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "toolchain",
+        "config.toml",
+    },
+}

@@ -146,7 +146,7 @@ build_preset() {
     fi
     DATE=$(date +%d%m%Y)
     LOWER_PRESET=$(echo "$preset" | tr '[:upper:]' '[:lower:]')
-    BASENAME="deltafw.${LOWER_PRESET}.v${VERSION}.${COMMIT}.${DATE}"
+    BASENAME="deltafw.gcc.${LOWER_PRESET}.v${VERSION}.${COMMIT}.${DATE}"
     FILENAME_BIN="${BASENAME}.bin"
     FILENAME_HEX="${BASENAME}.hex"
     FILENAME_PACKED="${BASENAME}.packed.bin"
