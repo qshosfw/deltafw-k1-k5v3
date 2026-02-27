@@ -49,6 +49,10 @@
     #include "features/cw/cw.h"
 #endif
 
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+    #include "features/rx/signal_classifier.h"
+#endif
+
 center_line_t center_line = CENTER_LINE_NONE;
 
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
@@ -862,6 +866,20 @@ void UI_DisplayMain(void)
         } else if (vfoInfo->pTX->CodeType != CODE_TYPE_OFF) {
             labels[nLabels++] = dcsNames[vfoInfo->pTX->CodeType];
         }
+
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+        // 12. Signal Classifier Hint
+        if (FUNCTION_IsRx() && vfo_num == gEeprom.RX_VFO) {
+            SignalClass_t sClass = SIGNAL_CLASSIFIER_GetClass(vfo_num);
+            if (sClass == SIGNAL_CLASS_FAST && vfoInfo->Modulation != MODULATION_FM) {
+                labels[nLabels++] = "FM?";
+            } else if (sClass == SIGNAL_CLASS_NORMAL && vfoInfo->Modulation != MODULATION_AM && vfoInfo->Modulation != MODULATION_USB && vfoInfo->Modulation != 5) {
+                labels[nLabels++] = "AM?";
+            } else if (sClass == SIGNAL_CLASS_SLOW && vfoInfo->Modulation != MODULATION_USB && vfoInfo->Modulation != 6) {
+                labels[nLabels++] = "SSB?";
+            }
+        }
+#endif
 
         // Rendering with dynamic spacing
         if (nLabels > 0) {

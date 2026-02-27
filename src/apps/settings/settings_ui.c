@@ -98,6 +98,17 @@ static const SettingConfig settingConfigs[] = {
 #endif
     {MENU_SET_CTR,  SET_TYPE_INT8,  &gSetting_set_ctr, 0, 15, NULL, 0},
     {MENU_SET_INV,  SET_TYPE_BOOL,  &gSetting_set_inv, 0, 1, gSubMenu_OFF_ON, 4},
+
+#ifdef ENABLE_TX_SOFT_START
+    {MENU_TX_SOFT_START, SET_TYPE_BOOL, &gEeprom.TX_SOFT_START, 0, 1, gSubMenu_OFF_ON, 4},
+#endif
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+    {MENU_TX_COMPRESSOR, SET_TYPE_BOOL, &gEeprom.TX_AUDIO_COMPRESSOR, 0, 1, gSubMenu_OFF_ON, 4},
+#endif
+#ifdef ENABLE_CTCSS_LEAD_IN
+    {MENU_CTCSS_LEAD, SET_TYPE_BOOL, &gEeprom.CTCSS_LEAD_IN, 0, 1, gSubMenu_OFF_ON, 4},
+#endif
+
 };
 
 static const SettingConfig *GetSettingConfig(uint8_t id) {
@@ -502,6 +513,9 @@ static const MenuItem soundItems[] = {
     {"Mic Bar", MENU_MIC_BAR, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #endif
     {"Mic AGC", MENU_MIC_AGC, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+    {"Mic Compress", MENU_TX_COMPRESSOR, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+#endif
     {"Vol Gain", MENU_VOL_GAIN, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     #ifdef ENABLE_VOICE
     {"Voice", MENU_VOICE, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
@@ -571,6 +585,12 @@ static const MenuItem radioItems[] = {
     {"Tx Lock", MENU_TX_LOCK, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
     {"350 En", MENU_350EN, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     {"Power Logic", MENU_SET_PWR, getVal, changeVal, NULL, NULL, M_ITEM_SELECT},
+    #ifdef ENABLE_TX_SOFT_START
+    {"Tx Soft Start", MENU_TX_SOFT_START, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    #endif
+    #ifdef ENABLE_CTCSS_LEAD_IN
+    {"CTCSS Lead In", MENU_CTCSS_LEAD, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
+    #endif
     #ifdef ENABLE_NARROWER_BW_FILTER
     {"NFM Filter",  MENU_SET_NFM, getVal, changeVal, NULL, NULL, M_ITEM_ACTION},
     #endif

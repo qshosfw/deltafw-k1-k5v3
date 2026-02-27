@@ -51,6 +51,13 @@
 #include "features/dtmf/dtmf.h"
 #include "features/cw/cw.h"
 
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+#include "features/rx/signal_classifier.h"
+#endif
+#ifdef ENABLE_SQUELCH_TAIL_ELIMINATION
+#include "features/rx/squelch_tail.h"
+#endif
+
 #include "drivers/bsp/backlight.h"
 #include "drivers/bsp/bk4819.h"
 #include "drivers/bsp/gpio.h"
@@ -129,6 +136,14 @@ void Main(void)
 
 #ifdef ENABLE_CW_KEYER
     CW_Init();
+#endif
+
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+    SIGNAL_CLASSIFIER_Init();
+#endif
+
+#ifdef ENABLE_SQUELCH_TAIL_ELIMINATION
+    SQUELCH_TAIL_Init();
 #endif
 
     BOOT_Mode_t  BootMode = BOOT_GetMode();

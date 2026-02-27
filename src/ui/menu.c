@@ -103,6 +103,15 @@ const t_menu_item MenuList[] =
     {"MicBar",      MENU_MIC_BAR       },
     {"MicAGC",      MENU_MIC_AGC       },
     {"VolGai",      MENU_VOL_GAIN      },
+#ifdef ENABLE_TX_SOFT_START
+    {"TxSftS",      MENU_TX_SOFT_START   },
+#endif
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+    {"TxComp",      MENU_TX_COMPRESSOR   },
+#endif
+#ifdef ENABLE_CTCSS_LEAD_IN
+    {"CTLead",      MENU_CTCSS_LEAD      },
+#endif
     {"ChDisp",      MENU_MDF           }, // was "MDF"
     {"POnMsg",      MENU_PONMSG        },
     {"BLTime",      MENU_ABR           }, // was "ABR"

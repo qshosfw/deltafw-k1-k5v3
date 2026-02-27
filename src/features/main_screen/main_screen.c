@@ -33,6 +33,10 @@
 #include "features/main_screen/main_screen.h"
 #include "apps/scanner/scanner.h"
 
+#ifdef ENABLE_SCAN_WATCH
+#include "features/scan/scanwatch.h"
+#endif
+
 #ifdef ENABLE_SPECTRUM
 #include "apps/spectrum/spectrum.h"
 #endif
@@ -799,12 +803,28 @@ static void MAIN_Key_STAR(bool bKeyPressed, bool bKeyHeld)
 
             gRequestDisplayScreen = DISPLAY_MAIN;
         }
+        else if (gScanStateDir != SCAN_OFF) {
+#ifdef ENABLE_SCAN_WATCH
+            if (SCANWATCH_IsActive()) SCANWATCH_Disable();
+            else SCANWATCH_Enable(gEeprom.RX_VFO);
+            gUpdateDisplay = true;
+#endif
+        }
         else
             gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
     }
     else
     {   // with the F-key
         gWasFKeyPressed = false;
+
+        if (gScanStateDir != SCAN_OFF) {
+#ifdef ENABLE_SMART_SQUELCH
+            gEeprom.SMART_SQUELCH = !gEeprom.SMART_SQUELCH;
+            SETTINGS_SaveSettings();
+            gUpdateStatus = true;
+#endif
+            return;
+        }
 
 #ifdef ENABLE_NOAA
         if (IS_NOAA_CHANNEL(gTxVfo->CHANNEL_SAVE)) {

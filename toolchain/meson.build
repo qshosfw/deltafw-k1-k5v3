@@ -562,6 +562,46 @@ if get_option('TX_OFFSET')
   defines += '-DENABLE_TX_OFFSET'
 endif
 
+if get_option('TX_SOFT_START')
+  defines += '-DENABLE_TX_SOFT_START'
+  sources += files('../src/features/tx/tx_soft_start.c')
+endif
+
+if get_option('TX_AUDIO_COMPRESSOR')
+  defines += '-DENABLE_TX_AUDIO_COMPRESSOR'
+  sources += files('../src/features/tx/tx_compressor.c')
+endif
+
+if get_option('CTCSS_LEAD_IN')
+  defines += '-DENABLE_CTCSS_LEAD_IN'
+  sources += files('../src/features/tx/ctcss_lead.c')
+endif
+
+if get_option('SIGNAL_CLASSIFIER')
+  defines += '-DENABLE_SIGNAL_CLASSIFIER'
+  sources += files('../src/features/rx/signal_classifier.c')
+endif
+
+if get_option('SMART_SQUELCH')
+  defines += '-DENABLE_SMART_SQUELCH'
+  sources += files('../src/features/rx/smart_squelch.c')
+endif
+
+if get_option('SQUELCH_TAIL_ELIMINATION')
+  defines += '-DENABLE_SQUELCH_TAIL_ELIMINATION'
+  sources += files('../src/features/rx/squelch_tail.c')
+endif
+
+if get_option('SCAN_WATCH')
+  defines += '-DENABLE_SCAN_WATCH'
+  sources += files('../src/features/scan/scanwatch.c')
+endif
+
+if get_option('INTELLIGENT_DUAL_WATCH')
+  defines += '-DENABLE_INTELLIGENT_DUAL_WATCH'
+  sources += files('../src/features/scan/dual_watch_mgmt.c')
+endif
+
 if get_option('EXTRA_ROGER')
   defines += '-DENABLE_EXTRA_ROGER'
 endif

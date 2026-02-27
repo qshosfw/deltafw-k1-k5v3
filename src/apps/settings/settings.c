@@ -299,6 +299,25 @@ void SETTINGS_InitEEPROM(void)
 #endif
     gSetting_backlight_on_tx_rx = flockConfig.fields.BACKLIGHT_ON_TX_RX;
 
+#ifdef ENABLE_TX_SOFT_START
+    gEeprom.TX_SOFT_START = flockConfig.fields.TX_SOFT_START;
+#endif
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+    gEeprom.TX_AUDIO_COMPRESSOR = flockConfig.fields.TX_AUDIO_COMPRESSOR;
+#endif
+#ifdef ENABLE_CTCSS_LEAD_IN
+    gEeprom.CTCSS_LEAD_IN = flockConfig.fields.CTCSS_LEAD_IN;
+#endif
+#ifdef ENABLE_SMART_SQUELCH
+    gEeprom.SMART_SQUELCH = flockConfig.fields.SMART_SQUELCH;
+#endif
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+    gEeprom.SIGNAL_CLASSIFIER = flockConfig.fields.SIGNAL_CLASSIFIER;
+#endif
+#ifdef ENABLE_SQUELCH_TAIL_ELIMINATION
+    gEeprom.SQUELCH_TAIL_ELIMINATION = flockConfig.fields.SQUELCH_TAIL_ELIMINATION;
+#endif
+
     if (!gEeprom.VFO_OPEN)
     {
         gEeprom.ScreenChannel[0] = gEeprom.MrChannel[0];
@@ -782,6 +801,25 @@ void SETTINGS_SaveSettings(void)
     flockConfig.fields.AM_FIX = gSetting_AM_fix;
 #endif
     flockConfig.fields.BACKLIGHT_ON_TX_RX = gSetting_backlight_on_tx_rx & 3u;
+
+#ifdef ENABLE_TX_SOFT_START
+    flockConfig.fields.TX_SOFT_START = gEeprom.TX_SOFT_START;
+#endif
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+    flockConfig.fields.TX_AUDIO_COMPRESSOR = gEeprom.TX_AUDIO_COMPRESSOR;
+#endif
+#ifdef ENABLE_CTCSS_LEAD_IN
+    flockConfig.fields.CTCSS_LEAD_IN = gEeprom.CTCSS_LEAD_IN;
+#endif
+#ifdef ENABLE_SMART_SQUELCH
+    flockConfig.fields.SMART_SQUELCH = gEeprom.SMART_SQUELCH;
+#endif
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+    flockConfig.fields.SIGNAL_CLASSIFIER = gEeprom.SIGNAL_CLASSIFIER;
+#endif
+#ifdef ENABLE_SQUELCH_TAIL_ELIMINATION
+    flockConfig.fields.SQUELCH_TAIL_ELIMINATION = gEeprom.SQUELCH_TAIL_ELIMINATION;
+#endif
 
     Storage_WriteRecord(REC_F_LOCK, flockConfig.raw, 0, sizeof(flockConfig.raw));
 

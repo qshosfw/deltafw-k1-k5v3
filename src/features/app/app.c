@@ -83,6 +83,40 @@
 #include "ui/status.h"
 #include "ui/ui.h"
 
+#ifdef ENABLE_TX_SOFT_START
+#include "features/tx/tx_soft_start.h"
+#endif
+
+#ifdef ENABLE_CTCSS_LEAD_IN
+#include "features/tx/ctcss_lead.h"
+#endif
+
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+#include "features/tx/tx_compressor.h"
+#endif
+
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+#include "features/rx/signal_classifier.h"
+#endif
+
+#ifdef ENABLE_SMART_SQUELCH
+#include "features/rx/smart_squelch.h"
+#endif
+
+#ifdef ENABLE_SQUELCH_TAIL_ELIMINATION
+#include "features/rx/squelch_tail.h"
+#endif
+
+#ifdef ENABLE_SCAN_WATCH
+#include "features/scan/scanwatch.h"
+#endif
+
+#ifdef ENABLE_INTELLIGENT_DUAL_WATCH
+#include "features/scan/dual_watch_mgmt.h"
+#endif
+
+
+
 #ifdef ENABLE_SERIAL_SCREENCAST
     #include "features/screencast/screencast.h"
 #endif
@@ -672,11 +706,19 @@ static void DualwatchAlternate(void)
 
     RADIO_SetupRegisters(false);
 
+#ifdef ENABLE_INTELLIGENT_DUAL_WATCH
+    #ifdef ENABLE_NOAA
+        gDualWatchCountdown_10ms = gIsNoaaMode ? dual_watch_count_noaa_10ms : DUAL_WATCH_MGMT_GetDwellTime(gEeprom.RX_VFO) / 10;
+    #else
+        gDualWatchCountdown_10ms = DUAL_WATCH_MGMT_GetDwellTime(gEeprom.RX_VFO) / 10;
+    #endif
+#else
     #ifdef ENABLE_NOAA
         gDualWatchCountdown_10ms = gIsNoaaMode ? dual_watch_count_noaa_10ms : dual_watch_count_toggle_10ms;
     #else
         gDualWatchCountdown_10ms = dual_watch_count_toggle_10ms;
     #endif
+#endif
 }
 
 static void CheckRadioInterrupts(void)
@@ -834,6 +876,10 @@ void APP_EndTransmission(void)
 {
     // back to RX mode
     RADIO_SendEndOfTransmission();
+
+#ifdef ENABLE_CTCSS_LEAD_IN
+    CTCSS_LEAD_Stop();
+#endif
 
     gFlagEndTransmission = true;
 
@@ -1051,13 +1097,29 @@ void APP_Update(void)
         return;
 #endif
 
-#ifdef ENABLE_VOICE
-    if (!SCANNER_IsScanning() && gScanStateDir != SCAN_OFF && gScheduleScanListen && !gPttIsPressed && gVoiceWriteIndex == 0)
+#ifdef ENABLE_SCAN_WATCH
+    bool block_scan = SCANWATCH_IsOnWatchVFO();
 #else
-    if (!SCANNER_IsScanning() && gScanStateDir != SCAN_OFF && gScheduleScanListen && !gPttIsPressed)
+    bool block_scan = false;
+#endif
+
+#ifdef ENABLE_VOICE
+    if (!SCANNER_IsScanning() && gScanStateDir != SCAN_OFF && gScheduleScanListen && !gPttIsPressed && gVoiceWriteIndex == 0 && !block_scan)
+#else
+    if (!SCANNER_IsScanning() && gScanStateDir != SCAN_OFF && gScheduleScanListen && !gPttIsPressed && !block_scan)
 #endif
     {   // scanning
         CHFRSCANNER_ContinueScanning();
+
+#ifdef ENABLE_SCAN_WATCH
+        // Scan+Watch: count this REAL scan step, maybe switch to watch VFO
+        if (SCANWATCH_IsActive() && SCANWATCH_OnScanStep())
+        {
+            gEeprom.RX_VFO = gScanWatch.watch_vfo;
+            gRxVfo         = &gEeprom.VfoInfo[gEeprom.RX_VFO];
+            RADIO_SetupRegisters(false);
+        }
+#endif
     }
 
 #ifdef ENABLE_NOAA
@@ -1078,6 +1140,9 @@ void APP_Update(void)
     // toggle between the VFO's if dual watch is enabled
     if (!SCANNER_IsScanning()
         && gEeprom.DUAL_WATCH != DUAL_WATCH_OFF
+#ifdef ENABLE_SCAN_WATCH
+        && !SCANWATCH_IsActive()
+#endif
         && gScheduleDualWatch
         && gScanStateDir == SCAN_OFF
         && !gPttIsPressed
@@ -1672,6 +1737,19 @@ void APP_TimeSlice10ms(void)
 
     if (gCurrentFunction == FUNCTION_TRANSMIT)
     {   // transmitting
+
+#ifdef ENABLE_TX_SOFT_START
+        TX_SOFT_START_Process();
+#endif
+
+#ifdef ENABLE_CTCSS_LEAD_IN
+        CTCSS_LEAD_Process();
+#endif
+
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+        TX_COMPRESSOR_Process();
+#endif
+
 #ifdef ENABLE_MIC_BAR
         if (gSetting_mic_bar && (gFlashLightBlinkCounter % (150 / 10)) == 0 
 #ifdef ENABLE_CW_KEYER
@@ -1679,6 +1757,20 @@ void APP_TimeSlice10ms(void)
 #endif
         ) // once every 150ms
             UI_DisplayAudioBar();
+#endif
+    }
+    else if (gCurrentFunction == FUNCTION_RECEIVE || gCurrentFunction == FUNCTION_MONITOR || gCurrentFunction == FUNCTION_INCOMING)
+    {
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+        SIGNAL_CLASSIFIER_Update(gEeprom.RX_VFO, (BK4819_GetRSSI() / 2) - 160);
+#endif
+
+#ifdef ENABLE_SMART_SQUELCH
+        SMART_SQUELCH_Update();
+#endif
+
+#ifdef ENABLE_SQUELCH_TAIL_ELIMINATION
+        SQUELCH_TAIL_Process();
 #endif
     }
     

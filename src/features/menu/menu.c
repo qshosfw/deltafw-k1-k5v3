@@ -263,6 +263,15 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
         case MENU_SET_TMR:
 #endif
+#ifdef ENABLE_TX_SOFT_START
+        case MENU_TX_SOFT_START:
+#endif
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+        case MENU_TX_COMPRESSOR:
+#endif
+#ifdef ENABLE_CTCSS_LEAD_IN
+        case MENU_CTCSS_LEAD:
+#endif
             //*pMin = 0;
             *pMax = ARRAY_SIZE(gSubMenu_OFF_ON) - 1;
             break;
@@ -659,6 +668,24 @@ void MENU_AcceptSetting(void)
         case MENU_BEEP:
             gEeprom.BEEP_CONTROL = gSubMenuSelection;
             break;
+
+#ifdef ENABLE_TX_SOFT_START
+        case MENU_TX_SOFT_START:
+            gEeprom.TX_SOFT_START = gSubMenuSelection;
+            break;
+#endif
+
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+        case MENU_TX_COMPRESSOR:
+            gEeprom.TX_AUDIO_COMPRESSOR = gSubMenuSelection;
+            break;
+#endif
+
+#ifdef ENABLE_CTCSS_LEAD_IN
+        case MENU_CTCSS_LEAD:
+            gEeprom.CTCSS_LEAD_IN = gSubMenuSelection;
+            break;
+#endif
 
         case MENU_TOT:
             gEeprom.TX_TIMEOUT_TIMER = gSubMenuSelection;
@@ -1179,6 +1206,24 @@ void MENU_ShowCurrentSetting(void)
         case MENU_BEEP:
             gSubMenuSelection = gEeprom.BEEP_CONTROL;
             break;
+
+#ifdef ENABLE_TX_SOFT_START
+        case MENU_TX_SOFT_START:
+            gSubMenuSelection = gEeprom.TX_SOFT_START;
+            break;
+#endif
+
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+        case MENU_TX_COMPRESSOR:
+            gSubMenuSelection = gEeprom.TX_AUDIO_COMPRESSOR;
+            break;
+#endif
+
+#ifdef ENABLE_CTCSS_LEAD_IN
+        case MENU_CTCSS_LEAD:
+            gSubMenuSelection = gEeprom.CTCSS_LEAD_IN;
+            break;
+#endif
 
         case MENU_TOT:
             gSubMenuSelection = gEeprom.TX_TIMEOUT_TIMER;

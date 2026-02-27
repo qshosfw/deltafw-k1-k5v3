@@ -38,6 +38,18 @@
 #include "ui/status.h"
 #include "ui/ui.h"
 
+#ifdef ENABLE_TX_SOFT_START
+#include "features/tx/tx_soft_start.h"
+#endif
+
+#ifdef ENABLE_CTCSS_LEAD_IN
+#include "features/tx/ctcss_lead.h"
+#endif
+
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+#include "features/tx/tx_compressor.h"
+#endif
+
 #ifdef ENABLE_CW_KEYER
     #include "features/cw/cw.h"
 #endif
@@ -209,6 +221,17 @@ void FUNCTION_Transmit()
     // CUSTOM: Ensure Green is OFF and RED is ON for Transmit
     BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
     BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, true);
+
+#ifdef ENABLE_CTCSS_LEAD_IN
+    CTCSS_LEAD_Start();
+#endif
+#ifdef ENABLE_TX_SOFT_START
+    uint32_t freq = gCurrentVfo->pTX->Frequency;
+    TX_SOFT_START_Begin(gCurrentVfo->OUTPUT_POWER, freq);
+#endif
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+    TX_COMPRESSOR_Start();
+#endif
 
     DTMF_Reply();
 

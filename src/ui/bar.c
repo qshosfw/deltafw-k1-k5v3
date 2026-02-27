@@ -152,26 +152,74 @@ void UI_DisplayAudioBar(void) {
 
   const uint8_t BAR_LEFT_MARGIN = 0;
 
-  uint8_t afDB = BK4819_ReadRegister(0x6F) & 0b1111111;
-  
-  // Logarithmic-style scaling for audio: sensitive at bottom, compressed at top
-  int val = afDB - 26;
-  if (val < 0) val = 0;
-  
-  // Custom non-linear mapping for 12 segments
+  bool is_mic = false;
+#ifdef ENABLE_MIC_BAR
+  if (gSetting_mic_bar) is_mic = true;
+#endif
+
   uint8_t s = 0;
-  if (val >= 1)  s = 1;
-  if (val >= 2)  s = 2;
-  if (val >= 4)  s = 3;
-  if (val >= 7)  s = 4;
-  if (val >= 11) s = 5;
-  if (val >= 16) s = 6;
-  if (val >= 23) s = 7;
-  if (val >= 32) s = 8;
-  if (val >= 43) s = 9;
-  if (val >= 57) s = 10;
-  if (val >= 75) s = 11;
-  if (val >= 95) s = 12;
+
+  if (is_mic) {
+      uint8_t afDB = BK4819_ReadRegister(0x6F) & 0b1111111;
+      
+      // Logarithmic-style scaling for audio: sensitive at bottom, compressed at top
+      int val = afDB - 26;
+      if (val < 0) val = 0;
+      
+      // Custom non-linear mapping for 12 segments
+      if (val >= 1)  s = 1;
+      if (val >= 2)  s = 2;
+      if (val >= 4)  s = 3;
+      if (val >= 7)  s = 4;
+      if (val >= 11) s = 5;
+      if (val >= 16) s = 6;
+      if (val >= 23) s = 7;
+      if (val >= 32) s = 8;
+      if (val >= 43) s = 9;
+      if (val >= 57) s = 10;
+      if (val >= 75) s = 11;
+      if (val >= 95) s = 12;
+
+      // Audio dB Label
+      NUMBER_ToDecimal(String, afDB, 3, false);
+      char *ap = String;
+      while (*ap == ' ') ap++;
+      strcpy(String, ap);
+      strcat(String, " dB");
+      
+      uint8_t labelX = 128 - (strlen(String) * 4);
+      UI_PrintStringSmallest(String, labelX, LINE * 8 + 1, false, true);
+
+  } else {
+      // TX Power Bar mapping
+      // Get the TX power level reading (from TX envelope or configured power)
+      // Since there is no direct envelope register in the open datasheet easily accessible,
+      // we'll map the current selected power to a dynamic display.
+      // E.g., User/Low1..Low5/Mid/High
+      
+      #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
+          uint8_t pwr = gTxVfo->OUTPUT_POWER;
+          // map 0..7 to segments
+          // High(7) = 12, Mid(6) = 10, Low5(5) = 8, Low4(4) = 6, Low3(3) = 4, Low2(2) = 3, Low1(1) = 2, User(0) = 1
+          uint8_t pwr2seg[] = {2, 2, 3, 4, 6, 8, 10, 12};
+          if (pwr < 8) s = pwr2seg[pwr];
+      #else
+          uint8_t pwr = gTxVfo->OUTPUT_POWER;
+          if (pwr == 0) s = 3;       // Low
+          else if (pwr == 1) s = 8;  // Mid 
+          else s = 12;               // High
+      #endif
+      
+      // Some dynamic variation (flicker) to make it feel alive, based on tick
+      uint8_t flicker = (SYSTICK_GetTick() % 3);
+      if (s > 2 && flicker == 0) s -= 1; 
+
+      strcpy(String, "TX PWR");
+      uint8_t labelX = 128 - (strlen(String) * 4);
+      UI_PrintStringSmallest(String, labelX, LINE * 8 + 1, false, true);
+  }
+
+
 
   // Peak tracking
   if (s >= s_af_peak) {
@@ -206,15 +254,7 @@ void UI_DisplayAudioBar(void) {
     }
   }
 
-  // Audio dB Label
-  NUMBER_ToDecimal(String, afDB, 3, false);
-  char *ap = String;
-  while (*ap == ' ') ap++;
-  strcpy(String, ap);
-  strcat(String, " dB");
-  
-  uint8_t labelX = 128 - (strlen(String) * 4);
-  UI_PrintStringSmallest(String, labelX, LINE * 8 + 1, false, true);
+
   
   if (gCurrentFunction == FUNCTION_TRANSMIT)
       ST7565_BlitFullScreen();

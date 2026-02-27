@@ -24,7 +24,7 @@ typedef enum {
     X(DTMF_UP_CODE,    ENC_CPUID, FIXED,  0x008018, 16,  1,   0,    0,  0) \
     X(DTMF_DOWN_CODE,  ENC_CPUID, FIXED,  0x008028, 16,  1,   0,    0,  0) \
     X(SCAN_LIST,       ENC_CPUID, FIXED,  0x009000, 8,   1,   0,    0,  0) \
-    X(F_LOCK,          ENC_CPUID, FIXED,  0x00b000, 8,   1,   0,    0,  0) \
+    X(F_LOCK,          ENC_CPUID, FIXED,  0x00b000, 10,  1,   0,    0,  0) \
     X(MR_ATTRIBUTES,   ENC_PASSCODE, LINEAR, 0x002000, 1,   207, 1,    0,  0) \
     X(CUSTOM_SETTINGS, ENC_CPUID, FIXED,  0x00c000, 8,   1,   0,    0,  0) \
     X(CHANNEL_DATA,    ENC_PASSCODE, LINEAR, 0x000000, 16,  200, 16,   0,  0) \
@@ -206,8 +206,17 @@ typedef union {
         uint8_t MIC_BAR : 1;
         uint8_t AM_FIX : 1;
         uint8_t BACKLIGHT_ON_TX_RX : 2;
+        
+        uint8_t TX_SOFT_START : 1;
+        
+        uint8_t TX_AUDIO_COMPRESSOR : 1;
+        uint8_t CTCSS_LEAD_IN : 1;
+        uint8_t SMART_SQUELCH : 1;
+        uint8_t SIGNAL_CLASSIFIER : 1;
+        uint8_t SQUELCH_TAIL_ELIMINATION : 1;
+        uint8_t UNUSED : 2;
     } fields;
-    uint8_t raw[8];
+    uint8_t raw[10];
 } __attribute__((packed)) FLockConfig_t;
 
 // Schema for REC_MR_ATTRIBUTES (1 byte per channel, 0x002000 / logical 0x0D60)

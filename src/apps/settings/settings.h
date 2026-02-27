@@ -322,6 +322,27 @@ typedef struct {
     uint8_t               S9_LEVEL;
 #endif
     uint8_t               LIVESEEK_MODE;
+
+#ifdef ENABLE_TX_SOFT_START
+    bool                  TX_SOFT_START;
+#endif
+#ifdef ENABLE_TX_AUDIO_COMPRESSOR
+    bool                  TX_AUDIO_COMPRESSOR;
+#endif
+#ifdef ENABLE_CTCSS_LEAD_IN
+    bool                  CTCSS_LEAD_IN;
+#endif
+
+#ifdef ENABLE_SMART_SQUELCH
+    bool                  SMART_SQUELCH;
+#endif
+#ifdef ENABLE_SIGNAL_CLASSIFIER
+    bool                  SIGNAL_CLASSIFIER;
+#endif
+#ifdef ENABLE_SQUELCH_TAIL_ELIMINATION
+    bool                  SQUELCH_TAIL_ELIMINATION;
+#endif
+
 } EEPROM_Config_t;
 
 extern EEPROM_Config_t gEeprom;
