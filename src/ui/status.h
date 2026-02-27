@@ -19,6 +19,7 @@
 
 void UI_DisplayStatus();
 void UI_SetStatusTitle(const char *title);
+void UI_SetStatusTitleCentered(const char *title);
 
 #endif
 

@@ -488,3 +488,17 @@ void UI_FormatTemp(char *str, int16_t deciCelsius)
     str[5] = 'C';
     str[6] = '\0';
 }
+void UI_DrawAntenna(uint8_t *buffer, uint8_t level) {
+    // 1. Draw Antenna Body (Y-shape)
+    // Diagram: X_X (Bit 1), _X_ (Bits 2-5)
+    buffer[0] = 0b00000001; // Row 1 (Bit 1)
+    buffer[1] = 0b00011110; // Rows 2-5 (Bits 2-5)
+    buffer[2] = 0b00000001; // Row 1 (Bit 1)
+
+    // 2. Draw 5 Bars (Columns 4, 6, 8, 10, 12) with 1px spacers
+    if (level >= 1) buffer[3]  = 0b00010000; // Row 5 (Bit 5)
+    if (level >= 2) buffer[5]  = 0b00011000; // Rows 4-5 (Bits 4-5)
+    if (level >= 3) buffer[7]  = 0b00011100; // Rows 3-5 (Bits 3-5)
+    if (level >= 4) buffer[9] = 0b00011110; // Rows 2-5 (Bits 2-5)
+    if (level >= 5) buffer[11] = 0b00011111; // Rows 1-5 (Bits 1-5)
+}

@@ -37,147 +37,114 @@
 #include "apps/security/passcode.h"
 
 static const char *gStatusTitleOverride = NULL;
+static bool gStatusTitleCentered = false;
 
 void UI_SetStatusTitle(const char *title) {
     gStatusTitleOverride = title;
+    gStatusTitleCentered = false;
 }
 
-#ifdef ENABLE_RX_TX_TIMER_DISPLAY
-#ifndef ENABLE_FIRMWARE_DEBUG_LOGGING
-static void convertTime(uint8_t *line, uint8_t type) 
-{
-    uint16_t t = (type == 0) ? (gTxTimerCountdown_500ms / 2) : (3600 - gRxTimerCountdown_500ms / 2);
-
-    uint8_t m = t / 60;
-    uint8_t s = t - (m * 60); // Replace modulo with subtraction for efficiency
-
-    gStatusLine[0] = gStatusLine[7] = gStatusLine[14] = 0x00; // Quick fix on display (on scanning I, II, etc.)
-
-    char str[6];
-    // sprintf(str, "%02u:%02u", m, s);
-    NUMBER_ToDecimal(str, m, 2, true);
-    str[2] = ':';
-    NUMBER_ToDecimal(str + 3, s, 2, true);
-    UI_PrintStringSmallBufferNormal(str, line);
-
-    gUpdateStatus = true;
+void UI_SetStatusTitleCentered(const char *title) {
+    gStatusTitleOverride = title;
+    gStatusTitleCentered = true;
 }
-#endif
-#endif
 
+
+#include "features/radio/radio.h"
+
+static uint8_t UI_GetStatusSignalLevel(void) {
+    if (gCurrentFunction == FUNCTION_TRANSMIT) {
+        // Map power levels (LOW, MID, HIGH) to bars (1, 3, 5)
+        if (gCurrentVfo->OUTPUT_POWER == 0) return 1;
+        if (gCurrentVfo->OUTPUT_POWER == 1) return 3;
+        return 5;
+    }
+
+    if (FUNCTION_IsRx()) {
+        uint8_t bar = gVFO_RSSI_bar_level[gEeprom.RX_VFO];
+        // Radio RSSI bars are 0-6. Map to 1-5.
+        if (bar > 5) return 5;
+        if (bar > 0) return bar;
+    }
+
+    return 0;
+}
 
 void UI_DisplayStatus() {
     gUpdateStatus = false;
     memset(gStatusLine, 0, sizeof(gStatusLine));
 
-    char str[42] = "";
-    char *p = str;
+    uint8_t x_off = 0;
+    bool simplified = AG_MENU_IsActive();
 
+    // 1. Draw Universal Antenna & Bars
+    if (!simplified) {
+        uint8_t signal = UI_GetStatusSignalLevel();
+        UI_DrawAntenna(gStatusLine, signal);
+        x_off = 15; // Icon(13) + Gap(2)
+    }
+
+    // 2. Center Title (if any)
     if (gStatusTitleOverride) {
-        strncpy(str, gStatusTitleOverride, sizeof(str)-1);
+        if (gStatusTitleCentered) {
+            uint8_t w = strlen(gStatusTitleOverride) * 4;
+            UI_PrintStringSmallest(gStatusTitleOverride, (128 - w) / 2, 0, true, true);
+        } else {
+            UI_PrintStringSmallest(gStatusTitleOverride, x_off, 0, true, true);
+            x_off += strlen(gStatusTitleOverride) * 4 + 2;
+        }
     } else if (AG_MENU_IsActive()) {
-        AG_MENU_GetPath(str, sizeof(str));
-#ifdef ENABLE_PASSCODE
-    } else if (Passcode_IsLocked()) {
-        strcpy(str, "Enter Passcode");
-#endif
-    } else {
-#ifdef ENABLE_FMRADIO
-    if (gScreenToDisplay == DISPLAY_FM) {
-        static const char* profiles[] = {"75u ", "50u ", "RAW ", "BSS "};
-        strcat(str, profiles[gFmAudioProfile % 4]);
+        char path[32];
+        AG_MENU_GetPath(path, sizeof(path));
+        uint8_t w = strlen(path) * 4;
         
-        static const char* spacings[] = {"200k ", "100k ", "50k "};
-        strcat(str, spacings[gFmSpacing % 3]);
+        // Use the title centering flag natively for menus as well, but default to left-aligned.
+        if (gStatusTitleCentered) {
+            UI_PrintStringSmallest(path, (128 - w) / 2, 0, true, true);
+        } else {
+            UI_PrintStringSmallest(path, x_off + 2, 0, true, true);
+            x_off += w + 4;
+        }
+    }
 
-        static const char* rates[] = {"FST+ ", "FST ", "SLW ", "SLW- "};
-        strcat(str, rates[gFmSoftMuteRate % 4]);
+    if (simplified) {
+        // Skip all other indicators for simplified menu view
+        goto skip_indicators;
+    }
 
-        char attStr[8];
-        uint8_t att = 16 - (gFmSoftMuteAttenuation % 4) * 2;
-        NUMBER_ToDecimal(attStr, att, 2, false);
-        strcat(attStr, "dB ");
-        strcat(str, attStr);
-        
-    } else
-#endif
-    {
+    // 3. Flowing Left Indicators
+    // We only draw these if they don't overlap too much or if not Centered
+    // But typically they should flow from left to right.
+    
 #ifdef ENABLE_NOAA
-    if (!(gScanStateDir != SCAN_OFF || SCANNER_IsScanning()) && gIsNoaaMode) { // NOAA SCAN indicator
-        *p++ = 'N';
-        *p++ = 'O';
-        *p++ = 'A';
-        *p++ = 'A';
-        *p++ = ' ';
-    }
-    else if (gCurrentFunction == FUNCTION_POWER_SAVE) {
-        *p++ = 'S';
-        *p++ = ' ';
-    }
-#else
-    if (gCurrentFunction == FUNCTION_POWER_SAVE) {
-        *p++ = 'S';
-        *p++ = ' ';
+    if (!(gScanStateDir != SCAN_OFF || SCANNER_IsScanning()) && gIsNoaaMode) {
+        UI_PrintStringSmallest("NOAA", x_off, 0, true, true);
+        x_off += 18;
     }
 #endif
 
     if (gEeprom.KEY_LOCK) {
-        *p++ = 'L';
-        *p++ = ' ';
-    }
-    else if (gWasFKeyPressed) {
-        // F-key will be drawn separately with inverted background
-        // Skip adding to string, handled after UI_PrintStringSmallest
+        UI_PrintStringSmallest("LOCK", x_off, 0, true, true);
+        x_off += 18;
+    } else if (gWasFKeyPressed) {
+        // Draw inverted F-key box
+        for (uint8_t i = 0; i < 5; i++) gStatusLine[x_off + i] |= 0b00111111;
+        gStatusLine[x_off + 1] ^= 0x1f;
+        gStatusLine[x_off + 2] ^= 0x05;
+        gStatusLine[x_off + 3] ^= 0x05;
+        x_off += 7;
     }
 
 #ifdef ENABLE_VOX
     if (gEeprom.VOX_SWITCH) {
-        *p++ = 'V';
-        *p++ = 'O';
-        *p++ = 'X';
-        *p++ = ' ';
+        UI_PrintStringSmallest("VOX", x_off, 0, true, true);
+        x_off += 14;
     }
 #endif
 
     if (gEeprom.DUAL_WATCH != DUAL_WATCH_OFF) {
-         *p++ = 'D';
-         *p++ = 'W';
-         *p++ = ' ';
-    } else if (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF) {
-         *p++ = 'X';
-         *p++ = 'B';
-         *p++ = ' ';
-    }
-    
-    *p = '\0';
-    }
-    }
-
-    if (gEeprom.RX_VFO == 0 && gEeprom.TX_VFO == 0) {
-        // Main VFO A
-    }
-    UI_PrintStringSmallest(str, 0, 0, true, true);
-    
-    // Draw inverted F-key if pressed or in FM sticky mode
-    bool fmF = false;
-#ifdef ENABLE_FMRADIO
-    if (gScreenToDisplay == DISPLAY_FM && gFmFunctionMode) fmF = true;
-#endif
-
-    if ((gWasFKeyPressed || fmF) && !gEeprom.KEY_LOCK && !AG_MENU_IsActive()) {
-        // Find position after any prior text (L, NOAA, S, etc.)
-        uint8_t x = strlen(str) * 4;  // 4px per char in smallest font
-        
-        // Draw solid background box (5px wide x 6 rows tall)
-        for (uint8_t i = 0; i < 5; i++) {
-            gStatusLine[x + i] |= 0b00111111;  // Fill 6 rows (bits 0-5)
-        }
-        
-        // Draw 'F' character from gFont3x5 inverted (XOR to make white on black)
-        // gFont3x5 'F' = {0x1f, 0x05, 0x05} - offset (x+1) to center in 5px box
-        gStatusLine[x + 1] ^= 0x1f;  // Column 0 of 'F'
-        gStatusLine[x + 2] ^= 0x05;  // Column 1 of 'F'
-        gStatusLine[x + 3] ^= 0x05;  // Column 2 of 'F'
+        UI_PrintStringSmallest("DW", x_off, 0, true, true);
+        x_off += 10;
     }
 
     // Battery Display
@@ -225,7 +192,7 @@ void UI_DisplayStatus() {
         UI_PrintStringSmallest(bat_str, x_pos, 0, true, true);
     }
     
-    
+skip_indicators:
     // Draw separator line at y=6 (Row 7)
     for (int i = 0; i < 128; i++) {
         gStatusLine[i] |= (1 << 6);

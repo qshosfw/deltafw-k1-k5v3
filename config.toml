@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.6.6"
+version = "1.7.0"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -20,33 +20,33 @@ compiler = "arm-none-eabi-gcc"
 # 🏁 Build Presets
 # =============================================================================
 
-[presets.Fusion]
-description = "🚀 Packed with features, memory intensive"
-options = { EDITION_STRING = "Fusion", FMRADIO = true, VOX = true, AIRCOPY = false}
+[presets.default]
+description = "✨ Standard balanced build for daily use"
+options = { EDITION_STRING = "Default" }
 
-[presets.Custom]
-description = "✨ Balanced build for daily use"
-options = { EDITION_STRING = "Custom" }        # Uses all defaults
+[presets.dev]
+description = "🛠️ Developer build (Experimental, all features enabled)"
+options = { EDITION_STRING = "Dev" }
 
-[presets.Bandscope]
-description = "📡 Spectrum analyzer focused"
-options = { EDITION_STRING = "Bandscope", FMRADIO = false, VOX = false }
+[presets.pro]
+description = "� Professional / Security focus (No games, stealth comms)"
+options = { EDITION_STRING = "Pro", FMRADIO = false, BOOT_BEEPS = false, CUSTOM_ROGER = false, APP_BREAKOUT_GAME = false, ALARM = false }
 
-[presets.Broadcast]
-description = "📻 FM Radio and Comms focused"
-options = { EDITION_STRING = "Broadcast", SPECTRUM = false }
+[presets.ham]
+description = "📻 Amateur Radio focus (Full features, advanced tools)"
+options = { EDITION_STRING = "Ham", SPECTRUM = true, CW_KEYER = true, DTMF_CALLING = true, TX1750 = true, NOAA = true }
 
-[presets.Basic]
-description = "🛡️ Minimal stable build"
-options = { EDITION_STRING = "Basic", SPECTRUM = false, FMRADIO = true, NOAA = false, SERIAL_SCREENCAST = false }
+[presets.survive]
+description = "⛑️ Emergency & Survival focus"
+options = { EDITION_STRING = "Survive", SPECTRUM = false, FMRADIO = false, NOAA = true, RESCUE_OPERATIONS = true, FLASHLIGHT = true, ALARM = true }
 
-[presets.RescueOps]
-description = "⛑️ Emergency operations"
-options = { EDITION_STRING = "RescueOps", SPECTRUM = false, FMRADIO = false, NOAA = true, RESCUE_OPERATIONS = true }
+[presets.explorer]
+description = "📡 Signals Intelligence & Scanning"
+options = { EDITION_STRING = "Explorer", SPECTRUM = true, SPECTRUM_WATERFALL = true, FASTER_CHANNEL_SCAN = true, LIVESEEK = true, WIDE_RX = true }
 
-[presets.Game]
-description = "🎮 Includes Breakout game"
-options = { EDITION_STRING = "Game", SPECTRUM = false, APP_BREAKOUT_GAME = true }
+[presets.barebones]
+description = "🛡️ Minimal setup for maximum stability and speed"
+options = { EDITION_STRING = "Barebones", SPECTRUM = false, FMRADIO = false, NOAA = false, SERIAL_SCREENCAST = false, CRYPTO = false, PASSCODE = false, CUSTOM_ROGER = false, APP_BREAKOUT_GAME = false, VOX = false }
 
 
 # =============================================================================
@@ -62,13 +62,13 @@ USB = true
 FLASHLIGHT = true
 BOOT_RESUME_STATE = true
 DEEP_SLEEP_MODE = true
-BK1080 = true
+BK1080 = false
 
 # 🔊 Audio & Voice
 VOICE = false
-VOX = true
+VOX = false
 ALARM = false
-TX1750 = true
+TX1750 = false
 BOOT_BEEPS = false
 RSSI_BAR = true
 MIC_BAR = true
@@ -89,7 +89,7 @@ F_CAL_MENU = false
 BATTERY_CHARGING = true
 
 # 📡 Radio Features
-FMRADIO = true
+FMRADIO = false
 NOAA = false
 PMR446_FREQUENCY_BAND = true
 GMRS_FRS_MURS_BANDS = true
@@ -120,18 +120,19 @@ EXTRA_ROGER = true
 CUSTOM_ROGER = true
 
 # 🧩 Apps & Features
-SPECTRUM = true
+
+SPECTRUM = false
 SPECTRUM_WATERFALL = false
-SPECTRUM_EXTENSIONS = true
-SPECTRUM_EXTRA_VALUES = true
+SPECTRUM_EXTENSIONS = false
+SPECTRUM_EXTRA_VALUES = false
 
 AIRCOPY = false
 SERIAL_SCREENCAST = true
 APP_BREAKOUT_GAME = false
-CW_KEYER = true
+CW_KEYER = false
 DTMF_CALLING = false
 RESCUE_OPERATIONS = false
-LIVESEEK = true
+LIVESEEK = false
 REGA = false
 
 # 🔌 UART Commands

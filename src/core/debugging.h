@@ -7,6 +7,7 @@
 #include "drivers/bsp/bk4819.h"
 #include "features/am_fix/am_fix.h"
 #include "ui/helper.h"
+#include <string.h>
 
 static inline void LogUart(const char *const str)
 {

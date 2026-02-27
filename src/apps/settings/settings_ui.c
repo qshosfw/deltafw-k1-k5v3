@@ -239,7 +239,9 @@ static void Settings_GetValueStr(uint8_t settingId, char *buf, uint8_t bufLen) {
         case MENU_SFT_D: strcpy(buf, gSubMenu_SFT_D[gTxVfo->TX_OFFSET_FREQUENCY_DIRECTION]); break;
         case MENU_W_N: strcpy(buf, gSubMenu_W_N[gTxVfo->CHANNEL_BANDWIDTH]); break;
         case MENU_AM: strcpy(buf, gModulationStr[gTxVfo->Modulation]); break;
+#ifdef ENABLE_LIVESEEK
         case MENU_LIVESEEK: strcpy(buf, gSubMenu_LiveSeek[gEeprom.LIVESEEK_MODE]); break;
+#endif
         case MENU_SET_NAV: strcpy(buf, gEeprom.SET_NAV ? "K5 (U/D)" : "K1 (L/R)"); break;
         case MENU_PTT_ID: strcpy(buf, gSubMenu_PTT_ID[gTxVfo->DTMF_PTT_ID_TX_MODE]); break;
         case MENU_SET_INV: strcpy(buf, gSetting_set_inv ? "ON" : "OFF"); break;
@@ -333,7 +335,9 @@ static void Settings_UpdateValue(uint8_t settingId, bool up) {
             case MENU_SFT_D: INC_DEC(gTxVfo->TX_OFFSET_FREQUENCY_DIRECTION, 0, 2, up); break;
             case MENU_W_N: INC_DEC(gTxVfo->CHANNEL_BANDWIDTH, 0, 1, up); break;
             case MENU_AM: INC_DEC(gTxVfo->Modulation, 0, MODULATION_UKNOWN-1, up); break;
+#ifdef ENABLE_LIVESEEK
             case MENU_LIVESEEK: INC_DEC(gEeprom.LIVESEEK_MODE, 0, 2, up); break;
+#endif
             case MENU_SET_NAV: gEeprom.SET_NAV = !gEeprom.SET_NAV; break;
             case MENU_PTT_ID: INC_DEC(gTxVfo->DTMF_PTT_ID_TX_MODE, 0, 3, up); break;
         }
@@ -391,7 +395,7 @@ static bool PromptPasscode(void) {
     KEY_Code_t k0 = KEY_INVALID;
     KEY_Code_t k1 = KEY_INVALID;
     
-    TextInput_InitEx(buf, expose ? len : 32, false, expose, true, s_PasscodeCallback);
+    TextInput_InitEx(buf, expose ? len : 32, false, expose, true, false, s_PasscodeCallback);
     
     while(!s_PasscodeDone) {
          ST7565_FillScreen(0x00);

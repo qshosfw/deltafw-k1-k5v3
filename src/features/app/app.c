@@ -105,7 +105,7 @@ static uint8_t gPttRestoreVFO = 0;
 static bool    gPttVfoOverridden = false;
 
 static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld);
-static void CheckKeys(void);
+void APP_ProcessKeys(void);
 
 
 void (*ProcessKeysFunctions[])(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) = {
@@ -704,9 +704,9 @@ static void CheckRadioInterrupts(void)
                 uint16_t cssTailFound : 1;
                 uint16_t dtmf5ToneFound : 1;
                 uint16_t fskFifoAlmostFull : 1;
-                uint16_t fskRxFinied : 1;
+                uint16_t fskRxFinished : 1;
                 uint16_t fskFifoAlmostEmpty : 1;
-                uint16_t fskTxFinied : 1;
+                uint16_t fskTxFinished : 1;
             };
             uint16_t __raw;
         } interrupts;
@@ -885,9 +885,9 @@ static void HandleVox(void)
             else {
 #ifdef ENABLE_CW_KEYER
                 // CW mode: TX managed by CW module, don't interfere
-                if (gTxVfo->Modulation == MODULATION_CW && CW_IsBusy()) {
+               if (gTxVfo->Modulation == MODULATION_CW && CW_IsBusy()) {
                     return;  // Let CW module handle TX end
-                }
+               }
 #endif
                 APP_EndTransmission();
 
@@ -923,8 +923,12 @@ static void HandleVox(void)
 }
 #endif
 
+static bool gInAppUpdate = false;
 void APP_Update(void)
 {
+    if (gInAppUpdate) return;
+    gInAppUpdate = true;
+
 #ifdef ENABLE_VOICE
     if (gFlagPlayQueuedVoice) {
             AUDIO_PlayQueuedVoice();
@@ -1204,7 +1208,7 @@ void APP_Update(void)
     }
 }
 
-static void CheckKeys(void)
+void APP_ProcessKeys(void)
 {
 #ifdef ENABLE_DTMF_CALLING
     if(gSetting_KILLED){
@@ -1221,6 +1225,7 @@ static void CheckKeys(void)
     // -------------------- KEYS ------------------------
     // Scan hardware keys first to support Side Key PTT
     KEY_Code_t Key = KEYBOARD_Poll();
+
 
 // -------------------- PTT ------------------------
 #ifdef ENABLE_CUSTOM_FIRMWARE_MODS
@@ -1668,7 +1673,11 @@ void APP_TimeSlice10ms(void)
     if (gCurrentFunction == FUNCTION_TRANSMIT)
     {   // transmitting
 #ifdef ENABLE_MIC_BAR
-        if (gSetting_mic_bar && (gFlashLightBlinkCounter % (150 / 10)) == 0 && gTxVfo->Modulation != MODULATION_CW) // once every 150ms
+        if (gSetting_mic_bar && (gFlashLightBlinkCounter % (150 / 10)) == 0 
+#ifdef ENABLE_CW_KEYER
+            && gTxVfo->Modulation != MODULATION_CW
+#endif
+        ) // once every 150ms
             UI_DisplayAudioBar();
 #endif
     }
@@ -1805,7 +1814,8 @@ void APP_TimeSlice10ms(void)
     }
 #endif
 
-    CheckKeys();
+    APP_ProcessKeys();
+    gInAppUpdate = false;
 }
 
 void cancelUserInputModes(void)

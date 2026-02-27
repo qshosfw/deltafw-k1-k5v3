@@ -98,6 +98,13 @@ void AG_MENU_Deinit(void) {
   is_pressed = false;
 }
 
+void AG_MENU_Reset(void) {
+  active_menu = NULL;
+  menu_stack_top = 0;
+  is_pressed = false;
+  is_editing = false;
+}
+
 // Map domain function helper
 static int32_t ConvertDomain(int32_t aValue, int32_t aMin, int32_t aMax, int32_t bMin, int32_t bMax) {
    if (aMax == aMin) return bMin;
@@ -108,8 +115,18 @@ void AG_MENU_Render(void) {
   if (!active_menu)
     return;
 
+  if (active_menu->on_tick)
+    active_menu->on_tick(active_menu);
+
+  // Rigorous bounds checking
+  if (active_menu->num_items == 0) {
+      active_menu->i = 0;
+      AG_PrintSmallEx(LCD_WIDTH/2, active_menu->y + 10, POS_C, C_FILL, "(empty)");
+  } else if (active_menu->i >= active_menu->num_items) {
+      active_menu->i = active_menu->num_items - 1;
+  }
+
   uint8_t itemsShow = active_menu->height / active_menu->itemHeight;
-  
   if (itemsShow == 0) itemsShow = 1;
 
   // Calculate scrolling
@@ -138,20 +155,25 @@ void AG_MENU_Render(void) {
     active_menu->render_item(idx, i);
 
     if (isActive) {
-      const MenuItem *item = &active_menu->items[idx];
-      if (item->type == M_ITEM_SELECT) {
-          if (is_editing) {
-              AG_FillRect(active_menu->x, y, ex - 4, active_menu->itemHeight, C_INVERT);
+      if (active_menu->items) {
+          const MenuItem *item = &active_menu->items[idx];
+          if (item->type == M_ITEM_SELECT) {
+              if (is_editing) {
+                  AG_FillRect(active_menu->x, y, ex - 4, active_menu->itemHeight, C_INVERT);
+              } else {
+                  AG_DrawRect(active_menu->x, y, ex - 4, active_menu->itemHeight, C_FILL);
+              }
           } else {
-              AG_DrawRect(active_menu->x, y, ex - 4, active_menu->itemHeight, C_FILL);
+              const uint8_t rw = ex - 4 - active_menu->x;
+              if (is_pressed) {
+                  AG_DrawRect(active_menu->x, y, rw, active_menu->itemHeight, C_FILL);
+              } else {
+                  AG_FillRect(active_menu->x, y, rw, active_menu->itemHeight, C_INVERT);
+              }
           }
       } else {
           const uint8_t rw = ex - 4 - active_menu->x;
-          if (is_pressed) {
-              AG_DrawRect(active_menu->x, y, rw, active_menu->itemHeight, C_FILL);
-          } else {
-              AG_FillRect(active_menu->x, y, rw, active_menu->itemHeight, C_INVERT);
-          }
+          AG_FillRect(active_menu->x, y, rw, active_menu->itemHeight, C_INVERT);
       }
     }
   }
@@ -159,8 +181,13 @@ void AG_MENU_Render(void) {
   // Scrollbar
   // Always draw scrollbar as requested (fagci style)
   const uint8_t ey = active_menu->y + active_menu->height;
-  const uint8_t y_pos = ConvertDomain(active_menu->i, 0, active_menu->num_items - 1,
-                                  active_menu->y, ey - 3);
+  uint8_t y_pos;
+  if (active_menu->num_items <= 1) {
+      y_pos = active_menu->y;
+  } else {
+      y_pos = ConvertDomain(active_menu->i, 0, active_menu->num_items - 1,
+                                   active_menu->y, ey - 3);
+  }
 
   AG_DrawVLine(ex - 2, active_menu->y, active_menu->height, C_FILL);
   AG_FillRect(ex - 3, y_pos, 3, 3, C_FILL);
@@ -180,6 +207,10 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held);
 static bool handleUpDownNavigation(KEY_Code_t key, bool hasItems, bool key_held) {
   if (key != KEY_UP && key != KEY_DOWN && key != KEY_SIDE1 && key != KEY_SIDE2) {
     return false;
+  }
+
+  if (active_menu->num_items == 0) {
+    return true;
   }
 
   active_menu->i = IncDecU(active_menu->i, 0, active_menu->num_items, (key == KEY_DOWN || key == KEY_SIDE2));
@@ -306,6 +337,11 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
   // Final fallthrough for other keys (UP/DOWN/F etc handled by action)
   if (key_pressed && item->action && item->action(item, key, key_pressed, key_held)) {
     return true;
+  }
+
+  // Consume navigation and confirmation keys to prevent passthrough to background apps
+  if (key == KEY_UP || key == KEY_DOWN || key == KEY_MENU || key == KEY_EXIT || key == KEY_SIDE1 || key == KEY_SIDE2) {
+      return true;
   }
 
   return false;

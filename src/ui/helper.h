@@ -45,6 +45,7 @@ void UI_DisplayClear();
 
 void PutPixelStatus(uint8_t x, uint8_t y, bool fill);
 void UI_PrintStringSmallest(const char *pString, uint8_t x, uint8_t y, bool statusbar, bool fill);
+void UI_DrawAntenna(uint8_t *buffer, uint8_t level);
 
 int ConvertDomain(int aValue, int aMin, int aMax, int bMin, int bMax);
 

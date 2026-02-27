@@ -280,6 +280,8 @@ typedef union {
     uint8_t raw[128];
 } __attribute__((packed)) PasscodeConfig_t;
 
+
+
 typedef struct {
     uint16_t entries[16]; // 9 bits freq idx (0=pause, else 250+i*10), 7 bits duration (unit*20ms)
 } __attribute__((packed)) CustomRoger_t;

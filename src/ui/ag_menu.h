@@ -41,6 +41,7 @@ typedef struct Menu {
   uint16_t i; // Current selection index
   MenuRenderItem render_item;
   MenuOnEnter on_enter;
+  void (*on_tick)(struct Menu *menu);
   
   // Custom action handler for the menu itself (e.g. for non-standard navigation)
   bool (*action)(uint16_t index, KEY_Code_t key, bool key_pressed, bool key_held);
@@ -54,6 +55,7 @@ typedef struct Menu {
 
 void AG_MENU_Init(Menu *main_menu);
 void AG_MENU_Deinit(void);
+void AG_MENU_Reset(void);
 void AG_MENU_Render(void);
 bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held);
 bool AG_MENU_Back(void);

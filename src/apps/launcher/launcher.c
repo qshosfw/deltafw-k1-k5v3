@@ -81,14 +81,14 @@ static bool LA_Scanner(const MenuItem *item, KEY_Code_t key, bool key_pressed, b
      return true;
 }
 
+#ifdef ENABLE_AIRCOPY
 static bool LA_AirCopy(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     if (key != KEY_MENU && key != KEY_PTT) return false;
     if (!key_pressed || key_held) return true;
-    #ifdef ENABLE_AIRCOPY
     gRequestDisplayScreen = DISPLAY_AIRCOPY;
-    #endif
     return true;
 }
+#endif
 
 static bool LA_Info(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool key_held) {
     if (key != KEY_MENU && key != KEY_PTT) return false;
@@ -102,7 +102,9 @@ static bool LA_Info(const MenuItem *item, KEY_Code_t key, bool key_pressed, bool
 static const MenuItem launcherItems[] = {
     {"Memories", 0, NULL, NULL, NULL, LA_Memories},
     {"Settings", 0, NULL, NULL, NULL, LA_Settings},
+#if defined(ENABLE_SPECTRUM_EXTENSIONS) && defined(ENABLE_SPECTRUM)
     {"Spectrum", 0, NULL, NULL, NULL, LA_Spectrum},
+#endif
     #ifdef ENABLE_FMRADIO
     {"FM Radio", 0, NULL, NULL, NULL, LA_FM},
     #endif

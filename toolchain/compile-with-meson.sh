@@ -71,7 +71,7 @@ print_logo() {
 # ---------------------------------------------
 
 IMAGE=uvk1-uvk5v3
-PRESET=${1:-Custom}
+PRESET=${1:-default}
 shift || true
 
 # Any remaining args will be treated as Meson options

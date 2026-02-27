@@ -441,9 +441,9 @@ void Passcode_Prompt(void) {
     }
 
     if (expose) {
-        TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, InputCallback); 
+        TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, false, InputCallback); 
     } else {
-        TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, InputCallback); 
+        TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, false, InputCallback); 
     }
     
     UI_SetStatusTitle("Enter Passcode");
@@ -560,9 +560,9 @@ void Passcode_Prompt(void) {
             }
 
             if (expose) {
-                TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, InputCallback); 
+                TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, false, InputCallback); 
             } else {
-                TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, InputCallback); 
+                TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, false, InputCallback); 
             }
         }
     }
@@ -589,9 +589,9 @@ void Passcode_Change(void) {
         // If length is exposed, use the actual length and force full.
         // If hidden, allow up to max and don't show length.
         if (expose) {
-            TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, InputCallback); 
+            TextInput_InitEx(gPasscodeInput, gPasscodeConfig.fields.Length, false, true, true, false, InputCallback); 
         } else {
-            TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, InputCallback); 
+            TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, false, false, false, InputCallback); 
         }
         
         UI_SetStatusTitle("Verify Passcode");
@@ -647,7 +647,7 @@ void Passcode_Change(void) {
     memset(gPasscodeInput, 0, sizeof(gPasscodeInput));
     gPasscodeDone = false;
     // Always use MAX length for new passcode during setup, but hide indicator if requested.
-    TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, expose, false, InputCallback);
+    TextInput_InitEx(gPasscodeInput, PASSCODE_MAX_LEN, false, expose, false, false, InputCallback);
     UI_SetStatusTitle("Set Passcode");
     
     while(!gPasscodeDone && TextInput_IsActive()) {
@@ -693,7 +693,7 @@ void Passcode_Change(void) {
         gPasscodeDone = false;
         // Use ACTUAL length of new passcode for confirmation.
         // Cap max length at newLen to ensure consistency.
-        TextInput_InitEx(gPasscodeInput, newLen, false, expose, expose, InputCallback);
+        TextInput_InitEx(gPasscodeInput, newLen, false, expose, expose, false, InputCallback);
         UI_SetStatusTitle("Confirm Passcode");
         
         while(!gPasscodeDone && TextInput_IsActive()) {

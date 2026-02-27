@@ -11,8 +11,8 @@ WHITE  := \033[37m
 GRAY   := \033[90m
 RESET  := \033[0m
 
-.PHONY: all fusion custom menuconfig config help clean \
-        bandscope broadcast basic rescue game all-presets release debug
+.PHONY: all default dev custom menuconfig config help clean \
+        pro ham survive explorer barebones release debug
 
 # Default target - show help
 all: help
@@ -21,32 +21,32 @@ all: help
 # Quick Build Targets
 # ============================================================================
 
-# Recommended for new UV-K1/K5 V3 radios with expanded flash
-fusion:
-	@./toolchain/compile-with-meson.sh Fusion
+# Recommended for daily use
+default:
+	@./toolchain/compile-with-meson.sh default
 
-# Standard balanced build
-custom:
-	@./toolchain/compile-with-meson.sh Custom
+# Developer build (all features)
+dev:
+	@./toolchain/compile-with-meson.sh dev
 
 # ============================================================================
 # Preset Builds
 # ============================================================================
 
-bandscope:
-	@./toolchain/compile-with-meson.sh Bandscope
+pro:
+	@./toolchain/compile-with-meson.sh pro
 
-broadcast:
-	@./toolchain/compile-with-meson.sh Broadcast
+ham:
+	@./toolchain/compile-with-meson.sh ham
 
-basic:
-	@./toolchain/compile-with-meson.sh Basic
+survive:
+	@./toolchain/compile-with-meson.sh survive
 
-rescue:
-	@./toolchain/compile-with-meson.sh RescueOps
+explorer:
+	@./toolchain/compile-with-meson.sh explorer
 
-game:
-	@./toolchain/compile-with-meson.sh Game
+barebones:
+	@./toolchain/compile-with-meson.sh barebones
 
 all-presets:
 	@./toolchain/compile-with-meson.sh All
@@ -65,9 +65,9 @@ config: menuconfig
 # Aliases
 # ============================================================================
 
-release: fusion
+release: default
 debug:
-	@./toolchain/compile-with-meson.sh Fusion --buildtype=debug
+	@./toolchain/compile-with-meson.sh default --buildtype=debug
 
 # ============================================================================
 # Flashing
@@ -96,17 +96,17 @@ help:
 	@echo -e "  ══════════════════════════════════════════════════════════"
 	@echo -e ""
 	@echo -e "  ${BOLD}${BLUE}Quick Start:${RESET}"
-	@echo -e "    ${GREEN}make fusion${RESET}       Build Fusion (recommended for new radios)"
-	@echo -e "    ${GREEN}make custom${RESET}       Build Custom (balanced features)"
-	@echo -e "    ${GREEN}make menuconfig${RESET}  Interactive build configurator"
+	@echo -e "    ${GREEN}make default${RESET}      Standard balanced build (daily use)"
+	@echo -e "    ${GREEN}make dev${RESET}          Developer build (experimental, all features)"
+	@echo -e "    ${GREEN}make menuconfig${RESET}   Interactive build configurator"
 	@echo -e ""
-	@echo -e "  ${BOLD}${BLUE}Preset Builds:${RESET}"
-	@echo -e "    ${CYAN}make bandscope${RESET}   Spectrum analyzer focused"
-	@echo -e "    ${CYAN}make broadcast${RESET}   FM radio and comms focused"
-	@echo -e "    ${CYAN}make basic${RESET}       Minimal stable build"
-	@echo -e "    ${CYAN}make rescue${RESET}      Emergency operations"
-	@echo -e "    ${CYAN}make game${RESET}        Includes Breakout game"
-	@echo -e "    ${CYAN}make all-presets${RESET} Build all available presets"
+	@echo -e "  ${BOLD}${BLUE}Professional Presets:${RESET}"
+	@echo -e "    ${CYAN}make pro${RESET}          Security focus, stealth comms"
+	@echo -e "    ${CYAN}make ham${RESET}          Amateur Radio focus, full features"
+	@echo -e "    ${CYAN}make survive${RESET}      Emergency & Survival focus"
+	@echo -e "    ${CYAN}make explorer${RESET}     Signals Intelligence & Scanning"
+	@echo -e "    ${CYAN}make barebones${RESET}    Minimal setup, maximum stability"
+	@echo -e "    ${CYAN}make all-presets${RESET}  Build all available presets"
 	@echo -e ""
 	@echo -e "  ${BOLD}${BLUE}Flashing:${RESET}"
 	@echo -e "    ${YELLOW}make flash${RESET}       Flash the most recent binary to radio"
@@ -114,5 +114,5 @@ help:
 	@echo -e ""
 	@echo -e "  ${BOLD}${BLUE}Utilities:${RESET}"
 	@echo -e "    ${WHITE}make clean${RESET}       Remove all build artifacts"
-	@echo -e "    ${WHITE}make debug${RESET}       Build Fusion with debug symbols"
+	@echo -e "    ${WHITE}make debug${RESET}       Build default with debug symbols"
 	@echo -e ""

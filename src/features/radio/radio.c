@@ -19,9 +19,6 @@
 
 #include "features/am_fix/am_fix.h"
 #include "features/dtmf/dtmf.h"
-#ifdef ENABLE_FMRADIO
-    #include "apps/fm/fm.h"
-#endif
 #include "features/audio/audio.h"
 #include "features/dcs/dcs.h"
 #include "drivers/bsp/bk4819.h"

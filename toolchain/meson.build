@@ -510,7 +510,12 @@ endif
 
 if get_option('CRYPTO')
   defines += '-DENABLE_CRYPTO'
-  sources += files('../src/helper/crypto.c')
+  sources += files(
+    '../src/helper/crypto.c',
+    '../src/helper/chacha20.c',
+    '../src/helper/poly1305.c',
+    '../src/helper/trng.c'
+  )
 endif
 
 if get_option('STORAGE_ENCRYPTION')

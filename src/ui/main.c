@@ -94,33 +94,6 @@ const char *VfoStateStr[] = {
 #include "features/am_fix/am_fix.h"
 #endif
 
-#if !defined(ENABLE_RSSI_BAR) && !defined(ENABLE_MIC_BAR)
-static void DrawSmallAntennaAndBars(uint8_t *p, unsigned int level)
-{
-	p[0] = 0b00000000;
-	p[1] = 0b00000010;
-	p[2] = 0b00000100;
-	p[3] = 0b01111000;
-	p[4] = 0b00000100;
-	p[5] = 0b00000010;
-	p[6] = 0b00000000;
-
-	if (level > 0)
-	{
-		p[ 8] = 0b01000000;
-		if (level > 1)
-			p[ 9] = 0b01100000;
-		if (level > 2)
-			p[11] = 0b01110000;
-		if (level > 3)
-			p[12] = 0b01111000;
-		if (level > 4)
-			p[14] = 0b01111100;
-		if (level > 5)
-			p[15] = 0b01111110;
-	}
-}
-#endif
 
 #ifdef ENABLE_AGC_SHOW_DATA
 void UI_MAIN_PrintAGC(bool now)
@@ -179,7 +152,9 @@ void UI_MAIN_TimeSlice500ms(void)
 
         if(FUNCTION_IsRx()) {
 #ifdef ENABLE_RSSI_BAR
+#ifdef ENABLE_CW_KEYER
         if (gRxVfo->Modulation != MODULATION_CW)
+#endif
             UI_DisplayRSSIBar(true);
 #endif
         }
@@ -248,7 +223,7 @@ void UI_DisplayMain(void)
     center_line = CENTER_LINE_NONE;
 #ifdef ENABLE_CW_KEYER
     if (gTxVfo->Modulation == MODULATION_CW || gRxVfo->Modulation == MODULATION_CW) {
-        center_line = CENTER_LINE_CW;
+        CW_DisplayMain();
     }
 #endif
 
@@ -780,7 +755,7 @@ void UI_DisplayMain(void)
             {   // RX signal level
 #if !defined(ENABLE_RSSI_BAR) && !defined(ENABLE_MIC_BAR)
                 if (gVFO_RSSI_bar_level[vfo_num] > 0) {
-                    DrawSmallAntennaAndBars(p_line1 + 110, gVFO_RSSI_bar_level[vfo_num]);
+                    UI_DrawAntenna(p_line1 + 110, gVFO_RSSI_bar_level[vfo_num]);
                 }
 #endif
             }
@@ -939,7 +914,13 @@ void UI_DisplayMain(void)
 
 #ifdef ENABLE_MIC_BAR
         if (gSetting_mic_bar && gCurrentFunction == FUNCTION_TRANSMIT) {
-            if (gRxVfo->Modulation != MODULATION_CW) {
+            if (
+#ifdef ENABLE_CW_KEYER
+                gRxVfo->Modulation != MODULATION_CW
+#else
+                true
+#endif
+            ) {
                 center_line = CENTER_LINE_MIC_BAR;
                 UI_DisplayAudioBar();
             }
@@ -966,7 +947,13 @@ void UI_DisplayMain(void)
 
 #ifdef ENABLE_RSSI_BAR
         if (rx) {
-            if (gRxVfo->Modulation != MODULATION_CW) {
+            if (
+#ifdef ENABLE_CW_KEYER
+                gRxVfo->Modulation != MODULATION_CW
+#else
+                true
+#endif
+            ) {
                 center_line = CENTER_LINE_RSSI;
                 UI_DisplayRSSIBar(false);
             }

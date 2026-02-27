@@ -13,18 +13,24 @@ static bool gTextInputActive = false;
 static void (*gTextInputCallback)(void) = NULL;
 static bool gTextInputShowLength = true;
 static bool gTextInputForceFull = false;
+static bool gTextInputMultiline = false;
 static uint16_t inputTick = 0;
 static uint16_t lastKeyTime = 0;
+static int16_t scrollOffsetY = 0;
+static int16_t scrollOffsetX = 0;
 
 
+
+static bool cursorVisible = true;
 
 bool TextInput_Tick(void) {
     if (!gTextInputActive) return false;
     inputTick++;
-    // Redraw every 500ms (50 ticks) for blink logic toggle
-    // But to catch the toggle edge exactly, we return true periodically?
-    // Actually, just returning check:
-    return (inputTick % 25 == 0); // Update every 250ms
+    if (inputTick % 25 == 0) {
+        cursorVisible = !cursorVisible;
+        return true;
+    }
+    return false;
 }
 
 // T9 Character Sets
@@ -111,8 +117,13 @@ static void InsertChar(char c) {
     size_t len = strlen(gTextInputBuffer);
     if (len >= gTextInputMaxLen) return;
     
+    if (inputIndex < len) {
+        memmove(gTextInputBuffer + inputIndex + 1, gTextInputBuffer + inputIndex, len - inputIndex + 1);
+    } else {
+        gTextInputBuffer[inputIndex + 1] = '\0';
+    }
+    
     gTextInputBuffer[inputIndex++] = c;
-    gTextInputBuffer[inputIndex] = '\0';
 }
 
 static void ReplaceCurrentChar(char c) {
@@ -126,21 +137,22 @@ static void Backspace(void) {
     if (!gTextInputBuffer || inputIndex == 0) return;
     inputIndex--;
     memmove(gTextInputBuffer + inputIndex, gTextInputBuffer + inputIndex + 1,
-            gTextInputMaxLen - inputIndex);
-    cursorBlink = true;  // Keep cursor visible
+            strlen(gTextInputBuffer + inputIndex));
+    cursorVisible = true; 
     blinkCounter = 0;
 }
 
 void TextInput_Init(char *buffer, uint8_t maxLen, bool ignoreFirstMenuReleaseArg, void (*callback)(void)) {
-    TextInput_InitEx(buffer, maxLen, ignoreFirstMenuReleaseArg, true, false, callback);
+    TextInput_InitEx(buffer, maxLen, ignoreFirstMenuReleaseArg, true, false, false, callback);
 }
 
-void TextInput_InitEx(char *buffer, uint8_t maxLen, bool ignoreFirstMenuReleaseArg, bool showLength, bool forceFull, void (*callback)(void)) {
+void TextInput_InitEx(char *buffer, uint8_t maxLen, bool ignoreFirstMenuReleaseArg, bool showLength, bool forceFull, bool multiline, void (*callback)(void)) {
     gTextInputBuffer = buffer;
     gTextInputMaxLen = maxLen;
     gTextInputCallback = callback;
     gTextInputShowLength = showLength;
     gTextInputForceFull = forceFull;
+    gTextInputMultiline = multiline;
     gTextInputActive = true;
     inputIndex = strlen(buffer);
     currentCharset = CHARSET_UPPER;
@@ -152,6 +164,8 @@ void TextInput_InitEx(char *buffer, uint8_t maxLen, bool ignoreFirstMenuReleaseA
     lastLongPressedKey = KEY_INVALID;
     inputTick = 0;
     lastKeyTime = 0;
+    scrollOffsetY = 0;
+    scrollOffsetX = 0;
 }
 
 bool TextInput_IsActive(void) {
@@ -180,7 +194,7 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
     // Assuming SET_NAV = true means "Inverted" or "K1 Style" where keys might be swapped visually.
     // If user says "in k1 right button moves right cursor", and usually "Right" button is physically mapped to UP or DOWN depending on model.
     // Let's assume standard behavior: SET_NAV swaps them.
-    if (gEeprom.SET_NAV) { // Swapped
+    if (gEeprom.SET_NAV == 0) { // K1 layout (L/R) might need inverted logic for up/down visual
         keyUp   = KEY_DOWN;
         keyDown = KEY_UP;
     }
@@ -220,6 +234,17 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
                 }
                 return true;
             }
+            case KEY_MENU:
+                if (!gTextInputMultiline) {
+                    if (lastLongPressedKey != key) {
+                        ConfirmCurrentChar();
+                        if (gTextInputCallback) gTextInputCallback();
+                        TextInput_Deinit();
+                        lastLongPressedKey = key;
+                    }
+                    return true;
+                }
+                break;
                 
             default:
                 break;
@@ -329,19 +354,14 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
                 UpdateCharset();
                 return true;
 
-            // KEY_UP and KEY_DOWN are handled dynamically above
-
             case KEY_EXIT:
-                // Short press EXIT = backspace (including cancel pending char)
                 if (lastKey != 0xFF) {
-                    // Cancel pending char and backspace
                     Backspace();
                     lastKey = 0xFF;
                     keyPressCount = 0;
                 } else if (inputIndex > 0) {
                     Backspace();
                 }
-                // If nothing to backspace, do nothing (don't exit)
                 return true;
 
             case KEY_MENU:
@@ -349,19 +369,32 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
                     ignoreFirstMenuRelease = false;
                     return true;
                 }
-                if (gTextInputForceFull && strlen(gTextInputBuffer) < gTextInputMaxLen) {
-                    AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL);
-                    return true;
-                }
+                
                 ConfirmCurrentChar();
-                if (gTextInputCallback) {
-                    gTextInputCallback();
+                if (gTextInputMultiline) {
+                    // Short press M = Newline
+                    InsertChar('\n');
+                } else {
+                    // Single line M = Enter/Callback (handled via short press if not long pressed)
+                    if (gTextInputCallback) gTextInputCallback();
+                    TextInput_Deinit();
                 }
-                TextInput_Deinit();
                 return true;
 
             default:
                 break;
+        }
+    }
+
+    // Long press handled as release override
+    if (bKeyPressed && bKeyHeld) {
+        if (key == KEY_MENU && !ignoreFirstMenuRelease) {
+            // M Long Press = SEND / SUBMIT
+            ConfirmCurrentChar();
+            if (gTextInputCallback) gTextInputCallback();
+            TextInput_Deinit();
+            lastLongPressedKey = KEY_MENU;
+            return true;
         }
     }
 
@@ -371,109 +404,175 @@ bool TextInput_HandleInput(KEY_Code_t key, bool bKeyPressed, bool bKeyHeld) {
 void TextInput_Render(void) {
     if (!gTextInputActive || !gTextInputBuffer) return;
 
-    // Clear screen
+    // 0. Setup Context
+    const bool isK1 = (gEeprom.SET_NAV == 0);
+    const uint8_t HEADER_Y = 14;
+    const uint8_t CHAR_W = 6;
+    const uint8_t LINE_H = 10;
+    const uint8_t INPUT_X = 4;
+    const uint8_t INPUT_Y = 18;
+    const uint8_t VISIBLE_WIDTH = LCD_WIDTH - 12;
+    
+    // Grid is shown on non-K1, or on K1 when labels are non-obvious (symbols/numbers)
+    bool showGrid = !isK1 || (currentCharset == CHARSET_NUMBERS || currentCharset == CHARSET_SYMBOLS);
+
+    // Max visible lines based on K1 mode and grid visibility
+    uint8_t visibleLinesCap = isK1 ? (showGrid ? 2 : 4) : 2;
+    if (gTextInputMultiline) visibleLinesCap = isK1 ? (showGrid ? 3 : 5) : 3;
+
     AG_FillRect(0, 8, LCD_WIDTH, LCD_HEIGHT - 8, C_CLEAR);
 
-    const size_t charCount = strlen(gTextInputBuffer);
-    const uint8_t HEADER_Y = 14;
-    const uint8_t INPUT_Y = 17;
-    const uint8_t CHAR_W = 6;
-
-    // Header: charset indicator and count
-    const char *charsetName = "ABC";
-    switch (currentCharset) {
-        case CHARSET_UPPER:   charsetName = "ABC"; break;
-        case CHARSET_LOWER:   charsetName = "abc"; break;
-        case CHARSET_NUMBERS: charsetName = "123"; break;
-        case CHARSET_SYMBOLS: charsetName = "#@$"; break;
-    }
+    // 1. Charset / Length Header
+    const char *charsetName = (currentCharset == CHARSET_UPPER) ? "ABC" : 
+                             (currentCharset == CHARSET_LOWER) ? "abc" :
+                             (currentCharset == CHARSET_NUMBERS) ? "123" : "#@$";
     AG_PrintSmall(2, HEADER_Y, charsetName);
+    
     if (gTextInputShowLength) {
-        char countBuf[12];
-        // Format as count/max (e.g. 0/32)
-        if (charCount < 10) {
-            countBuf[0] = charCount + '0';
-            countBuf[1] = '/';
-            NUMBER_ToDecimal(countBuf + 2, gTextInputMaxLen, 2, false);
-        } else {
-            NUMBER_ToDecimal(countBuf, charCount, 2, false);
-            countBuf[2] = '/';
-            NUMBER_ToDecimal(countBuf + 3, gTextInputMaxLen, 2, false);
-        }
+        char countBuf[10];
+        uint8_t charCount = strlen(gTextInputBuffer);
+        NUMBER_ToDecimal(countBuf, charCount, charCount >= 10 ? 2 : 1, false);
+        strcat(countBuf, "/");
+        char maxBuf[5];
+        NUMBER_ToDecimal(maxBuf, gTextInputMaxLen, gTextInputMaxLen >= 10 ? 2 : 1, false);
+        strcat(countBuf, maxBuf);
         AG_PrintSmallEx(LCD_WIDTH - 2, HEADER_Y, POS_R, C_FILL, countBuf);
     }
 
+    // 2. Wrap/Scroll Analysis
+    uint16_t curX = 0, curY = 0;
+    uint16_t cursorDrawX = 0, cursorDrawY = 0;
+    uint8_t lineCount = 1;
+    
+    for (uint16_t i = 0; i <= strlen(gTextInputBuffer); i++) {
+        if (i == inputIndex) {
+            cursorDrawX = curX;
+            cursorDrawY = curY * LINE_H;
+        }
+        if (i == strlen(gTextInputBuffer)) break;
 
-
-    // Input line
-    AG_DrawHLine(4, INPUT_Y + 10, LCD_WIDTH - 8, C_FILL);
-
-    // Input text
-    for (size_t i = 0; i < charCount; i++) {
-        char ch_buf[2] = {gTextInputBuffer[i], 0};
-        AG_PrintMedium(4 + i * CHAR_W, INPUT_Y + 8, ch_buf);
-    }
-
-    // Cursor blink (Time based)
-    // Force ON if recently typed (within 500ms), otherwise blink 500ms period
-    // This allows the cursor to stay visible while typing rapidly
-    bool forceOn = (inputTick - lastKeyTime) < 50;
-    if (forceOn || ((inputTick / 50) % 2 == 0)) {
-        uint8_t cursorX = 4 + inputIndex * CHAR_W - 1;
-        AG_DrawVLine(cursorX, INPUT_Y, 9, C_FILL);
-    }
-
-    // Compact 3x3 T9 Grid (bottom of screen)
-    // Adjusted Y to fit everything on 64px height
-    const uint8_t GRID_Y = 32;
-    const uint8_t CELL_W = 42;
-    const uint8_t CELL_H = 7;
-
-    for (uint8_t row = 0; row < 3; row++) {
-        for (uint8_t col = 0; col < 3; col++) {
-            uint8_t keyIdx = row * 3 + col + 1; // 1-9
-            uint8_t xPos = col * CELL_W + 2;
-            uint8_t yPos = GRID_Y + row * CELL_H;
-
-            // Key number in inverted box
-            AG_FillRect(xPos, yPos, 7, 6, C_FILL);
-            char key_buf[2] = {'0' + keyIdx, 0};
-            AG_PrintSmallEx(xPos + 3, yPos + 5, POS_C, C_INVERT, key_buf);
-
-            // Characters preview (max 4 chars)
-            const char *chars = currentSet[keyIdx];
-            char preview[5];
-            strncpy(preview, chars, 4);
-            preview[4] = '\0';
-            AG_PrintSmall(xPos + 9, yPos + 5, preview);
+        char c = gTextInputBuffer[i];
+        bool doWrap = (gTextInputMultiline && (curX + CHAR_W > VISIBLE_WIDTH));
+        
+        if (c == '\n' || doWrap) {
+            curX = 0;
+            curY++;
+            lineCount++;
+        } else {
+            curX += CHAR_W;
         }
     }
 
-    // Bottom row: special keys (* 0 F)
-    const uint8_t BOTTOM_Y = GRID_Y + 3 * CELL_H;
-    
-    // * = Cycle Mode
-    AG_FillRect(2, BOTTOM_Y, 7, 6, C_FILL);
-    AG_PrintSmallEx(5, BOTTOM_Y + 5, POS_C, C_INVERT, "*");
-    
-    const char *modeName = "abc";
-    switch (currentCharset) {
-        case CHARSET_UPPER:   modeName = "NUM"; break; 
-        case CHARSET_LOWER:   modeName = "NUM"; break;
-        case CHARSET_NUMBERS: modeName = "SYM"; break;
-        case CHARSET_SYMBOLS: modeName = "ABC"; break;
+    // Vertical Auto-scroll (Multiline)
+    if (curY >= scrollOffsetY + visibleLinesCap) {
+        scrollOffsetY = curY - visibleLinesCap + 1;
+    } else if (curY < scrollOffsetY) {
+        scrollOffsetY = curY;
     }
-    AG_PrintSmall(11, BOTTOM_Y + 4, modeName);
 
-    // 0 = Space
-    AG_FillRect(44, BOTTOM_Y, 7, 6, C_FILL);
-    AG_PrintSmallEx(47, BOTTOM_Y + 5, POS_C, C_INVERT, "0");
-    AG_PrintSmall(53, BOTTOM_Y + 4, currentSet[0]);
+    // Horizontal Auto-scroll (Single line)
+    if (!gTextInputMultiline) {
+        if (cursorDrawX >= scrollOffsetX + VISIBLE_WIDTH) {
+            scrollOffsetX = cursorDrawX - VISIBLE_WIDTH + CHAR_W;
+        } else if (cursorDrawX < scrollOffsetX) {
+            scrollOffsetX = cursorDrawX;
+        }
+    } else {
+        scrollOffsetX = 0;
+    }
 
-    // F = Case
-    AG_FillRect(86, BOTTOM_Y, 7, 6, C_FILL);
-    AG_PrintSmallEx(89, BOTTOM_Y + 5, POS_C, C_INVERT, "F");
-    AG_PrintSmall(95, BOTTOM_Y + 4, currentCharset == CHARSET_UPPER ? "abc" : "ABC");
+    // 3. Render Text
+    curX = 0; curY = 0;
+    for (uint16_t i = 0; i < strlen(gTextInputBuffer); i++) {
+        char c = gTextInputBuffer[i];
+        bool doWrap = (gTextInputMultiline && (curX + CHAR_W > VISIBLE_WIDTH));
+        
+        if (c == '\n' || doWrap) {
+            curX = 0;
+            curY++;
+        }
+        
+        // Vertical Clip
+        if (curY >= scrollOffsetY && curY < scrollOffsetY + visibleLinesCap) {
+            int16_t dx = INPUT_X + curX - scrollOffsetX;
+            // Horizontal Clip for Single Line
+            if (dx + CHAR_W > 0 && dx < LCD_WIDTH - 4) {
+                if (c != '\n') {
+                    char buf[2] = {c, 0};
+                    AG_PrintMedium(dx, INPUT_Y + (curY - scrollOffsetY) * LINE_H + 8, buf);
+                }
+            }
+        }
+        
+        if (c != '\n') curX += CHAR_W;
+    }
+
+    // 4. Cursor
+    if (cursorVisible || (inputTick - lastKeyTime < 50)) {
+        int16_t vy = cursorDrawY / LINE_H;
+        if (vy >= scrollOffsetY && vy < scrollOffsetY + visibleLinesCap) {
+            int16_t dx = INPUT_X + cursorDrawX - scrollOffsetX;
+            if (dx >= INPUT_X && dx <= LCD_WIDTH - 4) {
+                AG_DrawVLine(dx, INPUT_Y + (vy - scrollOffsetY) * LINE_H, 10, C_FILL);
+            }
+        }
+    }
+
+    // 5. Scrollbar (Vertical only for multiline)
+    if (gTextInputMultiline && lineCount > visibleLinesCap) {
+        uint8_t sbH = visibleLinesCap * LINE_H;
+        AG_DrawVLine(LCD_WIDTH - 2, INPUT_Y, sbH, C_FILL);
+        uint8_t thumbH = (visibleLinesCap * sbH) / lineCount;
+        if (thumbH < 4) thumbH = 4;
+        uint8_t thumbY = INPUT_Y + (scrollOffsetY * (sbH - thumbH)) / (lineCount - visibleLinesCap);
+        AG_FillRect(LCD_WIDTH - 3, thumbY, 3, thumbH, C_FILL);
+    }
+
+    // 6. T9 Hints
+    const uint8_t GRID_Y = 36;
+    const uint8_t CELL_W = 42;
+    const uint8_t CELL_H = 7;
+
+    if (showGrid) {
+        for (uint8_t r = 0; r < 3; r++) {
+            for (uint8_t c = 0; c < 3; c++) {
+                uint8_t key = r * 3 + c + 1;
+                uint8_t x = c * CELL_W + 2;
+                uint8_t y = GRID_Y + r * CELL_H;
+                AG_FillRect(x, y, 7, 6, C_FILL);
+                char kbuf[2] = {'0' + key, 0};
+                AG_PrintSmallEx(x + 3, y + 5, POS_C, C_INVERT, kbuf);
+                AG_PrintSmall(x + 9, y + 5, currentSet[key]);
+            }
+        }
+    }
+
+    // Bottom Row Hints
+    const uint8_t BY = (isK1 && !showGrid) ? 56 : (GRID_Y + 3 * CELL_H);
+    
+    // [* Mode]
+    AG_FillRect(2, BY, 7, 6, C_FILL);
+    AG_PrintSmallEx(5, BY + 5, POS_C, C_INVERT, "*");
+    const char *mName = (currentCharset == CHARSET_NUMBERS) ? "SYM" : 
+                        (currentCharset == CHARSET_SYMBOLS) ? (previousCharset == CHARSET_UPPER ? "ABC" : "abc") : "123";
+    AG_PrintSmall(11, BY + 5, mName);
+
+    // [Center M: Enter] or [0 Space] (Aligned to grid column 1)
+    if (isK1) {
+        AG_FillRect(44, BY, 7, 6, C_FILL);
+        AG_PrintSmallEx(47, BY + 5, POS_C, C_INVERT, "M");
+        AG_PrintSmall(53, BY + 5, "Enter");
+    } else {
+        AG_FillRect(44, BY, 7, 6, C_FILL);
+        AG_PrintSmallEx(47, BY + 5, POS_C, C_INVERT, "0");
+        AG_PrintSmall(53, BY + 5, "Space");
+    }
+
+    // [# Case] (Aligned to grid column 2)
+    AG_FillRect(86, BY, 7, 6, C_FILL);
+    AG_PrintSmallEx(89, BY + 5, POS_C, C_INVERT, "#");
+    const char *caseTarget = (currentCharset == CHARSET_UPPER) ? "abc" : (currentCharset == CHARSET_LOWER ? "ABC" : "Case");
+    AG_PrintSmall(95, BY + 5, caseTarget);
 
     ST7565_BlitFullScreen();
 }
