@@ -86,4 +86,5 @@ option('PASSCODE', type: 'boolean', value: true, description: 'Enable Device Pas
 option('TRNG_SENSORS', type: 'boolean', value: true, description: 'Enable TRNG Sensors (Temp/VREF entropy)')
 option('EXTRA_ROGER', type: 'boolean', value: true, description: 'Enable Extra Roger Beep presets')
 option('CUSTOM_ROGER', type: 'boolean', value: true, description: 'Enable Custom Roger Beep support via EEPROM')
+option('ANTENNA_SIGNAL_BAR', type: 'boolean', value: false, description: 'Enable 1-5 Antenna Signal Bar in status bar')
 option('EDITION_STRING', type: 'string', value: 'Custom', description: 'Edition String')

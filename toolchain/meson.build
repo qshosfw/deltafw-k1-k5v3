@@ -610,6 +610,11 @@ if get_option('CUSTOM_ROGER')
   defines += '-DENABLE_CUSTOM_ROGER'
 endif
 
+if get_option('ANTENNA_SIGNAL_BAR')
+  defines += '-DENABLE_ANTENNA_SIGNAL_BAR'
+  sources += files('../src/features/rx/signal_quality.c')
+endif
+
 # Other Defines
 defines += '-DSQL_TONE=550'
 

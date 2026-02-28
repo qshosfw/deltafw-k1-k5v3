@@ -7,7 +7,7 @@
 
 [project]
 name = "deltafw"
-version = "1.7.0"
+version = "1.7.2"
 authors = ["qshosfw"]
 supported_devices = ["UV-K1", "UV-K5v3"]
 
@@ -109,6 +109,7 @@ RESET_CHANNEL_FUNCTION = false
 AM_FIX = false
 AM_FIX_SHOW_DATA = false
 AGC_SHOW_DATA = false
+ANTENNA_SIGNAL_BAR = true
 
 # 🛠️  New Feature Toggles
 SCRAMBLER = true

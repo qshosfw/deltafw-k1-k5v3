@@ -17,6 +17,8 @@ static bool is_pressed = false;
 
 static void (*renderFn)(uint8_t x, uint8_t y, const char *str);
 
+extern bool gUpdateStatus;
+
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
@@ -198,6 +200,7 @@ void AG_MENU_EnterMenu(Menu *submenu) {
         menu_stack[menu_stack_top++] = active_menu;
         active_menu = submenu;
         active_menu->i = 0;
+        gUpdateStatus = true;
         init();
     }
 }
@@ -218,6 +221,8 @@ static bool handleUpDownNavigation(KEY_Code_t key, bool hasItems, bool key_held)
   if (!key_held) {
     AUDIO_PlayBeep(BEEP_1KHZ_60MS_OPTIONAL);
   }
+
+  gUpdateStatus = true;
 
   if (!hasItems && active_menu->action) {
     active_menu->action(active_menu->i, key, false, false);
@@ -350,6 +355,7 @@ bool AG_MENU_HandleInput(KEY_Code_t key, bool key_pressed, bool key_held) {
 bool AG_MENU_Back(void) {
   if (menu_stack_top > 0) {
     active_menu = menu_stack[--menu_stack_top];
+    gUpdateStatus = true;
     init();
     return true;
   }
@@ -366,22 +372,22 @@ void AG_MENU_GetPath(char *buf, size_t len) {
     for (uint8_t i = 0; i < menu_stack_top; ++i) {
         const char *t = menu_stack[i]->title ? menu_stack[i]->title : "";
         size_t t_len = strlen(t);
-        size_t required_len = t_len + 3; // for " > "
         
-        if (offset + required_len + 1 > len) { // +1 for null terminator
-            buf[len-1] = '\0';
-            return;
-        }
+        if (offset + t_len + 4 > len) break; // Check for "title > "
         
-        strcpy(buf + offset, t);
+        memcpy(buf + offset, t, t_len);
         offset += t_len;
-        strcpy(buf + offset, " > ");
+        memcpy(buf + offset, " > ", 3);
         offset += 3;
     }
     
     // Active menu
     if (active_menu) {
         const char *t = active_menu->title ? active_menu->title : "";
-        strcpy(buf + offset, t);
+        size_t t_len = strlen(t);
+        if (offset + t_len + 1 > len) t_len = len - offset - 1;
+        memcpy(buf + offset, t, t_len);
+        offset += t_len;
     }
+    buf[offset] = '\0';
 }

@@ -108,6 +108,10 @@ void Main(void)
     Passcode_Init();
 #endif
 
+#ifdef ENABLE_ANTENNA_SIGNAL_BAR
+    SIGNAL_QUALITY_Init();
+#endif
+
 
 
     #ifdef ENABLE_CUSTOM_FIRMWARE_MODS

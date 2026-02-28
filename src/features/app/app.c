@@ -1761,6 +1761,9 @@ void APP_TimeSlice10ms(void)
     }
     else if (gCurrentFunction == FUNCTION_RECEIVE || gCurrentFunction == FUNCTION_MONITOR || gCurrentFunction == FUNCTION_INCOMING)
     {
+#ifdef ENABLE_ANTENNA_SIGNAL_BAR
+        SIGNAL_QUALITY_Update();
+#endif
 #ifdef ENABLE_SIGNAL_CLASSIFIER
         SIGNAL_CLASSIFIER_Update(gEeprom.RX_VFO, (BK4819_GetRSSI() / 2) - 160);
 #endif
